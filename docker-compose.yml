@@ -24,3 +24,19 @@ services:
       # can end up visible in image layer history).
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
     restart: unless-stopped
+
+  # Optional: runs the Cloudflare Tunnel alongside Hodora instead of as a
+  # separate native process. See cloudflared/config.yml.example — copy it to
+  # cloudflared/config.yml (filled in with your tunnel ID/hostname) and put
+  # your tunnel's credentials JSON in the same cloudflared/ directory before
+  # starting this. Both files are gitignored since the credentials file is a
+  # private key. Comment this whole service out if you're running cloudflared
+  # some other way (native install, a separate Unraid container, etc.).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+    depends_on:
+      - hodora
+    restart: unless-stopped

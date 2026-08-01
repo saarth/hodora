@@ -35,6 +35,10 @@ key.properties
 .wrangler/
 .dev.vars
 
+# Cloudflare Tunnel — config.yml has your hostname, *.json is a private key
+cloudflared/config.yml
+cloudflared/*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
