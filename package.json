@@ -7,6 +7,8 @@
     "dev": "vite dev",
     "build": "vite build && node scripts/generate-sw.mjs",
     "build:dev": "vite build --mode development && node scripts/generate-sw.mjs",
+    "build:node": "vite build --mode node && node scripts/generate-sw.mjs",
+    "start": "node .output/server/index.mjs",
     "preview": "wrangler dev --cwd .output",
     "deploy": "wrangler deploy --cwd .output",
     "lint": "eslint .",

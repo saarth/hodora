@@ -1,0 +1,26 @@
+# Self-hosting (Unraid, any Docker host). See README.md's
+# "Self-hosting with Docker" section for the env vars this needs.
+#
+#   docker compose up -d --build
+#
+# `docker compose` auto-loads a `.env` file from this same directory for the
+# ${VAR} substitutions below — the project's existing `.env` (see
+# .env.example) already has everything except SUPABASE_SERVICE_ROLE_KEY.
+services:
+  hodora:
+    build:
+      context: .
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+    ports:
+      - "3000:3000"
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_PROJECT_ID: ${SUPABASE_PROJECT_ID}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
+      # Bypasses RLS — runtime env var only, never a build arg (build args
+      # can end up visible in image layer history).
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+    restart: unless-stopped
