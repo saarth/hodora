@@ -1,5 +1,7 @@
 # Hodora
 
+> **Note:** I've never written code before this project — Hodora is a personal, learn-by-doing effort. It's not professionally reviewed, so please don't assume production-grade quality. I'd genuinely welcome feedback, corrections, and suggestions from anyone more experienced — issues and PRs pointing out mistakes or better approaches are very much appreciated.
+
 Hodora is a modern, open-source GPX bike navigation app. Import your GPX routes, view them on an interactive map with elevation profiles, and ride them with live turn-by-turn navigation — even offline.
 
 - **Import GPX routes** from your favorite route planners (Komoot, Strava, Ride with GPS, etc.)
