@@ -37,10 +37,18 @@ docs/
 pwa-config.mjs      # Shared PWA manifest + workbox config (see below)
 scripts/
   generate-sw.mjs   # Postbuild step that generates the real service worker
+Dockerfile           # Self-hosted (node-server preset) build — see README.md
+docker-compose.yml   # "Self-hosting with Docker" in README.md
 ```
 
 ## Things worth knowing before touching certain areas
 
+- **Deployment target.** `vite.config.ts` picks the Nitro preset from the
+  build mode: `npm run build` (no mode) targets Cloudflare Workers
+  (`cloudflare-module`), `npm run build:node` targets a plain Node server
+  (`node-server`) for the `Dockerfile`/self-hosting path. Both read the same
+  source — don't hardcode Cloudflare-specific assumptions outside
+  `vite.config.ts`/`wrangler`-specific scripts.
 - **PWA / service worker.** `pwa-config.mjs` is the single source of truth
   for the web app manifest and workbox caching rules — both `vite.config.ts`
   (dev/manifest generation) and `scripts/generate-sw.mjs` (the real,

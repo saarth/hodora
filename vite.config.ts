@@ -29,7 +29,7 @@ function maplibreWorkerShared(): Plugin {
   };
 }
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(({ command, mode }) => ({
   resolve: {
     alias: { "@": resolve(process.cwd(), "src") },
     // Keep a single copy of React and TanStack Query in the bundle — several
@@ -72,8 +72,13 @@ export default defineConfig(({ command }) => ({
       },
     }),
     // Nitro only needs to run for the actual production build — the Vite
-    // dev server serves routes directly.
-    command === "build" ? nitro({ defaultPreset: "cloudflare-module" }) : null,
+    // dev server serves routes directly. `--mode node` (see the "build:node"
+    // script) switches the output to a plain Node server for self-hosting
+    // (Docker, Unraid, etc.) instead of a Cloudflare Worker bundle — see
+    // the Dockerfile and the "Self-hosting with Docker" section in README.md.
+    command === "build"
+      ? nitro({ defaultPreset: mode === "node" ? "node-server" : "cloudflare-module" })
+      : null,
     react(),
     maplibreWorkerShared(),
     // IMPORTANT: this only generates manifest.webmanifest at build time (it

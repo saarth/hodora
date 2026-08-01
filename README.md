@@ -121,10 +121,58 @@ will prompt you to log in to a Cloudflare account. Remember to set
 environment variables — never in a client-visible `.env` or `VITE_`-prefixed
 variable.
 
-If you'd rather deploy somewhere other than Cloudflare Workers (a plain Node
-server, another edge platform, etc.), change the `defaultPreset` Nitro uses
-in `vite.config.ts` — see the [Nitro deployment docs](https://nitro.build/deploy)
-for the full list of presets.
+If you'd rather deploy somewhere other than Cloudflare Workers, `npm run
+build:node` builds Nitro's `node-server` preset instead (see "Self-hosting
+with Docker" below) — see the [Nitro deployment docs](https://nitro.build/deploy)
+for the full list of other presets if you want something else entirely.
+
+### Self-hosting with Docker (e.g. Unraid)
+
+The included `Dockerfile` builds a plain Node server image (Nitro's
+`node-server` preset) instead of a Cloudflare Worker bundle — useful for
+running Hodora on your own hardware (Unraid, a home server, any Docker host)
+that isn't always on the public internet the way Cloudflare's edge is.
+
+```sh
+docker compose up -d --build
+```
+
+`docker compose` reads a `.env` file from the repo root the same way the dev
+server does (see `.env.example`) — it already has everything `docker-compose.yml`
+needs except `SUPABASE_SERVICE_ROLE_KEY`, which you'll need to add there too.
+Without Compose, the equivalent is:
+
+```sh
+docker build \
+  --build-arg VITE_SUPABASE_URL=https://your-project-id.supabase.co \
+  --build-arg VITE_SUPABASE_PROJECT_ID=your-project-id \
+  --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key \
+  -t hodora .
+
+docker run -d -p 3000:3000 \
+  -e SUPABASE_URL=https://your-project-id.supabase.co \
+  -e SUPABASE_PROJECT_ID=your-project-id \
+  -e SUPABASE_PUBLISHABLE_KEY=your-anon-key \
+  -e SUPABASE_SERVICE_ROLE_KEY=your-service-role-key \
+  hodora
+```
+
+Note the split: the three `VITE_`-prefixed values are **build args** (Vite
+inlines them into the client bundle at build time, so they have to be known
+before the image is built), while everything passed with `docker run -e` is a
+**runtime** environment variable read by the server. Never pass
+`SUPABASE_SERVICE_ROLE_KEY` as a build arg — build args can end up visible in
+the image's layer history, and this key bypasses Row Level Security.
+
+**On Unraid specifically:** the Community Applications plugin "Docker Compose
+Manager" can run `docker-compose.yml` directly, or you can build the image
+elsewhere and add it as a custom container from Unraid's Docker tab pointing
+at port 3000. Either way, put a reverse proxy in front for HTTPS — a plain
+`http://<unraid-ip>:3000` URL won't register the service worker (offline
+maps/routes, "Add to Home Screen") since browsers only allow that over HTTPS
+or true `localhost`. [Nginx Proxy Manager](https://nginxproxymanager.com/),
+[SWAG](https://docs.linuxserver.io/general/swag/), and Cloudflare Tunnel are
+all common Unraid-friendly options for that.
 
 ## Contributing
 
