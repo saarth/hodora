@@ -178,30 +178,23 @@ only allow that over HTTPS or true `localhost`.
 so the tunnel runs alongside Hodora instead of as a separate process. Needs
 a domain on Cloudflare DNS:
 
-```sh
-cloudflared tunnel login
-cloudflared tunnel create hodora
-cloudflared tunnel route dns hodora hodora.yourdomain.com
-```
+1. [Cloudflare Zero Trust dashboard](https://one.dash.cloudflare.com/) →
+   **Networks → Tunnels → Create a tunnel** → choose **Cloudflared** → name
+   it (e.g. `hodora`) → **Save tunnel**.
+2. The setup page shows install commands for several platforms — copy the
+   token from any of them (the long string after `--token`) into
+   `CLOUDFLARE_TUNNEL_TOKEN` in `.env`.
+3. Still on the tunnel's page → **Public Hostname** tab → **Add a public
+   hostname** → subdomain/domain of your choice, type `HTTP`, URL
+   `hodora:3000` (the compose service name, not `localhost` — the two
+   containers talk to each other over the compose network). Save.
+4. `docker compose up -d --build`.
 
-That prints a tunnel ID and writes a `<tunnel-id>.json` credentials file to
-`~/.cloudflared/`. Then, in the repo:
-
-```sh
-mkdir -p cloudflared
-cp cloudflared/config.yml.example cloudflared/config.yml
-# edit cloudflared/config.yml: set <tunnel-id> and your real hostname
-cp ~/.cloudflared/<tunnel-id>.json cloudflared/
-docker compose up -d --build
-```
-
-`config.yml.example` already points at `http://hodora:3000` — the
-docker-compose service name, not `localhost`, since the two containers talk
-to each other over the compose network. Both `cloudflared/config.yml` and
-the `*.json` credentials file are gitignored; don't commit them. Once it's
-running, `https://hodora.yourdomain.com` is what to open on your phone, and
-what to add to Supabase's Auth URL Configuration (and the Google OAuth
-client's authorized origins, if you use Google sign-in).
+Cloudflare creates the DNS record and terminates HTTPS for you — no
+certificate to manage, and no config file to write. Once it's running,
+`https://hodora.yourdomain.com` is what to open on your phone, and what to
+add to Supabase's Auth URL Configuration (and the Google OAuth client's
+authorized origins, if you use Google sign-in).
 
 ## Contributing
 

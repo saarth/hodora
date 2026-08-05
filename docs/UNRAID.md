@@ -175,13 +175,12 @@ and renews the HTTPS certificate for you automatically.
    **Networks → Tunnels → Create a tunnel** → choose **Cloudflared** → give
    it a name (e.g. `hodora`) → **Save tunnel**.
 
-3. **Install the connector on Unraid.** The setup page shows an install
-   command for several platforms — pick **Docker** and copy the token it
-   gives you (a long string after `--token`). Easiest way to run it on
-   Unraid: **Apps** tab → search `cloudflared` → install the community
-   container (by `cloudflare`/linuxserver) → set its `TUNNEL_TOKEN`
-   variable to that token → **Apply**. The tunnel should show as
-   **Healthy** back in the Zero Trust dashboard within a few seconds.
+3. **Copy the tunnel token into `.env`.** The setup page shows an install
+   command for several platforms — copy the token from any of them (the
+   long string after `--token`) into `CLOUDFLARE_TUNNEL_TOKEN` in your
+   `.env` file (`nano .env`, same one from step 3 above). No separate
+   container to install — `docker-compose.yml` already has a `cloudflared`
+   service that picks this up and runs alongside `hodora`.
 
 4. **Add a public hostname.** Still on the tunnel's config page → **Public
    Hostname** tab → **Add a public hostname**:
@@ -191,17 +190,21 @@ and renews the HTTPS certificate for you automatically.
    | Subdomain | `hodora` (or whatever you want, e.g. `bike`) |
    | Domain | your domain, e.g. `example.com` |
    | Type | `HTTP` |
-   | URL | `<your-unraid-ip>:3000` |
+   | URL | `hodora:3000` (the compose service name — the two containers talk over the compose network, not `localhost`) |
 
    Save. Cloudflare automatically creates the DNS record and terminates
    HTTPS for you — there's no certificate to manage.
 
-5. **Visit** `https://hodora.example.com`. It should load Hodora with a
+5. **Bring up the stack** (or re-update it from Compose Manager if it's
+   already running) so the `cloudflared` service picks up the new env var.
+   The tunnel should show as **Healthy** in the Zero Trust dashboard within
+   a few seconds.
+
+6. **Visit** `https://hodora.example.com`. It should load Hodora with a
    valid HTTPS padlock, no port forwarding required.
 
-To update the connector later, just update the `cloudflared` container from
-Unraid's **Docker** tab like any other container — the tunnel token doesn't
-change.
+To rotate the token later, generate a new one from the tunnel's config page
+and update `CLOUDFLARE_TUNNEL_TOKEN` in `.env`, then update the stack.
 
 Don't forget to also add your HTTPS domain (e.g.
 `https://hodora.example.com`) as an authorized JavaScript origin on the

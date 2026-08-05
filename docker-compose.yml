@@ -26,17 +26,18 @@ services:
     restart: unless-stopped
 
   # Optional: runs the Cloudflare Tunnel alongside Hodora instead of as a
-  # separate native process. See cloudflared/config.yml.example — copy it to
-  # cloudflared/config.yml (filled in with your tunnel ID/hostname) and put
-  # your tunnel's credentials JSON in the same cloudflared/ directory before
-  # starting this. Both files are gitignored since the credentials file is a
-  # private key. Comment this whole service out if you're running cloudflared
-  # some other way (native install, a separate Unraid container, etc.).
+  # separate native process. Create the tunnel in the Cloudflare Zero Trust
+  # dashboard (Networks -> Tunnels -> Create a tunnel -> Cloudflared) and set
+  # its public hostname there too (Public Hostname tab -> point it at
+  # http://hodora:3000, the compose service name). Copy the token the
+  # dashboard gives you into CLOUDFLARE_TUNNEL_TOKEN in .env. Comment this
+  # whole service out if you're running cloudflared some other way (native
+  # install, a separate Unraid container, etc.).
   cloudflared:
     image: cloudflare/cloudflared:latest
-    command: tunnel --config /etc/cloudflared/config.yml run
-    volumes:
-      - ./cloudflared:/etc/cloudflared:ro
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       - hodora
     restart: unless-stopped
