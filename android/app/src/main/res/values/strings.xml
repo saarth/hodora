@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hodora</string>
+    <string name="nav_notification_channel_name">Navigation</string>
+    <string name="nav_notification_channel_desc">Turn-by-turn navigation status</string>
+</resources>
