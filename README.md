@@ -164,15 +164,13 @@ before the image is built), while everything passed with `docker run -e` is a
 `SUPABASE_SERVICE_ROLE_KEY` as a build arg — build args can end up visible in
 the image's layer history, and this key bypasses Row Level Security.
 
-**On Unraid specifically:** the Community Applications plugin "Docker Compose
-Manager" can run `docker-compose.yml` directly, or you can build the image
-elsewhere and add it as a custom container from Unraid's Docker tab pointing
-at port 3000. Either way, put a reverse proxy in front for HTTPS — a plain
-`http://<unraid-ip>:3000` URL won't register the service worker (offline
-maps/routes, "Add to Home Screen") since browsers only allow that over HTTPS
-or true `localhost`. [Nginx Proxy Manager](https://nginxproxymanager.com/),
-[SWAG](https://docs.linuxserver.io/general/swag/), and Cloudflare Tunnel are
-all common Unraid-friendly options for that.
+**On Unraid specifically:** see **[docs/UNRAID.md](./docs/UNRAID.md)** for a
+full copy-paste walkthrough — installing the Community Applications
+"Docker Compose Manager" plugin, filling in `.env`, and putting a reverse
+proxy (Nginx Proxy Manager, SWAG, or Cloudflare Tunnel) in front for HTTPS.
+HTTPS matters here: a plain `http://<unraid-ip>:3000` URL won't register the
+service worker (offline maps/routes, "Add to Home Screen") since browsers
+only allow that over HTTPS or true `localhost`.
 
 ## Contributing
 
