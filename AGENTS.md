@@ -39,6 +39,8 @@ scripts/
   generate-sw.mjs   # Postbuild step that generates the real service worker
 Dockerfile           # Self-hosted (node-server preset) build — see README.md
 docker-compose.yml   # "Self-hosting with Docker" in README.md
+cloudflared/
+  config.yml.example # Template; real config.yml + *.json are gitignored
 ```
 
 ## Things worth knowing before touching certain areas

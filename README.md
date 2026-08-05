@@ -172,6 +172,37 @@ HTTPS matters here: a plain `http://<unraid-ip>:3000` URL won't register the
 service worker (offline maps/routes, "Add to Home Screen") since browsers
 only allow that over HTTPS or true `localhost`.
 
+#### Cloudflare Tunnel (no open ports)
+
+`docker-compose.yml` already includes a commented-in `cloudflared` service
+so the tunnel runs alongside Hodora instead of as a separate process. Needs
+a domain on Cloudflare DNS:
+
+```sh
+cloudflared tunnel login
+cloudflared tunnel create hodora
+cloudflared tunnel route dns hodora hodora.yourdomain.com
+```
+
+That prints a tunnel ID and writes a `<tunnel-id>.json` credentials file to
+`~/.cloudflared/`. Then, in the repo:
+
+```sh
+mkdir -p cloudflared
+cp cloudflared/config.yml.example cloudflared/config.yml
+# edit cloudflared/config.yml: set <tunnel-id> and your real hostname
+cp ~/.cloudflared/<tunnel-id>.json cloudflared/
+docker compose up -d --build
+```
+
+`config.yml.example` already points at `http://hodora:3000` — the
+docker-compose service name, not `localhost`, since the two containers talk
+to each other over the compose network. Both `cloudflared/config.yml` and
+the `*.json` credentials file are gitignored; don't commit them. Once it's
+running, `https://hodora.yourdomain.com` is what to open on your phone, and
+what to add to Supabase's Auth URL Configuration (and the Google OAuth
+client's authorized origins, if you use Google sign-in).
+
 ## Contributing
 
 Contributions are welcome! Please open an issue or pull request. If you find a bug or want a new feature, let us know in the issue tracker.
