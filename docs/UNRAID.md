@@ -149,21 +149,59 @@ Then in the Unraid UI: **Docker** tab → click the `hodora` container's icon
 service workers over HTTPS (or real `localhost`) — so offline maps, offline
 routes, and "Add to Home Screen" **won't work** without HTTPS in front.
 
-The easiest option on Unraid is
-[Nginx Proxy Manager](https://nginxproxymanager.com/) (also installable
-from the **Apps** tab):
+If you already own a domain on Cloudflare, **Cloudflare Tunnel** (below) is
+the simplest option — no port forwarding, and free HTTPS handled entirely
+by Cloudflare. If you'd rather run your own reverse proxy instead,
+[Nginx Proxy Manager](https://nginxproxymanager.com/) or
+[SWAG](https://docs.linuxserver.io/general/swag/) (also installable from
+the **Apps** tab) both work too — point them at `http://<unraid-ip>:3000`
+the same way you would any other container.
 
-1. Install and open Nginx Proxy Manager.
-2. **Proxy Hosts → Add Proxy Host.**
-3. Domain name: your domain or subdomain (e.g. `hodora.example.com`).
-4. Forward Hostname/IP: your Unraid server's IP. Forward Port: `3000`.
-5. **SSL** tab → request a free Let's Encrypt certificate, force SSL.
-6. Save, then visit `https://hodora.example.com`.
+### Using a Cloudflare domain (Cloudflare Tunnel)
 
-[SWAG](https://docs.linuxserver.io/general/swag/) and
-[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
-are other common Unraid-friendly options if you'd rather not use Nginx
-Proxy Manager.
+This is the recommended option if your domain is already on Cloudflare —
+it doesn't require opening any ports on your router, and Cloudflare issues
+and renews the HTTPS certificate for you automatically.
+
+1. **Make sure the domain is active on Cloudflare.** If you bought it
+   through Cloudflare Registrar this is already true. If you bought it
+   elsewhere, add it as a site in the
+   [Cloudflare dashboard](https://dash.cloudflare.com/) and update your
+   registrar's nameservers to the two Cloudflare gives you (can take a few
+   hours to propagate).
+
+2. **Create a tunnel.** In the
+   [Cloudflare Zero Trust dashboard](https://one.dash.cloudflare.com/) →
+   **Networks → Tunnels → Create a tunnel** → choose **Cloudflared** → give
+   it a name (e.g. `hodora`) → **Save tunnel**.
+
+3. **Install the connector on Unraid.** The setup page shows an install
+   command for several platforms — pick **Docker** and copy the token it
+   gives you (a long string after `--token`). Easiest way to run it on
+   Unraid: **Apps** tab → search `cloudflared` → install the community
+   container (by `cloudflare`/linuxserver) → set its `TUNNEL_TOKEN`
+   variable to that token → **Apply**. The tunnel should show as
+   **Healthy** back in the Zero Trust dashboard within a few seconds.
+
+4. **Add a public hostname.** Still on the tunnel's config page → **Public
+   Hostname** tab → **Add a public hostname**:
+
+   | Field | Value |
+   |---|---|
+   | Subdomain | `hodora` (or whatever you want, e.g. `bike`) |
+   | Domain | your domain, e.g. `example.com` |
+   | Type | `HTTP` |
+   | URL | `<your-unraid-ip>:3000` |
+
+   Save. Cloudflare automatically creates the DNS record and terminates
+   HTTPS for you — there's no certificate to manage.
+
+5. **Visit** `https://hodora.example.com`. It should load Hodora with a
+   valid HTTPS padlock, no port forwarding required.
+
+To update the connector later, just update the `cloudflared` container from
+Unraid's **Docker** tab like any other container — the tunnel token doesn't
+change.
 
 Don't forget to also add your HTTPS domain (e.g.
 `https://hodora.example.com`) as an authorized JavaScript origin on the
