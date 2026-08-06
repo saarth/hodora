@@ -276,8 +276,7 @@ export function RouteMap({
         const center = map.getCenter();
         const bounds = map.getBounds();
         const nw = bounds.getNorthWest();
-        const radiusM =
-          (haversine(nw.lat, nw.lng, center.lat, center.lng) as number) * 0.9;
+        const radiusM = (haversine(nw.lat, nw.lng, center.lat, center.lng) as number) * 0.9;
         handler({ center: { lat: center.lat, lon: center.lng }, radiusM });
       });
 
@@ -355,8 +354,7 @@ export function RouteMap({
     if (!riderMarkerRef.current) {
       const el = document.createElement("div");
       el.className = "rider-dot";
-      el.innerHTML =
-        '<span class="rider-dot__pulse"></span><span class="rider-dot__core"></span>';
+      el.innerHTML = '<span class="rider-dot__pulse"></span><span class="rider-dot__core"></span>';
       riderMarkerRef.current = new maplibre.Marker({ element: el })
         .setLngLat([live.lon, live.lat])
         .addTo(map);
@@ -486,104 +484,80 @@ function lineFeature(points: RidePoint[]) {
 function drawRoute(map: any, points: RidePoint[]) {
   const routeData = lineFeature(points);
 
-  // TEMPORARY diagnostic — remove once the "route not rendering" investigation
-  // is closed. String-only args (no logged objects) to keep this cheap.
-  const feature = routeData as {
-    type: string;
-    geometry?: { type: string; coordinates: unknown[] };
-  };
-  const geomType = feature.type === "Feature" ? feature.geometry!.type : "EMPTY_FEATURE_COLLECTION";
-  const coords = feature.type === "Feature" ? feature.geometry!.coordinates : [];
-  const lineCount = Array.isArray(coords) ? coords.length : 0;
-  console.info(
-    `[RouteMap diag] pointsIn=${points.length} geomType=${geomType} lineCount=${lineCount} hasExistingSource=${!!map.getSource("route")}`,
-  );
-
-  try {
-    if (map.getSource("route")) {
-      map.getSource("route").setData(routeData);
-      updateEndpoints(map, points);
-      return;
-    }
-
-    map.addSource("route", { type: "geojson", data: routeData });
-
-    const colors = mapThemeColors();
-
-    map.addLayer({
-      id: "route-casing",
-      type: "line",
-      source: "route",
-      layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": colors.background, "line-width": 8, "line-opacity": 0.45 },
-    });
-    map.addLayer({
-      id: "route-line",
-      type: "line",
-      source: "route",
-      layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": colors.route, "line-width": 4.5 },
-    });
-    map.addSource("route-done", { type: "geojson", data: lineFeature([]) });
-    map.addLayer({
-      id: "route-done-line",
-      type: "line",
-      source: "route-done",
-      layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": colors.mutedForeground, "line-width": 4.5, "line-opacity": 0.9 },
-    });
-
-    const empty = { type: "FeatureCollection" as const, features: [] };
-    map.addSource("rejoin", { type: "geojson", data: empty });
-    map.addLayer({
-      id: "rejoin-line",
-      type: "line",
-      source: "rejoin",
-      layout: { "line-cap": "round" },
-      paint: {
-        "line-color": colors.warning,
-        "line-width": 3.5,
-        "line-dasharray": [1.5, 1.5],
-      },
-    });
-    map.addSource("rejoin-point", { type: "geojson", data: empty });
-    map.addLayer({
-      id: "rejoin-point-layer",
-      type: "circle",
-      source: "rejoin-point",
-      paint: {
-        "circle-radius": 7,
-        "circle-color": colors.warning,
-        "circle-stroke-width": 2.5,
-        "circle-stroke-color": colors.background,
-      },
-    });
-
-    map.addSource("endpoints", {
-      type: "geojson",
-      data: endpointData(points),
-    });
-    map.addLayer({
-      id: "endpoints-layer",
-      type: "circle",
-      source: "endpoints",
-      paint: {
-        "circle-radius": 6,
-        "circle-color": ["match", ["get", "kind"], "start", colors.route, colors.foreground],
-        "circle-stroke-width": 2.5,
-        "circle-stroke-color": colors.background,
-      },
-    });
-
-    // TEMPORARY diagnostic — remove alongside the logging above.
-    console.info(
-      `[RouteMap diag] drawRoute completed, hasRouteLineLayer=${!!map.getLayer("route-line")}`,
-    );
-  } catch (drawError) {
-    // TEMPORARY diagnostic — remove alongside the logging above.
-    const message = drawError instanceof Error ? drawError.message : String(drawError);
-    console.error(`[RouteMap diag] drawRoute threw: ${message}`);
+  if (map.getSource("route")) {
+    map.getSource("route").setData(routeData);
+    updateEndpoints(map, points);
+    return;
   }
+
+  map.addSource("route", { type: "geojson", data: routeData });
+
+  const colors = mapThemeColors();
+
+  map.addLayer({
+    id: "route-casing",
+    type: "line",
+    source: "route",
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": colors.background, "line-width": 8, "line-opacity": 0.45 },
+  });
+  map.addLayer({
+    id: "route-line",
+    type: "line",
+    source: "route",
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": colors.route, "line-width": 4.5 },
+  });
+  map.addSource("route-done", { type: "geojson", data: lineFeature([]) });
+  map.addLayer({
+    id: "route-done-line",
+    type: "line",
+    source: "route-done",
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": colors.mutedForeground, "line-width": 4.5, "line-opacity": 0.9 },
+  });
+
+  const empty = { type: "FeatureCollection" as const, features: [] };
+  map.addSource("rejoin", { type: "geojson", data: empty });
+  map.addLayer({
+    id: "rejoin-line",
+    type: "line",
+    source: "rejoin",
+    layout: { "line-cap": "round" },
+    paint: {
+      "line-color": colors.warning,
+      "line-width": 3.5,
+      "line-dasharray": [1.5, 1.5],
+    },
+  });
+  map.addSource("rejoin-point", { type: "geojson", data: empty });
+  map.addLayer({
+    id: "rejoin-point-layer",
+    type: "circle",
+    source: "rejoin-point",
+    paint: {
+      "circle-radius": 7,
+      "circle-color": colors.warning,
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": colors.background,
+    },
+  });
+
+  map.addSource("endpoints", {
+    type: "geojson",
+    data: endpointData(points),
+  });
+  map.addLayer({
+    id: "endpoints-layer",
+    type: "circle",
+    source: "endpoints",
+    paint: {
+      "circle-radius": 6,
+      "circle-color": ["match", ["get", "kind"], "start", colors.route, colors.foreground],
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": colors.background,
+    },
+  });
 }
 
 function endpointData(points: RidePoint[]) {
