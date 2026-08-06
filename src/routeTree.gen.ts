@@ -19,10 +19,20 @@ import { Route as ApiDeleteAccountRouteImport } from './routes/api/delete-accoun
 import { Route as RidesIndexRouteImport } from './routes/rides.index'
 import { Route as RidesIdIndexRouteImport } from './routes/rides.$id.index'
 import { Route as RidesIdNavRouteImport } from './routes/rides.$id.nav'
+import { Route as ApiCloudGoogleDriveAuthorizeRouteImport } from './routes/api/cloud/google-drive/authorize'
+import { Route as ApiCloudGoogleDriveCallbackRouteImport } from './routes/api/cloud/google-drive/callback'
+import { Route as ApiCloudGoogleDriveDisconnectRouteImport } from './routes/api/cloud/google-drive/disconnect'
+import { Route as ApiCloudGoogleDriveStatusRouteImport } from './routes/api/cloud/google-drive/status'
+import { Route as ApiCloudGoogleDriveSyncRouteImport } from './routes/api/cloud/google-drive/sync'
 import { Route as ApiCloudNextcloudConnectRouteImport } from './routes/api/cloud/nextcloud/connect'
 import { Route as ApiCloudNextcloudDisconnectRouteImport } from './routes/api/cloud/nextcloud/disconnect'
 import { Route as ApiCloudNextcloudStatusRouteImport } from './routes/api/cloud/nextcloud/status'
 import { Route as ApiCloudNextcloudSyncRouteImport } from './routes/api/cloud/nextcloud/sync'
+import { Route as ApiCloudOnedriveAuthorizeRouteImport } from './routes/api/cloud/onedrive/authorize'
+import { Route as ApiCloudOnedriveCallbackRouteImport } from './routes/api/cloud/onedrive/callback'
+import { Route as ApiCloudOnedriveDisconnectRouteImport } from './routes/api/cloud/onedrive/disconnect'
+import { Route as ApiCloudOnedriveStatusRouteImport } from './routes/api/cloud/onedrive/status'
+import { Route as ApiCloudOnedriveSyncRouteImport } from './routes/api/cloud/onedrive/sync'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -73,6 +83,35 @@ const RidesIdNavRoute = RidesIdNavRouteImport.update({
   path: '/rides/$id/nav',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCloudGoogleDriveAuthorizeRoute =
+  ApiCloudGoogleDriveAuthorizeRouteImport.update({
+    id: '/api/cloud/google-drive/authorize',
+    path: '/api/cloud/google-drive/authorize',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCloudGoogleDriveCallbackRoute =
+  ApiCloudGoogleDriveCallbackRouteImport.update({
+    id: '/api/cloud/google-drive/callback',
+    path: '/api/cloud/google-drive/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCloudGoogleDriveDisconnectRoute =
+  ApiCloudGoogleDriveDisconnectRouteImport.update({
+    id: '/api/cloud/google-drive/disconnect',
+    path: '/api/cloud/google-drive/disconnect',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCloudGoogleDriveStatusRoute =
+  ApiCloudGoogleDriveStatusRouteImport.update({
+    id: '/api/cloud/google-drive/status',
+    path: '/api/cloud/google-drive/status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCloudGoogleDriveSyncRoute = ApiCloudGoogleDriveSyncRouteImport.update({
+  id: '/api/cloud/google-drive/sync',
+  path: '/api/cloud/google-drive/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCloudNextcloudConnectRoute =
   ApiCloudNextcloudConnectRouteImport.update({
     id: '/api/cloud/nextcloud/connect',
@@ -95,6 +134,34 @@ const ApiCloudNextcloudSyncRoute = ApiCloudNextcloudSyncRouteImport.update({
   path: '/api/cloud/nextcloud/sync',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCloudOnedriveAuthorizeRoute =
+  ApiCloudOnedriveAuthorizeRouteImport.update({
+    id: '/api/cloud/onedrive/authorize',
+    path: '/api/cloud/onedrive/authorize',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCloudOnedriveCallbackRoute =
+  ApiCloudOnedriveCallbackRouteImport.update({
+    id: '/api/cloud/onedrive/callback',
+    path: '/api/cloud/onedrive/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCloudOnedriveDisconnectRoute =
+  ApiCloudOnedriveDisconnectRouteImport.update({
+    id: '/api/cloud/onedrive/disconnect',
+    path: '/api/cloud/onedrive/disconnect',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCloudOnedriveStatusRoute = ApiCloudOnedriveStatusRouteImport.update({
+  id: '/api/cloud/onedrive/status',
+  path: '/api/cloud/onedrive/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCloudOnedriveSyncRoute = ApiCloudOnedriveSyncRouteImport.update({
+  id: '/api/cloud/onedrive/sync',
+  path: '/api/cloud/onedrive/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -106,10 +173,20 @@ export interface FileRoutesByFullPath {
   '/rides/': typeof RidesIndexRoute
   '/rides/$id/nav': typeof RidesIdNavRoute
   '/rides/$id/': typeof RidesIdIndexRoute
+  '/api/cloud/google-drive/authorize': typeof ApiCloudGoogleDriveAuthorizeRoute
+  '/api/cloud/google-drive/callback': typeof ApiCloudGoogleDriveCallbackRoute
+  '/api/cloud/google-drive/disconnect': typeof ApiCloudGoogleDriveDisconnectRoute
+  '/api/cloud/google-drive/status': typeof ApiCloudGoogleDriveStatusRoute
+  '/api/cloud/google-drive/sync': typeof ApiCloudGoogleDriveSyncRoute
   '/api/cloud/nextcloud/connect': typeof ApiCloudNextcloudConnectRoute
   '/api/cloud/nextcloud/disconnect': typeof ApiCloudNextcloudDisconnectRoute
   '/api/cloud/nextcloud/status': typeof ApiCloudNextcloudStatusRoute
   '/api/cloud/nextcloud/sync': typeof ApiCloudNextcloudSyncRoute
+  '/api/cloud/onedrive/authorize': typeof ApiCloudOnedriveAuthorizeRoute
+  '/api/cloud/onedrive/callback': typeof ApiCloudOnedriveCallbackRoute
+  '/api/cloud/onedrive/disconnect': typeof ApiCloudOnedriveDisconnectRoute
+  '/api/cloud/onedrive/status': typeof ApiCloudOnedriveStatusRoute
+  '/api/cloud/onedrive/sync': typeof ApiCloudOnedriveSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -121,10 +198,20 @@ export interface FileRoutesByTo {
   '/rides': typeof RidesIndexRoute
   '/rides/$id/nav': typeof RidesIdNavRoute
   '/rides/$id': typeof RidesIdIndexRoute
+  '/api/cloud/google-drive/authorize': typeof ApiCloudGoogleDriveAuthorizeRoute
+  '/api/cloud/google-drive/callback': typeof ApiCloudGoogleDriveCallbackRoute
+  '/api/cloud/google-drive/disconnect': typeof ApiCloudGoogleDriveDisconnectRoute
+  '/api/cloud/google-drive/status': typeof ApiCloudGoogleDriveStatusRoute
+  '/api/cloud/google-drive/sync': typeof ApiCloudGoogleDriveSyncRoute
   '/api/cloud/nextcloud/connect': typeof ApiCloudNextcloudConnectRoute
   '/api/cloud/nextcloud/disconnect': typeof ApiCloudNextcloudDisconnectRoute
   '/api/cloud/nextcloud/status': typeof ApiCloudNextcloudStatusRoute
   '/api/cloud/nextcloud/sync': typeof ApiCloudNextcloudSyncRoute
+  '/api/cloud/onedrive/authorize': typeof ApiCloudOnedriveAuthorizeRoute
+  '/api/cloud/onedrive/callback': typeof ApiCloudOnedriveCallbackRoute
+  '/api/cloud/onedrive/disconnect': typeof ApiCloudOnedriveDisconnectRoute
+  '/api/cloud/onedrive/status': typeof ApiCloudOnedriveStatusRoute
+  '/api/cloud/onedrive/sync': typeof ApiCloudOnedriveSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -138,10 +225,20 @@ export interface FileRoutesById {
   '/rides/': typeof RidesIndexRoute
   '/rides/$id/nav': typeof RidesIdNavRoute
   '/rides/$id/': typeof RidesIdIndexRoute
+  '/api/cloud/google-drive/authorize': typeof ApiCloudGoogleDriveAuthorizeRoute
+  '/api/cloud/google-drive/callback': typeof ApiCloudGoogleDriveCallbackRoute
+  '/api/cloud/google-drive/disconnect': typeof ApiCloudGoogleDriveDisconnectRoute
+  '/api/cloud/google-drive/status': typeof ApiCloudGoogleDriveStatusRoute
+  '/api/cloud/google-drive/sync': typeof ApiCloudGoogleDriveSyncRoute
   '/api/cloud/nextcloud/connect': typeof ApiCloudNextcloudConnectRoute
   '/api/cloud/nextcloud/disconnect': typeof ApiCloudNextcloudDisconnectRoute
   '/api/cloud/nextcloud/status': typeof ApiCloudNextcloudStatusRoute
   '/api/cloud/nextcloud/sync': typeof ApiCloudNextcloudSyncRoute
+  '/api/cloud/onedrive/authorize': typeof ApiCloudOnedriveAuthorizeRoute
+  '/api/cloud/onedrive/callback': typeof ApiCloudOnedriveCallbackRoute
+  '/api/cloud/onedrive/disconnect': typeof ApiCloudOnedriveDisconnectRoute
+  '/api/cloud/onedrive/status': typeof ApiCloudOnedriveStatusRoute
+  '/api/cloud/onedrive/sync': typeof ApiCloudOnedriveSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -155,10 +252,20 @@ export interface FileRouteTypes {
     | '/rides/'
     | '/rides/$id/nav'
     | '/rides/$id/'
+    | '/api/cloud/google-drive/authorize'
+    | '/api/cloud/google-drive/callback'
+    | '/api/cloud/google-drive/disconnect'
+    | '/api/cloud/google-drive/status'
+    | '/api/cloud/google-drive/sync'
     | '/api/cloud/nextcloud/connect'
     | '/api/cloud/nextcloud/disconnect'
     | '/api/cloud/nextcloud/status'
     | '/api/cloud/nextcloud/sync'
+    | '/api/cloud/onedrive/authorize'
+    | '/api/cloud/onedrive/callback'
+    | '/api/cloud/onedrive/disconnect'
+    | '/api/cloud/onedrive/status'
+    | '/api/cloud/onedrive/sync'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -170,10 +277,20 @@ export interface FileRouteTypes {
     | '/rides'
     | '/rides/$id/nav'
     | '/rides/$id'
+    | '/api/cloud/google-drive/authorize'
+    | '/api/cloud/google-drive/callback'
+    | '/api/cloud/google-drive/disconnect'
+    | '/api/cloud/google-drive/status'
+    | '/api/cloud/google-drive/sync'
     | '/api/cloud/nextcloud/connect'
     | '/api/cloud/nextcloud/disconnect'
     | '/api/cloud/nextcloud/status'
     | '/api/cloud/nextcloud/sync'
+    | '/api/cloud/onedrive/authorize'
+    | '/api/cloud/onedrive/callback'
+    | '/api/cloud/onedrive/disconnect'
+    | '/api/cloud/onedrive/status'
+    | '/api/cloud/onedrive/sync'
   id:
     | '__root__'
     | '/'
@@ -186,10 +303,20 @@ export interface FileRouteTypes {
     | '/rides/'
     | '/rides/$id/nav'
     | '/rides/$id/'
+    | '/api/cloud/google-drive/authorize'
+    | '/api/cloud/google-drive/callback'
+    | '/api/cloud/google-drive/disconnect'
+    | '/api/cloud/google-drive/status'
+    | '/api/cloud/google-drive/sync'
     | '/api/cloud/nextcloud/connect'
     | '/api/cloud/nextcloud/disconnect'
     | '/api/cloud/nextcloud/status'
     | '/api/cloud/nextcloud/sync'
+    | '/api/cloud/onedrive/authorize'
+    | '/api/cloud/onedrive/callback'
+    | '/api/cloud/onedrive/disconnect'
+    | '/api/cloud/onedrive/status'
+    | '/api/cloud/onedrive/sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -202,10 +329,20 @@ export interface RootRouteChildren {
   RidesIndexRoute: typeof RidesIndexRoute
   RidesIdNavRoute: typeof RidesIdNavRoute
   RidesIdIndexRoute: typeof RidesIdIndexRoute
+  ApiCloudGoogleDriveAuthorizeRoute: typeof ApiCloudGoogleDriveAuthorizeRoute
+  ApiCloudGoogleDriveCallbackRoute: typeof ApiCloudGoogleDriveCallbackRoute
+  ApiCloudGoogleDriveDisconnectRoute: typeof ApiCloudGoogleDriveDisconnectRoute
+  ApiCloudGoogleDriveStatusRoute: typeof ApiCloudGoogleDriveStatusRoute
+  ApiCloudGoogleDriveSyncRoute: typeof ApiCloudGoogleDriveSyncRoute
   ApiCloudNextcloudConnectRoute: typeof ApiCloudNextcloudConnectRoute
   ApiCloudNextcloudDisconnectRoute: typeof ApiCloudNextcloudDisconnectRoute
   ApiCloudNextcloudStatusRoute: typeof ApiCloudNextcloudStatusRoute
   ApiCloudNextcloudSyncRoute: typeof ApiCloudNextcloudSyncRoute
+  ApiCloudOnedriveAuthorizeRoute: typeof ApiCloudOnedriveAuthorizeRoute
+  ApiCloudOnedriveCallbackRoute: typeof ApiCloudOnedriveCallbackRoute
+  ApiCloudOnedriveDisconnectRoute: typeof ApiCloudOnedriveDisconnectRoute
+  ApiCloudOnedriveStatusRoute: typeof ApiCloudOnedriveStatusRoute
+  ApiCloudOnedriveSyncRoute: typeof ApiCloudOnedriveSyncRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -280,6 +417,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RidesIdNavRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cloud/google-drive/authorize': {
+      id: '/api/cloud/google-drive/authorize'
+      path: '/api/cloud/google-drive/authorize'
+      fullPath: '/api/cloud/google-drive/authorize'
+      preLoaderRoute: typeof ApiCloudGoogleDriveAuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloud/google-drive/callback': {
+      id: '/api/cloud/google-drive/callback'
+      path: '/api/cloud/google-drive/callback'
+      fullPath: '/api/cloud/google-drive/callback'
+      preLoaderRoute: typeof ApiCloudGoogleDriveCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloud/google-drive/disconnect': {
+      id: '/api/cloud/google-drive/disconnect'
+      path: '/api/cloud/google-drive/disconnect'
+      fullPath: '/api/cloud/google-drive/disconnect'
+      preLoaderRoute: typeof ApiCloudGoogleDriveDisconnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloud/google-drive/status': {
+      id: '/api/cloud/google-drive/status'
+      path: '/api/cloud/google-drive/status'
+      fullPath: '/api/cloud/google-drive/status'
+      preLoaderRoute: typeof ApiCloudGoogleDriveStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloud/google-drive/sync': {
+      id: '/api/cloud/google-drive/sync'
+      path: '/api/cloud/google-drive/sync'
+      fullPath: '/api/cloud/google-drive/sync'
+      preLoaderRoute: typeof ApiCloudGoogleDriveSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/cloud/nextcloud/connect': {
       id: '/api/cloud/nextcloud/connect'
       path: '/api/cloud/nextcloud/connect'
@@ -308,6 +480,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCloudNextcloudSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cloud/onedrive/authorize': {
+      id: '/api/cloud/onedrive/authorize'
+      path: '/api/cloud/onedrive/authorize'
+      fullPath: '/api/cloud/onedrive/authorize'
+      preLoaderRoute: typeof ApiCloudOnedriveAuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloud/onedrive/callback': {
+      id: '/api/cloud/onedrive/callback'
+      path: '/api/cloud/onedrive/callback'
+      fullPath: '/api/cloud/onedrive/callback'
+      preLoaderRoute: typeof ApiCloudOnedriveCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloud/onedrive/disconnect': {
+      id: '/api/cloud/onedrive/disconnect'
+      path: '/api/cloud/onedrive/disconnect'
+      fullPath: '/api/cloud/onedrive/disconnect'
+      preLoaderRoute: typeof ApiCloudOnedriveDisconnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloud/onedrive/status': {
+      id: '/api/cloud/onedrive/status'
+      path: '/api/cloud/onedrive/status'
+      fullPath: '/api/cloud/onedrive/status'
+      preLoaderRoute: typeof ApiCloudOnedriveStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloud/onedrive/sync': {
+      id: '/api/cloud/onedrive/sync'
+      path: '/api/cloud/onedrive/sync'
+      fullPath: '/api/cloud/onedrive/sync'
+      preLoaderRoute: typeof ApiCloudOnedriveSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -332,10 +539,20 @@ const rootRouteChildren: RootRouteChildren = {
   RidesIndexRoute: RidesIndexRoute,
   RidesIdNavRoute: RidesIdNavRoute,
   RidesIdIndexRoute: RidesIdIndexRoute,
+  ApiCloudGoogleDriveAuthorizeRoute: ApiCloudGoogleDriveAuthorizeRoute,
+  ApiCloudGoogleDriveCallbackRoute: ApiCloudGoogleDriveCallbackRoute,
+  ApiCloudGoogleDriveDisconnectRoute: ApiCloudGoogleDriveDisconnectRoute,
+  ApiCloudGoogleDriveStatusRoute: ApiCloudGoogleDriveStatusRoute,
+  ApiCloudGoogleDriveSyncRoute: ApiCloudGoogleDriveSyncRoute,
   ApiCloudNextcloudConnectRoute: ApiCloudNextcloudConnectRoute,
   ApiCloudNextcloudDisconnectRoute: ApiCloudNextcloudDisconnectRoute,
   ApiCloudNextcloudStatusRoute: ApiCloudNextcloudStatusRoute,
   ApiCloudNextcloudSyncRoute: ApiCloudNextcloudSyncRoute,
+  ApiCloudOnedriveAuthorizeRoute: ApiCloudOnedriveAuthorizeRoute,
+  ApiCloudOnedriveCallbackRoute: ApiCloudOnedriveCallbackRoute,
+  ApiCloudOnedriveDisconnectRoute: ApiCloudOnedriveDisconnectRoute,
+  ApiCloudOnedriveStatusRoute: ApiCloudOnedriveStatusRoute,
+  ApiCloudOnedriveSyncRoute: ApiCloudOnedriveSyncRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

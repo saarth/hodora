@@ -1,6 +1,6 @@
-// Thin client-side wrappers around the `/api/cloud/nextcloud/*` routes —
-// same bearer-token-attaching pattern `settings.tsx`'s account-deletion
-// mutation already uses, since none of this goes through a serverFn.
+// Thin client-side wrappers around the `/api/cloud/*` routes — same
+// bearer-token-attaching pattern `settings.tsx`'s account-deletion mutation
+// already uses, since none of this goes through a serverFn.
 import { supabase } from "@/integrations/supabase/client";
 import { isSignedIn } from "@/lib/rides";
 import type { SyncSummary } from "@/lib/sync/nextcloud-engine.server";
@@ -11,6 +11,18 @@ export type NextcloudStatus =
       connected: true;
       webdavUrl: string;
       username: string;
+      folder: string;
+      status: "active" | "error" | "disconnected";
+      lastError: string | null;
+      lastSyncedAt: string | null;
+      syncing: boolean;
+    };
+
+export type OAuthCloudStatus =
+  | { connected: false }
+  | {
+      connected: true;
+      accountEmail: string | null;
       folder: string;
       status: "active" | "error" | "disconnected";
       lastError: string | null;
@@ -80,19 +92,89 @@ export async function syncNextcloudNow(): Promise<SyncSummary> {
   return body.summary;
 }
 
+/** Shared client for the two OAuth-based providers (Google Drive, OneDrive) — same shape, different URL prefix. */
+export type OAuthProvider = "google-drive" | "onedrive";
+
+export async function fetchOAuthCloudStatus(provider: OAuthProvider): Promise<OAuthCloudStatus> {
+  const response = await authedFetch(`/api/cloud/${provider}/status`);
+  if (!response.ok) {
+    throw new Error(
+      `Could not check the ${provider === "google-drive" ? "Google Drive" : "OneDrive"} connection.`,
+    );
+  }
+  return response.json();
+}
+
+/**
+ * Starts the OAuth flow: fetches the provider's consent URL, then does a
+ * full-page navigation to it (it can't be `fetch`ed — the provider needs to
+ * see a real top-level browser navigation to show its consent screen and
+ * redirect back to `/api/cloud/<provider>/callback`).
+ */
+export async function beginOAuthConnect(provider: OAuthProvider, folder: string): Promise<void> {
+  const response = await authedFetch(`/api/cloud/${provider}/authorize`, {
+    method: "POST",
+    body: JSON.stringify({ folder }),
+  });
+  const body = (await response.json().catch(() => null)) as {
+    ok: boolean;
+    url?: string;
+    message?: string;
+  } | null;
+  if (!response.ok || !body?.ok || !body.url) {
+    throw new Error(body?.message || "Could not start sign-in.");
+  }
+  window.location.href = body.url;
+}
+
+export async function disconnectOAuthCloud(provider: OAuthProvider): Promise<void> {
+  const response = await authedFetch(`/api/cloud/${provider}/disconnect`, { method: "POST" });
+  if (!response.ok) {
+    throw new Error("Could not disconnect.");
+  }
+}
+
+export async function syncOAuthCloudNow(provider: OAuthProvider): Promise<SyncSummary> {
+  const response = await authedFetch(`/api/cloud/${provider}/sync`, { method: "POST" });
+  const body = (await response.json().catch(() => null)) as
+    { ok: true; summary: SyncSummary; hasMore: boolean } | { ok: false; message?: string } | null;
+  if (!response.ok || !body?.ok) {
+    throw new Error((body && "message" in body && body.message) || "Sync failed.");
+  }
+  return body.summary;
+}
+
 /**
  * Best-effort sync trigger for app-open/import/delete moments. Silently
- * no-ops for guests, when Nextcloud isn't connected, or when a sync is
- * already in flight (409) — this is a background nicety, not a user action,
- * so it never surfaces an error toast on its own.
+ * no-ops for guests or when nothing's connected — this is a background
+ * nicety, not a user action, so it never surfaces an error toast on its own.
+ * Runs whichever connections exist in parallel; each is independent.
  */
 export async function triggerCloudSyncIfConnected(): Promise<void> {
-  try {
-    if (!(await isSignedIn())) return;
-    const status = await fetchNextcloudStatus();
-    if (!status.connected || status.syncing) return;
-    await syncNextcloudNow();
-  } catch {
-    // best effort — the manual "Sync now" button surfaces real errors
-  }
+  if (!(await isSignedIn())) return;
+
+  const attempt = async (
+    fetchStatus: () => Promise<{ connected: boolean; syncing?: boolean }>,
+    sync: () => Promise<unknown>,
+  ) => {
+    try {
+      const status = await fetchStatus();
+      if (!status.connected || status.syncing) return;
+      await sync();
+    } catch {
+      // best effort — the manual "Sync now" button surfaces real errors
+    }
+  };
+
+  await Promise.all([
+    attempt(fetchNextcloudStatus, syncNextcloudNow),
+    attempt(
+      () => fetchOAuthCloudStatus("google-drive"),
+      () => syncOAuthCloudNow("google-drive"),
+    ),
+    attempt(
+      () => fetchOAuthCloudStatus("onedrive"),
+      () => syncOAuthCloudNow("onedrive"),
+    ),
+  ]);
 }
