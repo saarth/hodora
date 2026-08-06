@@ -21,7 +21,7 @@ export const Route = createFileRoute("/auth")({
       { title: "Sign in — Hodora" },
       {
         name: "description",
-        content: "Sign in to Hodora with Google or email to import and navigate your GPX bike routes.",
+        content: "Sign in to Hodora with your email to import and navigate your GPX bike routes.",
       },
       { property: "og:title", content: "Sign in — Hodora" },
       { property: "og:description", content: "Sign in to import and navigate your GPX bike routes." },
@@ -48,71 +48,13 @@ const signInSchema = z.object({
   password: z.string().min(1, "Enter your password").max(72),
 });
 
-type OAuthDiag = {
-  message: string;
-  code?: string;
-  status?: string;
-  name?: string;
-  source: string;
-  raw: string;
-};
-
-function pick(obj: Record<string, unknown>, key: string): string | undefined {
-  const value = obj[key];
-  if (value === undefined || value === null || value === "") return undefined;
-  return String(value);
-}
-
-function describeOAuthError(error: unknown, context?: unknown): OAuthDiag {
-  const bag: Record<string, unknown> =
-    error && typeof error === "object" ? (error as Record<string, unknown>) : {};
-  const message =
-    pick(bag, "message") ??
-    pick(bag, "error_description") ??
-    pick(bag, "error") ??
-    (typeof error === "string" ? error : "Unknown error");
-
-  let raw: string;
-  try {
-    raw = JSON.stringify(
-      {
-        error: {
-          ...bag,
-          message,
-          name: (error as Error)?.name,
-          stack: (error as Error)?.stack,
-        },
-        context,
-        url: typeof window !== "undefined" ? window.location.href : undefined,
-        origin: typeof window !== "undefined" ? window.location.origin : undefined,
-        inIframe: typeof window !== "undefined" ? window.top !== window.self : undefined,
-        at: new Date().toISOString(),
-      },
-      null,
-      2,
-    );
-  } catch {
-    raw = String(error);
-  }
-
-  return {
-    message,
-    code: pick(bag, "code") ?? pick(bag, "error_code") ?? pick(bag, "error"),
-    status: pick(bag, "status") ?? pick(bag, "statusCode") ?? pick(bag, "http_status"),
-    name: (error as Error)?.name,
-    source: "google-oauth",
-    raw,
-  };
-}
-
 function AuthPage() {
   const navigate = useNavigate();
   const search = useSearch({ from: "/auth" });
   const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [busy, setBusy] = useState<null | "email" | "google">(null);
+  const [busy, setBusy] = useState<null | "email">(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checkEmail, setCheckEmail] = useState(false);
-  const [oauthDiag, setOauthDiag] = useState<OAuthDiag | null>(null);
 
   const destination = safePath(search.redirect) ?? "/rides";
 
@@ -127,54 +69,6 @@ function AuthPage() {
     });
     return () => sub.subscription.unsubscribe();
   }, [destination, navigate]);
-
-  // Surface errors Google/Supabase handed back on the redirect itself.
-  useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-    const collected: Record<string, string> = {};
-    for (const params of [query, hash]) {
-      for (const key of ["error", "error_code", "error_description", "message", "state"]) {
-        const value = params.get(key);
-        if (value) collected[key] = value;
-      }
-    }
-    if (Object.keys(collected).length === 0) return;
-    setOauthDiag(describeOAuthError(collected, { from: "redirect-params" }));
-  }, []);
-
-
-
-  async function handleGoogle() {
-    setBusy("google");
-    setOauthDiag(null);
-    try {
-      sessionStorage.setItem("hodora:auth-redirect", destination);
-    } catch {
-      // ignore storage failures
-    }
-    try {
-      // Supabase's own Google OAuth: this redirects the whole page to
-      // Google immediately (data.url), then Google redirects back to
-      // redirectTo — there's no "session already established" path to
-      // handle in this same call. /oauth-callback picks the session up
-      // once we're back.
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: `${window.location.origin}/oauth-callback` },
-      });
-      if (error) {
-        setBusy(null);
-        setOauthDiag(describeOAuthError(error));
-        toast.error(error.message || "Google sign-in failed. Please try again.");
-      }
-    } catch (thrown) {
-      setBusy(null);
-      setOauthDiag(describeOAuthError(thrown));
-      toast.error(thrown instanceof Error ? thrown.message : "Google sign-in failed");
-    }
-  }
-
 
   async function handleEmail(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -284,84 +178,6 @@ function AuthPage() {
                   ? "Pick a rider name and start importing routes."
                   : "Sign in to reach your route library."}
               </p>
-
-              <Button
-                type="button"
-                variant="secondary"
-                className="mt-6 w-full"
-                onClick={handleGoogle}
-                disabled={busy !== null}
-              >
-                {busy === "google" ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <GoogleMark />
-                )}
-                Continue with Google
-              </Button>
-
-              {oauthDiag && (
-                <div className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-left">
-                  <p className="text-sm font-semibold text-destructive">
-                    Google sign-in failed
-                  </p>
-                  <p className="mt-1 break-words text-xs text-foreground">
-                    {oauthDiag.message}
-                  </p>
-                  <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <dt>Code</dt>
-                    <dd className="break-all font-mono">{oauthDiag.code ?? "—"}</dd>
-                    <dt>Status</dt>
-                    <dd className="break-all font-mono">{oauthDiag.status ?? "—"}</dd>
-                    <dt>Type</dt>
-                    <dd className="break-all font-mono">{oauthDiag.name ?? "—"}</dd>
-                    <dt>Source</dt>
-                    <dd className="break-all font-mono">{oauthDiag.source}</dd>
-                  </dl>
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-xs text-muted-foreground">
-                      Raw details
-                    </summary>
-                    <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-background/70 p-2 text-[10px] leading-relaxed">
-                      {oauthDiag.raw}
-                    </pre>
-                  </details>
-                  <div className="mt-2 flex gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        navigator.clipboard
-                          ?.writeText(oauthDiag.raw)
-                          .then(() => toast.success("Diagnostics copied"))
-                          .catch(() => toast.error("Could not copy"));
-                      }}
-                    >
-                      Copy
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setOauthDiag(null)}
-                    >
-                      Dismiss
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-
-
-              <div className="my-6 flex items-center gap-3">
-                <span className="h-px flex-1 bg-border" />
-                <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                  or
-                </span>
-                <span className="h-px flex-1 bg-border" />
-              </div>
-
 
               <Tabs
                 value={mode}
@@ -480,16 +296,4 @@ function safePath(value?: string): string | null {
   if (!value) return null;
   if (!value.startsWith("/") || value.startsWith("//")) return null;
   return value;
-}
-
-
-function GoogleMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-      <path
-        fill="#EA4335"
-        d="M12 10.2v3.9h5.5c-.24 1.26-1.62 3.7-5.5 3.7A6.1 6.1 0 0 1 12 5.9c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.9 3.2 14.7 2.3 12 2.3 6.9 2.3 2.8 6.4 2.8 11.5S6.9 20.7 12 20.7c5.5 0 9.1-3.9 9.1-9.3 0-.6-.06-1.05-.15-1.2H12Z"
-      />
-    </svg>
-  );
 }
