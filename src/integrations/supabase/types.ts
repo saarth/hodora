@@ -10,12 +10,14 @@ export type Database = {
     Tables: {
       cloud_connections: {
         Row: {
+          account_email: string | null;
           created_at: string;
           encrypted_secret: string | null;
           id: string;
           last_error: string | null;
           last_synced_at: string | null;
           provider: string;
+          remote_folder_id: string | null;
           status: string;
           sync_folder: string;
           sync_started_at: string | null;
@@ -26,12 +28,14 @@ export type Database = {
           webdav_username: string | null;
         };
         Insert: {
+          account_email?: string | null;
           created_at?: string;
           encrypted_secret?: string | null;
           id?: string;
           last_error?: string | null;
           last_synced_at?: string | null;
           provider: string;
+          remote_folder_id?: string | null;
           status?: string;
           sync_folder?: string;
           sync_started_at?: string | null;
@@ -42,12 +46,14 @@ export type Database = {
           webdav_username?: string | null;
         };
         Update: {
+          account_email?: string | null;
           created_at?: string;
           encrypted_secret?: string | null;
           id?: string;
           last_error?: string | null;
           last_synced_at?: string | null;
           provider?: string;
+          remote_folder_id?: string | null;
           status?: string;
           sync_folder?: string;
           sync_started_at?: string | null;

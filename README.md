@@ -111,7 +111,62 @@ environment variables — never in a client-visible `.env` or `VITE_`-prefixed
 variable. If you want the "Connections" cloud-sync feature, also set
 `TOKEN_ENCRYPTION_KEY` the same way — see `.env.example` for how to generate
 one. Both are optional in the sense that the app runs without them; only the
-account-deletion and cloud-sync features need them.
+account-deletion and cloud-sync features need them. Google Drive and
+OneDrive connections need their own OAuth credentials on top of that — see
+"Cloud sync connections" below.
+
+### Cloud sync connections
+
+Settings → Connections lets a rider sync their routes to a cloud storage
+account as GPX files. Nextcloud works out of the box (it just needs a
+server URL, username, and app password from the rider). Google Drive and
+OneDrive are OAuth-based, so *you* (the person running this Hodora
+instance) need to register an app with each provider once and put its
+credentials in your environment — riders never see or provide these, they
+just click "Connect".
+
+**Google Drive:**
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → create or
+   pick a project → **APIs & Services → Library** → enable the **Google
+   Drive API**.
+2. **APIs & Services → OAuth consent screen** → configure it (External is
+   fine for personal use; add your own account as a test user if the app
+   stays in "Testing" mode).
+3. **APIs & Services → Credentials → Create Credentials → OAuth client ID**
+   → Application type **Web application** → under **Authorized redirect
+   URIs** add `https://your-domain/api/cloud/google-drive/callback`
+   (use your actual deployed origin — `http://localhost:8080/...` for local
+   dev).
+4. Copy the **Client ID** and **Client secret** into `GOOGLE_DRIVE_CLIENT_ID`
+   / `GOOGLE_DRIVE_CLIENT_SECRET`.
+
+Hodora only ever requests the `drive.file` scope — it can see and manage
+only the files/folders it creates itself, never the rest of a rider's
+Drive.
+
+**OneDrive:**
+
+1. [Azure Portal](https://portal.azure.com/) → **Microsoft Entra ID → App
+   registrations → New registration**. Supported account types: "Accounts
+   in any organizational directory and personal Microsoft accounts" if you
+   want both personal and work/school OneDrive accounts to be able to
+   connect.
+2. Under **Authentication → Add a platform → Web**, add
+   `https://your-domain/api/cloud/onedrive/callback` as a redirect URI.
+3. Under **Certificates & secrets → New client secret**, create one and
+   copy its **value** immediately (it's only shown once).
+4. Copy the **Application (client) ID** and the client secret value into
+   `ONEDRIVE_CLIENT_ID` / `ONEDRIVE_CLIENT_SECRET`.
+
+Hodora only ever requests the `Files.ReadWrite.AppFolder` scope — it's
+confined to its own special app folder, invisible to the rest of a rider's
+OneDrive.
+
+Both are entirely optional: leave their env vars unset and Settings →
+Connections simply won't be able to complete that provider's OAuth flow
+(the button will fail with an error) while Nextcloud keeps working
+normally.
 
 If you'd rather deploy somewhere other than Cloudflare Workers, `npm run
 build:node` builds Nitro's `node-server` preset instead (see "Self-hosting

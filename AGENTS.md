@@ -75,3 +75,19 @@ cloudflared/
 - **Keep `docs/CODE_REVIEW.md` updated.** When you fix a bug found during a
   review pass, or find a new one, add it there rather than letting findings
   live only in chat history.
+- **Cloud sync (`src/lib/sync/`).** `cloud-sync-engine.server.ts` holds the
+  provider-agnostic lock/mapping/classify/execute logic behind a small
+  `RemoteAdapter` interface; `nextcloud-engine.server.ts`,
+  `google-drive-engine.server.ts`, and `onedrive-engine.server.ts` are thin
+  wrappers that build an adapter from their provider's REST client
+  (`nextcloud-webdav.server.ts`, `google-drive.server.ts`,
+  `onedrive.server.ts`) and call it. Nextcloud auth is a per-connection app
+  password; Google Drive/OneDrive are OAuth — `oauth-state.server.ts` signs
+  the `state` param carried through the authorize → provider → callback
+  redirect, since the callback is a plain browser navigation with no bearer
+  token, and the callback route uses `supabaseAdmin` (not
+  `authenticateRequest()`) to write the connection row as a result. Add a
+  new provider by writing its REST client + engine wrapper and a
+  `src/routes/api/cloud/<provider>/{authorize,callback,status,disconnect,sync}.tsx`
+  set mirroring the existing ones — the generic engine and `classify.ts`
+  shouldn't need to change.

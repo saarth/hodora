@@ -48,10 +48,15 @@ import {
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import {
+  beginOAuthConnect,
   connectNextcloud,
   disconnectNextcloud,
+  disconnectOAuthCloud,
   fetchNextcloudStatus,
+  fetchOAuthCloudStatus,
   syncNextcloudNow,
+  syncOAuthCloudNow,
+  type OAuthProvider,
 } from "@/lib/sync/connections";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -112,11 +117,156 @@ function Section({
   );
 }
 
+function syncSummaryMessage(summary: {
+  uploaded: number;
+  downloaded: number;
+  deletedRemote: number;
+  deletedLocal: number;
+  conflicts: number;
+}): string {
+  const parts = [
+    summary.uploaded > 0 ? `${summary.uploaded} uploaded` : null,
+    summary.downloaded > 0 ? `${summary.downloaded} downloaded` : null,
+    summary.deletedRemote > 0 ? `${summary.deletedRemote} removed remotely` : null,
+    summary.deletedLocal > 0 ? `${summary.deletedLocal} removed locally` : null,
+    summary.conflicts > 0 ? `${summary.conflicts} conflicts resolved` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? `Synced — ${parts.join(", ")}` : "Already up to date";
+}
+
+const OAUTH_PROVIDER_LABEL: Record<OAuthProvider, string> = {
+  "google-drive": "Google Drive",
+  onedrive: "OneDrive",
+};
+
+function OAuthCloudCard({ provider }: { provider: OAuthProvider }) {
+  const queryClient = useQueryClient();
+  const [folder, setFolder] = useState("Hodora");
+  const label = OAUTH_PROVIDER_LABEL[provider];
+  const statusKey = ["cloud", provider, "status"] as const;
+
+  const { data: status } = useQuery({
+    queryKey: statusKey,
+    queryFn: () => fetchOAuthCloudStatus(provider),
+  });
+
+  const connectMutation = useMutation({
+    mutationFn: () => beginOAuthConnect(provider, folder),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : `Could not start ${label} sign-in`),
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: () => syncOAuthCloudNow(provider),
+    onSuccess: (summary) => {
+      queryClient.invalidateQueries({ queryKey: statusKey });
+      queryClient.invalidateQueries({ queryKey: ridesKeys.all });
+      toast.success(syncSummaryMessage(summary));
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Sync failed"),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: () => disconnectOAuthCloud(provider),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: statusKey });
+      toast.success(`Disconnected ${label}`);
+    },
+    onError: () => toast.error(`Could not disconnect ${label}`),
+  });
+
+  if (status?.connected) {
+    return (
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold">{label}</p>
+          <p className="break-all text-sm text-muted-foreground">
+            {status.accountEmail ?? "Connected"} — {status.folder}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {status.lastSyncedAt
+              ? `Last synced ${formatDistanceToNow(new Date(status.lastSyncedAt), { addSuffix: true })}`
+              : "Not synced yet"}
+          </p>
+          {status.status === "error" && status.lastError && (
+            <p className="mt-1 text-xs text-destructive">{status.lastError}</p>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending || status.syncing}
+          >
+            {syncMutation.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <RefreshCw className="size-4" />
+            )}
+            Sync now
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Unplug className="size-4" />
+                Disconnect
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Disconnect {label}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Your routes stay in Hodora and the files stay in {label} — nothing on either side
+                  is deleted. You can reconnect any time.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => disconnectMutation.mutate()}>
+                  Disconnect
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="space-y-2">
+          <Label htmlFor={`${provider}-folder`}>{label} folder</Label>
+          <Input
+            id={`${provider}-folder`}
+            value={folder}
+            onChange={(event) => setFolder(event.target.value)}
+            className="w-48"
+          />
+        </div>
+        <Button
+          onClick={() => connectMutation.mutate()}
+          disabled={connectMutation.isPending || !folder.trim()}
+        >
+          {connectMutation.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Cloud className="size-4" />
+          )}
+          Connect {label}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function SettingsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useUser();
-  const { theme, toggle } = useTheme();
+  const { mode, setMode } = useTheme();
 
   const { data: profile } = useQuery({ queryKey: ridesKeys.profile, queryFn: fetchProfile });
 
@@ -140,6 +290,35 @@ function SettingsPage() {
   useEffect(() => {
     if (user?.email) setEmail(user.email);
   }, [user?.email]);
+
+  // Google Drive/OneDrive land back here as a plain browser redirect from
+  // `/api/cloud/<provider>/callback` (see that route's comment for why it
+  // can't just report success as a fetch response) — pick the outcome up
+  // from the query string once, toast it, then scrub the params so a
+  // refresh doesn't re-show the toast.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("connected");
+    const cloudError = params.get("cloud_error");
+    if (!connected && !cloudError) return;
+
+    const providerLabel = (value: string): string =>
+      value === "google_drive" ? "Google Drive" : value === "onedrive" ? "OneDrive" : value;
+
+    if (connected) {
+      toast.success(`Connected ${providerLabel(connected)}`);
+      queryClient.invalidateQueries({ queryKey: ["cloud"] });
+    }
+    if (cloudError) {
+      toast.error(`Could not connect ${providerLabel(cloudError.split(":")[0])}`);
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("connected");
+    url.searchParams.delete("cloud_error");
+    window.history.replaceState({}, "", url.toString());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const deactivated = Boolean(profile?.deactivated_at);
 
@@ -261,14 +440,7 @@ function SettingsPage() {
     onSuccess: (summary) => {
       queryClient.invalidateQueries({ queryKey: nextcloudStatusKey });
       queryClient.invalidateQueries({ queryKey: ridesKeys.all });
-      const parts = [
-        summary.uploaded > 0 ? `${summary.uploaded} uploaded` : null,
-        summary.downloaded > 0 ? `${summary.downloaded} downloaded` : null,
-        summary.deletedRemote > 0 ? `${summary.deletedRemote} removed remotely` : null,
-        summary.deletedLocal > 0 ? `${summary.deletedLocal} removed locally` : null,
-        summary.conflicts > 0 ? `${summary.conflicts} conflicts resolved` : null,
-      ].filter(Boolean);
-      toast.success(parts.length > 0 ? `Synced — ${parts.join(", ")}` : "Already up to date");
+      toast.success(syncSummaryMessage(summary));
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Sync failed"),
   });
@@ -373,10 +545,24 @@ function SettingsPage() {
                   </button>
                 ))}
               </div>
-              <Button variant="outline" onClick={toggle}>
-                <MoonStar className="size-4" />
-                {theme === "dark" ? "Dark theme" : "Light theme"}
-              </Button>
+              <div className="inline-flex items-center gap-1 rounded-xl border border-border p-1">
+                <MoonStar className="ml-1.5 size-4 text-muted-foreground" />
+                {(["light", "dark", "system"] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setMode(option)}
+                    className={cn(
+                      "rounded-lg px-3 py-1.5 text-sm font-semibold capitalize transition-colors",
+                      mode === option
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
             </div>
           </Section>
 
@@ -504,6 +690,11 @@ function SettingsPage() {
                 </Button>
               </div>
             )}
+
+            <Separator className="my-5" />
+            <OAuthCloudCard provider="google-drive" />
+            <Separator className="my-5" />
+            <OAuthCloudCard provider="onedrive" />
           </Section>
 
           <Section
