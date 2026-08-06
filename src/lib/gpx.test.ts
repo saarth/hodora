@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { bearing, bearingDelta, formatDistance, formatDuration, haversine, parseGpx } from "./gpx";
+import {
+  bearing,
+  bearingDelta,
+  formatDistance,
+  formatDuration,
+  haversine,
+  parseGpx,
+  toGpx,
+  type RidePoint,
+} from "./gpx";
 
 const BASE_LAT = 45;
 const BASE_LON = -122;
@@ -147,6 +156,54 @@ describe("parseGpx", () => {
 
     expect(parsed.points.length).toBeLessThanOrEqual(2500);
     expect(parsed.points.some((p) => p.gap)).toBe(true);
+  });
+});
+
+describe("toGpx", () => {
+  it("round-trips a single-segment route's coordinates through parseGpx", () => {
+    const points: RidePoint[] = [
+      { ...offset(0, 0), ele: 10, d: 0 },
+      { ...offset(50, 0), ele: 12, d: 50 },
+      { ...offset(100, 0), ele: 8, d: 100 },
+    ];
+    const xml = toGpx({ name: "Morning Ride", points });
+    const parsed = parseGpx(xml, "fallback");
+
+    expect(parsed.name).toBe("Morning Ride");
+    expect(parsed.points).toHaveLength(3);
+    for (const [i, p] of parsed.points.entries()) {
+      expect(p.lat).toBeCloseTo(points[i].lat, 6);
+      expect(p.lon).toBeCloseTo(points[i].lon, 6);
+      expect(p.ele).toBeCloseTo(points[i].ele, 1);
+    }
+  });
+
+  it("emits one <trkseg> per gap-delimited segment, preserved through parseGpx", () => {
+    const points: RidePoint[] = [
+      { ...offset(0, 0), ele: 0, d: 0 },
+      { ...offset(50, 0), ele: 0, d: 50 },
+      { ...offset(200, 0), ele: 0, d: 200, gap: true },
+      { ...offset(250, 0), ele: 0, d: 250 },
+    ];
+    const xml = toGpx({ name: "Two Segments", points });
+    expect(xml.match(/<trkseg>/g)).toHaveLength(2);
+
+    const parsed = parseGpx(xml, "fallback");
+    expect(parsed.points.filter((p) => p.gap)).toHaveLength(1);
+    expect(parsed.points[2].gap).toBe(true);
+  });
+
+  it("XML-escapes special characters in the route name", () => {
+    const points: RidePoint[] = [
+      { ...offset(0, 0), ele: 0, d: 0 },
+      { ...offset(50, 0), ele: 0, d: 50 },
+    ];
+    const xml = toGpx({ name: "Tom & Jerry's <Ride>", points });
+    expect(xml).not.toContain("Tom & Jerry's <Ride>");
+    expect(xml).toContain("Tom &amp; Jerry&apos;s &lt;Ride&gt;");
+
+    const parsed = parseGpx(xml, "fallback");
+    expect(parsed.name).toBe("Tom & Jerry's <Ride>");
   });
 });
 

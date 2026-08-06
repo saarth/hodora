@@ -119,7 +119,10 @@ will prompt you to log in to a Cloudflare account. Remember to set
 `SUPABASE_SERVICE_ROLE_KEY` (used by `src/routes/api/delete-account.tsx` and
 `src/integrations/supabase/client.server.ts`) in your Cloudflare Worker's
 environment variables — never in a client-visible `.env` or `VITE_`-prefixed
-variable.
+variable. If you want the "Connections" cloud-sync feature, also set
+`TOKEN_ENCRYPTION_KEY` the same way — see `.env.example` for how to generate
+one. Both are optional in the sense that the app runs without them; only the
+account-deletion and cloud-sync features need them.
 
 If you'd rather deploy somewhere other than Cloudflare Workers, `npm run
 build:node` builds Nitro's `node-server` preset instead (see "Self-hosting

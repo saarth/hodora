@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistance, formatElevation, parseGpx } from "@/lib/gpx";
 import { createRide, deleteRide, fetchProfile, fetchRides, ridesKeys } from "@/lib/rides";
+import { triggerCloudSyncIfConnected } from "@/lib/sync/connections";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/rides/")({
@@ -63,6 +64,9 @@ function RidesPage() {
     queryFn: listOfflineRideIds,
   });
 
+  useEffect(() => {
+    void triggerCloudSyncIfConnected();
+  }, []);
 
   const importMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -81,6 +85,7 @@ function RidesPage() {
     onSuccess: (id) => {
       queryClient.invalidateQueries({ queryKey: ridesKeys.all });
       toast.success("Route imported");
+      void triggerCloudSyncIfConnected();
       navigate({ to: "/rides/$id", params: { id } });
     },
     onError: (error) => {
@@ -93,6 +98,7 @@ function RidesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ridesKeys.all });
       toast.success("Route deleted");
+      void triggerCloudSyncIfConnected();
     },
     onError: () => toast.error("Could not delete that route"),
   });

@@ -2,16 +2,20 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
 import {
   AlertTriangle,
+  Cloud,
   Loader2,
   Mail,
   MoonStar,
   PauseCircle,
+  RefreshCw,
   Ruler,
   Save,
   ShieldAlert,
   Trash2,
+  Unplug,
   User as UserIcon,
 } from "lucide-react";
 
@@ -43,10 +47,14 @@ import {
 } from "@/lib/account";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-
+import {
+  connectNextcloud,
+  disconnectNextcloud,
+  fetchNextcloudStatus,
+  syncNextcloudNow,
+} from "@/lib/sync/connections";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-
   head: () => ({
     meta: [
       { title: "Account settings — Hodora" },
@@ -64,7 +72,6 @@ export const Route = createFileRoute("/_authenticated/settings")({
   }),
   component: SettingsPage,
 });
-
 
 function Section({
   icon,
@@ -119,6 +126,11 @@ function SettingsPage() {
   const [password, setPassword] = useState("");
   const [confirmText, setConfirmText] = useState("");
 
+  const [nextcloudUrl, setNextcloudUrl] = useState("");
+  const [nextcloudUsername, setNextcloudUsername] = useState("");
+  const [nextcloudAppPassword, setNextcloudAppPassword] = useState("");
+  const [nextcloudFolder, setNextcloudFolder] = useState("/Hodora");
+
   useEffect(() => {
     if (!profile) return;
     setDisplayName(profile.display_name ?? "");
@@ -129,12 +141,10 @@ function SettingsPage() {
     if (user?.email) setEmail(user.email);
   }, [user?.email]);
 
-
   const deactivated = Boolean(profile?.deactivated_at);
 
   const profileMutation = useMutation({
-    mutationFn: () =>
-      updateProfile({ display_name: displayName.trim() || null, username }),
+    mutationFn: () => updateProfile({ display_name: displayName.trim() || null, username }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ridesKeys.profile });
       toast.success("Profile updated");
@@ -223,7 +233,54 @@ function SettingsPage() {
       toast.error(error instanceof Error ? error.message : "Could not delete your account"),
   });
 
+  const nextcloudStatusKey = ["cloud", "nextcloud", "status"] as const;
+  const { data: nextcloudStatus } = useQuery({
+    queryKey: nextcloudStatusKey,
+    queryFn: fetchNextcloudStatus,
+  });
 
+  const connectNextcloudMutation = useMutation({
+    mutationFn: () =>
+      connectNextcloud({
+        url: nextcloudUrl,
+        username: nextcloudUsername,
+        appPassword: nextcloudAppPassword,
+        folder: nextcloudFolder,
+      }),
+    onSuccess: () => {
+      setNextcloudAppPassword("");
+      queryClient.invalidateQueries({ queryKey: nextcloudStatusKey });
+      toast.success("Connected to Nextcloud");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not connect to Nextcloud"),
+  });
+
+  const syncNextcloudMutation = useMutation({
+    mutationFn: () => syncNextcloudNow(),
+    onSuccess: (summary) => {
+      queryClient.invalidateQueries({ queryKey: nextcloudStatusKey });
+      queryClient.invalidateQueries({ queryKey: ridesKeys.all });
+      const parts = [
+        summary.uploaded > 0 ? `${summary.uploaded} uploaded` : null,
+        summary.downloaded > 0 ? `${summary.downloaded} downloaded` : null,
+        summary.deletedRemote > 0 ? `${summary.deletedRemote} removed remotely` : null,
+        summary.deletedLocal > 0 ? `${summary.deletedLocal} removed locally` : null,
+        summary.conflicts > 0 ? `${summary.conflicts} conflicts resolved` : null,
+      ].filter(Boolean);
+      toast.success(parts.length > 0 ? `Synced — ${parts.join(", ")}` : "Already up to date");
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Sync failed"),
+  });
+
+  const disconnectNextcloudMutation = useMutation({
+    mutationFn: () => disconnectNextcloud(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: nextcloudStatusKey });
+      toast.success("Disconnected Nextcloud");
+    },
+    onError: () => toast.error("Could not disconnect Nextcloud"),
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -321,6 +378,132 @@ function SettingsPage() {
                 {theme === "dark" ? "Dark theme" : "Light theme"}
               </Button>
             </div>
+          </Section>
+
+          <Section
+            icon={<Cloud className="size-4" />}
+            title="Connections"
+            description="Sync your routes to a cloud storage account you control."
+          >
+            {nextcloudStatus?.connected ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">Nextcloud</p>
+                    <p className="break-all text-sm text-muted-foreground">
+                      {nextcloudStatus.username}@{nextcloudStatus.webdavUrl} —{" "}
+                      {nextcloudStatus.folder}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {nextcloudStatus.lastSyncedAt
+                        ? `Last synced ${formatDistanceToNow(new Date(nextcloudStatus.lastSyncedAt), { addSuffix: true })}`
+                        : "Not synced yet"}
+                    </p>
+                    {nextcloudStatus.status === "error" && nextcloudStatus.lastError && (
+                      <p className="mt-1 text-xs text-destructive">{nextcloudStatus.lastError}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => syncNextcloudMutation.mutate()}
+                      disabled={syncNextcloudMutation.isPending || nextcloudStatus.syncing}
+                    >
+                      {syncNextcloudMutation.isPending ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="size-4" />
+                      )}
+                      Sync now
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Unplug className="size-4" />
+                          Disconnect
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Disconnect Nextcloud?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Your routes stay in Hodora and the files stay in Nextcloud — nothing on
+                            either side is deleted. You can reconnect any time.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => disconnectNextcloudMutation.mutate()}>
+                            Disconnect
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Connect a Nextcloud account to keep your routes backed up and synced as GPX files
+                  in a folder of your choosing.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="nextcloud-url">Server URL</Label>
+                    <Input
+                      id="nextcloud-url"
+                      placeholder="https://cloud.example.com"
+                      value={nextcloudUrl}
+                      onChange={(event) => setNextcloudUrl(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nextcloud-username">Username</Label>
+                    <Input
+                      id="nextcloud-username"
+                      value={nextcloudUsername}
+                      onChange={(event) => setNextcloudUsername(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nextcloud-app-password">App password</Label>
+                    <Input
+                      id="nextcloud-app-password"
+                      type="password"
+                      placeholder="Settings → Security → Create new app password"
+                      value={nextcloudAppPassword}
+                      onChange={(event) => setNextcloudAppPassword(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nextcloud-folder">Sync folder</Label>
+                    <Input
+                      id="nextcloud-folder"
+                      value={nextcloudFolder}
+                      onChange={(event) => setNextcloudFolder(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <Button
+                  onClick={() => connectNextcloudMutation.mutate()}
+                  disabled={
+                    connectNextcloudMutation.isPending ||
+                    !nextcloudUrl.trim() ||
+                    !nextcloudUsername.trim() ||
+                    !nextcloudAppPassword
+                  }
+                >
+                  {connectNextcloudMutation.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Cloud className="size-4" />
+                  )}
+                  Connect Nextcloud
+                </Button>
+              </div>
+            )}
           </Section>
 
           <Section
@@ -475,7 +658,6 @@ function SettingsPage() {
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
-
             </div>
           </Section>
         </div>
