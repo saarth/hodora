@@ -206,7 +206,3 @@ and renews the HTTPS certificate for you automatically.
 To rotate the token later, generate a new one from the tunnel's config page
 and update `CLOUDFLARE_TUNNEL_TOKEN` in `.env`, then update the stack.
 
-Don't forget to also add your HTTPS domain (e.g.
-`https://hodora.example.com`) as an authorized JavaScript origin on the
-Google Cloud OAuth client if you're using Google sign-in — see the "Google
-sign-in" note in the [README](../README.md#3-configure-environment-variables).

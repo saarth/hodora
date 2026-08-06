@@ -57,18 +57,7 @@ cp .env.example .env
 ```
 
 Then edit `.env` with your Supabase project URL, project ID, and publishable (anon) key.
-
-**Google sign-in:** Hodora uses Supabase's built-in Google OAuth
-(`supabase.auth.signInWithOAuth({ provider: "google" })`), which needs a
-Google OAuth client of your own. In the Supabase dashboard: **Authentication
-→ Providers → Google**, enable it, and fill in a Client ID/Secret from a
-[Google Cloud OAuth client](https://console.cloud.google.com/apis/credentials)
-(type "Web application"). Add your Supabase project's callback URL
-(`https://<project-ref>.supabase.co/auth/v1/callback`) as an authorized
-redirect URI on the Google side, and add your app's own origin(s)
-(e.g. `http://localhost:8080`, your production domain) as authorized
-JavaScript origins. Email/password sign-in works out of the box with no
-extra setup.
+Email/password sign-in works out of the box with no extra setup.
 
 ### 4. Start the dev server
 
@@ -193,8 +182,7 @@ a domain on Cloudflare DNS:
 Cloudflare creates the DNS record and terminates HTTPS for you — no
 certificate to manage, and no config file to write. Once it's running,
 `https://hodora.yourdomain.com` is what to open on your phone, and what to
-add to Supabase's Auth URL Configuration (and the Google OAuth client's
-authorized origins, if you use Google sign-in).
+add to Supabase's Auth URL Configuration.
 
 ## Contributing
 
