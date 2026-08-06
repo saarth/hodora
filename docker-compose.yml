@@ -23,6 +23,9 @@ services:
       # Bypasses RLS — runtime env var only, never a build arg (build args
       # can end up visible in image layer history).
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      # Optional — only needed for the "Connections" cloud-sync feature.
+      # Same never-a-build-arg rule applies. See .env.example.
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
     restart: unless-stopped
 
   # Optional: runs the Cloudflare Tunnel alongside Hodora instead of as a

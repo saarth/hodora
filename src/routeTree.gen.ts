@@ -19,6 +19,10 @@ import { Route as ApiDeleteAccountRouteImport } from './routes/api/delete-accoun
 import { Route as RidesIndexRouteImport } from './routes/rides.index'
 import { Route as RidesIdIndexRouteImport } from './routes/rides.$id.index'
 import { Route as RidesIdNavRouteImport } from './routes/rides.$id.nav'
+import { Route as ApiCloudNextcloudConnectRouteImport } from './routes/api/cloud/nextcloud/connect'
+import { Route as ApiCloudNextcloudDisconnectRouteImport } from './routes/api/cloud/nextcloud/disconnect'
+import { Route as ApiCloudNextcloudStatusRouteImport } from './routes/api/cloud/nextcloud/status'
+import { Route as ApiCloudNextcloudSyncRouteImport } from './routes/api/cloud/nextcloud/sync'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -69,6 +73,28 @@ const RidesIdNavRoute = RidesIdNavRouteImport.update({
   path: '/rides/$id/nav',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCloudNextcloudConnectRoute =
+  ApiCloudNextcloudConnectRouteImport.update({
+    id: '/api/cloud/nextcloud/connect',
+    path: '/api/cloud/nextcloud/connect',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCloudNextcloudDisconnectRoute =
+  ApiCloudNextcloudDisconnectRouteImport.update({
+    id: '/api/cloud/nextcloud/disconnect',
+    path: '/api/cloud/nextcloud/disconnect',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCloudNextcloudStatusRoute = ApiCloudNextcloudStatusRouteImport.update({
+  id: '/api/cloud/nextcloud/status',
+  path: '/api/cloud/nextcloud/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCloudNextcloudSyncRoute = ApiCloudNextcloudSyncRouteImport.update({
+  id: '/api/cloud/nextcloud/sync',
+  path: '/api/cloud/nextcloud/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -80,6 +106,10 @@ export interface FileRoutesByFullPath {
   '/rides/': typeof RidesIndexRoute
   '/rides/$id/nav': typeof RidesIdNavRoute
   '/rides/$id/': typeof RidesIdIndexRoute
+  '/api/cloud/nextcloud/connect': typeof ApiCloudNextcloudConnectRoute
+  '/api/cloud/nextcloud/disconnect': typeof ApiCloudNextcloudDisconnectRoute
+  '/api/cloud/nextcloud/status': typeof ApiCloudNextcloudStatusRoute
+  '/api/cloud/nextcloud/sync': typeof ApiCloudNextcloudSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,6 +121,10 @@ export interface FileRoutesByTo {
   '/rides': typeof RidesIndexRoute
   '/rides/$id/nav': typeof RidesIdNavRoute
   '/rides/$id': typeof RidesIdIndexRoute
+  '/api/cloud/nextcloud/connect': typeof ApiCloudNextcloudConnectRoute
+  '/api/cloud/nextcloud/disconnect': typeof ApiCloudNextcloudDisconnectRoute
+  '/api/cloud/nextcloud/status': typeof ApiCloudNextcloudStatusRoute
+  '/api/cloud/nextcloud/sync': typeof ApiCloudNextcloudSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,6 +138,10 @@ export interface FileRoutesById {
   '/rides/': typeof RidesIndexRoute
   '/rides/$id/nav': typeof RidesIdNavRoute
   '/rides/$id/': typeof RidesIdIndexRoute
+  '/api/cloud/nextcloud/connect': typeof ApiCloudNextcloudConnectRoute
+  '/api/cloud/nextcloud/disconnect': typeof ApiCloudNextcloudDisconnectRoute
+  '/api/cloud/nextcloud/status': typeof ApiCloudNextcloudStatusRoute
+  '/api/cloud/nextcloud/sync': typeof ApiCloudNextcloudSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,6 +155,10 @@ export interface FileRouteTypes {
     | '/rides/'
     | '/rides/$id/nav'
     | '/rides/$id/'
+    | '/api/cloud/nextcloud/connect'
+    | '/api/cloud/nextcloud/disconnect'
+    | '/api/cloud/nextcloud/status'
+    | '/api/cloud/nextcloud/sync'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -128,6 +170,10 @@ export interface FileRouteTypes {
     | '/rides'
     | '/rides/$id/nav'
     | '/rides/$id'
+    | '/api/cloud/nextcloud/connect'
+    | '/api/cloud/nextcloud/disconnect'
+    | '/api/cloud/nextcloud/status'
+    | '/api/cloud/nextcloud/sync'
   id:
     | '__root__'
     | '/'
@@ -140,6 +186,10 @@ export interface FileRouteTypes {
     | '/rides/'
     | '/rides/$id/nav'
     | '/rides/$id/'
+    | '/api/cloud/nextcloud/connect'
+    | '/api/cloud/nextcloud/disconnect'
+    | '/api/cloud/nextcloud/status'
+    | '/api/cloud/nextcloud/sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -152,6 +202,10 @@ export interface RootRouteChildren {
   RidesIndexRoute: typeof RidesIndexRoute
   RidesIdNavRoute: typeof RidesIdNavRoute
   RidesIdIndexRoute: typeof RidesIdIndexRoute
+  ApiCloudNextcloudConnectRoute: typeof ApiCloudNextcloudConnectRoute
+  ApiCloudNextcloudDisconnectRoute: typeof ApiCloudNextcloudDisconnectRoute
+  ApiCloudNextcloudStatusRoute: typeof ApiCloudNextcloudStatusRoute
+  ApiCloudNextcloudSyncRoute: typeof ApiCloudNextcloudSyncRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -226,6 +280,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RidesIdNavRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cloud/nextcloud/connect': {
+      id: '/api/cloud/nextcloud/connect'
+      path: '/api/cloud/nextcloud/connect'
+      fullPath: '/api/cloud/nextcloud/connect'
+      preLoaderRoute: typeof ApiCloudNextcloudConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloud/nextcloud/disconnect': {
+      id: '/api/cloud/nextcloud/disconnect'
+      path: '/api/cloud/nextcloud/disconnect'
+      fullPath: '/api/cloud/nextcloud/disconnect'
+      preLoaderRoute: typeof ApiCloudNextcloudDisconnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloud/nextcloud/status': {
+      id: '/api/cloud/nextcloud/status'
+      path: '/api/cloud/nextcloud/status'
+      fullPath: '/api/cloud/nextcloud/status'
+      preLoaderRoute: typeof ApiCloudNextcloudStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloud/nextcloud/sync': {
+      id: '/api/cloud/nextcloud/sync'
+      path: '/api/cloud/nextcloud/sync'
+      fullPath: '/api/cloud/nextcloud/sync'
+      preLoaderRoute: typeof ApiCloudNextcloudSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -250,6 +332,10 @@ const rootRouteChildren: RootRouteChildren = {
   RidesIndexRoute: RidesIndexRoute,
   RidesIdNavRoute: RidesIdNavRoute,
   RidesIdIndexRoute: RidesIdIndexRoute,
+  ApiCloudNextcloudConnectRoute: ApiCloudNextcloudConnectRoute,
+  ApiCloudNextcloudDisconnectRoute: ApiCloudNextcloudDisconnectRoute,
+  ApiCloudNextcloudStatusRoute: ApiCloudNextcloudStatusRoute,
+  ApiCloudNextcloudSyncRoute: ApiCloudNextcloudSyncRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
