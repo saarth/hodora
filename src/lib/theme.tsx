@@ -1,4 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from "react";
 
 type Theme = "light" | "dark";
 
@@ -29,7 +36,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(prefersLight ? "light" : "dark");
   }, []);
 
-  useEffect(() => {
+  // useLayoutEffect (not useEffect): this DOM mutation must land before any
+  // descendant's passive effect reads the resulting CSS custom properties —
+  // e.g. RouteMap re-resolving --color-route on theme change. Passive
+  // effects fire child-before-parent within a commit, so a plain useEffect
+  // here would run after some descendants had already read the stale value.
+  useLayoutEffect(() => {
     const root = document.documentElement;
     root.classList.toggle("dark", theme === "dark");
     window.localStorage.setItem(STORAGE_KEY, theme);

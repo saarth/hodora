@@ -46,11 +46,11 @@ const basemap = (theme: "light" | "dark") =>
 
 // MapLibre paint properties need real color strings, not `var(...)` — it
 // paints to a canvas, not the DOM. Resolving a custom property through a
-// hidden probe element lets the browser do the cascade/inheritance work (and
-// hands back a format MapLibre's color parser always understands), so the
-// route styling tracks the app's CSS theme tokens instead of being frozen to
-// whatever hex value was hardcoded at write-time.
+// hidden probe element lets the browser do the cascade/inheritance work, so
+// the route styling tracks the app's CSS theme tokens instead of being
+// frozen to whatever hex value was hardcoded at write-time.
 let colorProbe: HTMLSpanElement | null = null;
+let colorCanvasCtx: CanvasRenderingContext2D | null = null;
 function resolveThemeColor(varName: string): string {
   if (typeof document === "undefined") return "#000000";
   if (!colorProbe) {
@@ -59,7 +59,28 @@ function resolveThemeColor(varName: string): string {
     document.body.appendChild(colorProbe);
   }
   colorProbe.style.color = `var(${varName})`;
-  return getComputedStyle(colorProbe).color;
+  const computed = getComputedStyle(colorProbe).color;
+
+  // Theme tokens are defined in oklch() (styles.css), and current Chromium
+  // and Firefox now report getComputedStyle colors verbatim in whatever
+  // color space they were specified in instead of always down-converting to
+  // rgb(). MapLibre's paint-property color parser only understands
+  // rgb()/hex/hsl, so an oklch() string here makes every addLayer call fail
+  // style validation silently, dropping the route with no thrown error.
+  // Round-tripping through a 1x1 canvas — whose 2D context parses any CSS
+  // color, including oklch/lab — always yields an rgba() string MapLibre
+  // can parse.
+  if (!colorCanvasCtx) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    colorCanvasCtx = canvas.getContext("2d", { willReadFrequently: true });
+  }
+  if (!colorCanvasCtx) return computed;
+  colorCanvasCtx.fillStyle = computed;
+  colorCanvasCtx.fillRect(0, 0, 1, 1);
+  const [r, g, b, a] = colorCanvasCtx.getImageData(0, 0, 1, 1).data;
+  return `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`;
 }
 
 function mapThemeColors() {
