@@ -44,13 +44,68 @@ const basemap = (theme: "light" | "dark") =>
     ? "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
     : "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
 
+function parsePercentOrNumber(value: string, hundredPercent: number): number {
+  return value.endsWith("%") ? (parseFloat(value) / 100) * hundredPercent : Number(value);
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function linearToSrgb(value: number): number {
+  const c = clamp01(value);
+  return c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055;
+}
+
+// Converts a CSS `oklch(L C H[ / A])` string to an `rgba()` string using the
+// standard OKLab matrices (Björn Ottosson), entirely in JS with no DOM or
+// Canvas involved. MapLibre's paint-property color parser only understands
+// rgb()/hex/hsl, not oklch(), so this can't just be handed through — and a
+// Canvas-2D round-trip conversion (fillStyle + getImageData) turned out to
+// be unreliable in the wild: privacy-hardened browsers (Brave's
+// fingerprinting protection, Firefox's resistFingerprinting, etc.) block or
+// randomize Canvas pixel readback specifically to stop canvas
+// fingerprinting, which silently defeated that approach and let the raw
+// oklch() string back through, failing every addLayer call.
+function oklchToRgbaString(oklch: string): string | null {
+  const match = oklch.match(
+    /^oklch\(\s*([\d.]+%?)\s+([\d.]+%?)\s+([\d.]+)(?:deg)?\s*(?:\/\s*([\d.]+%?))?\s*\)$/i,
+  );
+  if (!match) return null;
+
+  const L = parsePercentOrNumber(match[1], 1);
+  const C = parsePercentOrNumber(match[2], 0.4);
+  const H = (Number(match[3]) * Math.PI) / 180;
+  const alpha = match[4] !== undefined ? parsePercentOrNumber(match[4], 1) : 1;
+
+  const a = C * Math.cos(H);
+  const b = C * Math.sin(H);
+
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.291485548 * b;
+
+  const l = l_ ** 3;
+  const m = m_ ** 3;
+  const s = s_ ** 3;
+
+  const rLinear = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const gLinear = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const bLinear = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+
+  const r = Math.round(linearToSrgb(rLinear) * 255);
+  const g = Math.round(linearToSrgb(gLinear) * 255);
+  const bComp = Math.round(linearToSrgb(bLinear) * 255);
+
+  return `rgba(${r}, ${g}, ${bComp}, ${alpha.toFixed(3)})`;
+}
+
 // MapLibre paint properties need real color strings, not `var(...)` — it
 // paints to a canvas, not the DOM. Resolving a custom property through a
 // hidden probe element lets the browser do the cascade/inheritance work, so
 // the route styling tracks the app's CSS theme tokens instead of being
 // frozen to whatever hex value was hardcoded at write-time.
 let colorProbe: HTMLSpanElement | null = null;
-let colorCanvasCtx: CanvasRenderingContext2D | null = null;
 function resolveThemeColor(varName: string): string {
   if (typeof document === "undefined") return "#000000";
   if (!colorProbe) {
@@ -67,20 +122,11 @@ function resolveThemeColor(varName: string): string {
   // rgb(). MapLibre's paint-property color parser only understands
   // rgb()/hex/hsl, so an oklch() string here makes every addLayer call fail
   // style validation silently, dropping the route with no thrown error.
-  // Round-tripping through a 1x1 canvas — whose 2D context parses any CSS
-  // color, including oklch/lab — always yields an rgba() string MapLibre
-  // can parse.
-  if (!colorCanvasCtx) {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1;
-    canvas.height = 1;
-    colorCanvasCtx = canvas.getContext("2d", { willReadFrequently: true });
+  if (computed.startsWith("oklch(")) {
+    const converted = oklchToRgbaString(computed);
+    if (converted) return converted;
   }
-  if (!colorCanvasCtx) return computed;
-  colorCanvasCtx.fillStyle = computed;
-  colorCanvasCtx.fillRect(0, 0, 1, 1);
-  const [r, g, b, a] = colorCanvasCtx.getImageData(0, 0, 1, 1).data;
-  return `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`;
+  return computed;
 }
 
 function mapThemeColors() {
