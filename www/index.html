@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Hodora</title>
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        background: #0b1220;
+        color: #e7ecf5;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      This placeholder is never actually shown: capacitor.config.ts sets
+      `server.url`, so the WebView navigates straight to the live Hodora
+      deployment on launch instead of loading this file. It exists only
+      because `cap add android` / `cap sync` require a webDir with content
+      to copy into the native project.
+    -->
+    <p>Loading Hodora…</p>
+  </body>
+</html>
