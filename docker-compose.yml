@@ -14,6 +14,11 @@ services:
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
         VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
         VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        # Optional — leave unset in .env for the zero-config defaults (public
+        # BRouter, CARTO raster basemap). See .env.example / README.md's
+        # "Route planning & map style" section.
+        VITE_BROUTER_URL: ${VITE_BROUTER_URL}
+        VITE_MAPTILER_KEY: ${VITE_MAPTILER_KEY}
     ports:
       - "3000:3000"
     environment:

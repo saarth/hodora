@@ -61,6 +61,13 @@ Keep these handy — you'll paste them in below.
    `SUPABASE_SERVICE_ROLE_KEY`. Save with `Ctrl+O`, `Enter`, then exit with
    `Ctrl+X`.
 
+   Optional: also set `VITE_MAPTILER_KEY` here if you want the custom
+   cycling-focused vector map style instead of the default raster basemap
+   (free key at [cloud.maptiler.com](https://cloud.maptiler.com/account/keys/)),
+   and/or `VITE_BROUTER_URL` if you're running your own BRouter instance
+   instead of the public one. See README.md's "Route planning & map style"
+   section. Both are already in `.env.example` — leave them blank to skip.
+
 4. **Add the project in Docker Compose Manager.** Unraid UI → **Docker**
    tab → **Compose** sub-tab → **Add New Stack**. Name it `hodora`, set its
    path to `/mnt/user/appdata/hodora`, and save.
@@ -97,6 +104,12 @@ hand and adds it as a regular Unraid Docker container.
 
    Replace the three placeholder values with your actual Supabase values
    from step 0. This step takes a few minutes.
+
+   Optional: add `--build-arg VITE_MAPTILER_KEY=your-maptiler-key` for the
+   custom cycling-focused vector map style, and/or
+   `--build-arg VITE_BROUTER_URL=https://your-brouter-instance` if you're
+   self-hosting BRouter instead of using the public one. Skip both for the
+   default raster basemap and public routing server.
 
 2. **Add the container in the Unraid UI.** **Docker** tab → **Add
    Container**, and fill in:
@@ -137,6 +150,8 @@ git pull
 docker build --build-arg VITE_SUPABASE_URL=... --build-arg VITE_SUPABASE_PROJECT_ID=... \
   --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=... -t hodora .
 ```
+
+(Include `--build-arg VITE_MAPTILER_KEY=...` and/or `--build-arg VITE_BROUTER_URL=...` too if you set those in step 1.)
 
 Then in the Unraid UI: **Docker** tab → click the `hodora` container's icon
 → **Restart** (it'll pick up the freshly built `hodora:latest` image).

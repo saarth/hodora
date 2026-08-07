@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useLayoutEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -37,6 +38,9 @@ function resolveSystemTheme(): Theme {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>("dark");
   const [theme, setThemeState] = useState<Theme>("dark");
+  // Flips true once the mount effect below has loaded the real stored
+  // preference — see the guard in the persistence layoutEffect for why.
+  const hydratedRef = useRef(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -44,6 +48,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
     setModeState(initialMode);
     setThemeState(initialMode === "system" ? resolveSystemTheme() : initialMode);
+    hydratedRef.current = true;
   }, []);
 
   // While the preference is "system", keep the applied theme in sync with
@@ -65,6 +70,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.classList.toggle("dark", theme === "dark");
+    // Layout effects run before passive effects on mount, so this fires once
+    // with the hardcoded ("dark") default before the mount effect above has
+    // loaded the real stored preference. Persisting on that first pass would
+    // silently clobber whatever the user actually had saved (e.g. "light")
+    // with the default, on every single page load.
+    if (!hydratedRef.current) return;
     window.localStorage.setItem(STORAGE_KEY, mode);
   }, [theme, mode]);
 
