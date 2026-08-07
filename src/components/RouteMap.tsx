@@ -1,9 +1,16 @@
 import { useEffect, useRef } from "react";
 import { Maximize2 } from "lucide-react";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+import { buildCyclingStyle, setVectorBasemapTheme } from "@/lib/cycling-style";
 import { haversine, splitBySegments, type RidePoint } from "@/lib/gpx";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
+
+// Optional: set VITE_MAPTILER_KEY to swap the default raster CARTO basemap
+// for a custom cycling-focused vector style (see src/lib/cycling-style.ts).
+// Leaving it unset keeps the app's zero-config, self-hosting-friendly default.
+const maptilerKey = (import.meta.env.VITE_MAPTILER_KEY as string | undefined)?.trim();
+const useVectorBasemap = Boolean(maptilerKey);
 
 type LivePosition = {
   lat: number;
@@ -37,6 +44,10 @@ type RouteMapProps = {
   flyTo?: { lat: number; lon: number; zoom?: number; nonce: number } | null;
   /** reports the visible area after the user pans or zooms */
   onViewChange?: (view: { center: { lat: number; lon: number }; radiusM: number }) => void;
+  /** points to mark on the map that aren't part of a drawn route yet, e.g. route-planner clicks */
+  waypoints?: { lat: number; lon: number }[] | null;
+  /** fires with the clicked map coordinate; used by the route planner to add waypoints */
+  onMapClick?: (point: { lat: number; lon: number }) => void;
 };
 
 const basemap = (theme: "light" | "dark") =>
@@ -166,6 +177,18 @@ function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
     ]);
     map.setPaintProperty("endpoints-layer", "circle-stroke-color", colors.background);
   }
+  if (map.getLayer("waypoints-layer")) {
+    map.setPaintProperty("waypoints-layer", "circle-color", [
+      "match",
+      ["get", "role"],
+      "start",
+      colors.route,
+      "end",
+      colors.foreground,
+      colors.warning,
+    ]);
+    map.setPaintProperty("waypoints-layer", "circle-stroke-color", colors.background);
+  }
 }
 
 export function RouteMap({
@@ -184,6 +207,8 @@ export function RouteMap({
   initialCenter = null,
   flyTo = null,
   onViewChange,
+  waypoints = null,
+  onMapClick,
 }: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -196,6 +221,10 @@ export function RouteMap({
   const riderMarkerRef = useRef<any>(null);
   const viewChangeRef = useRef(onViewChange);
   viewChangeRef.current = onViewChange;
+  const mapClickRef = useRef(onMapClick);
+  mapClickRef.current = onMapClick;
+  const waypointsRef = useRef(waypoints);
+  waypointsRef.current = waypoints;
   const { theme } = useTheme();
 
   // Boot the map once, client side only.
@@ -219,19 +248,21 @@ export function RouteMap({
 
       const map = new maplibre.Map({
         container: containerRef.current,
-        style: {
-          version: 8,
-          sources: {
-            basemap: {
-              type: "raster",
-              tiles: [basemap(theme)],
-              tileSize: 256,
-              attribution:
-                '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
+        style: useVectorBasemap
+          ? buildCyclingStyle(theme, maptilerKey!)
+          : {
+              version: 8,
+              sources: {
+                basemap: {
+                  type: "raster",
+                  tiles: [basemap(theme)],
+                  tileSize: 256,
+                  attribution:
+                    '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
+                },
+              },
+              layers: [{ id: "basemap", type: "raster", source: "basemap" }],
             },
-          },
-          layers: [{ id: "basemap", type: "raster", source: "basemap" }],
-        },
         center: [
           points[0]?.lon ?? initialCenter?.lon ?? 0,
           points[0]?.lat ?? initialCenter?.lat ?? 0,
@@ -263,11 +294,16 @@ export function RouteMap({
         readyRef.current = true;
         const current = pointsRef.current;
         drawRoute(map, current);
+        setupWaypointsLayer(map, waypointsRef.current ?? []);
         // Show the complete route until the first live GPS fix takes over.
         if (current.length > 1) fitRoute(map, current, 48);
         // Some browsers can report their final size after MapLibre's initial
         // layout pass. Recalculate once the view has settled.
         requestAnimationFrame(() => map.resize());
+      });
+
+      map.on("click", (event: any) => {
+        mapClickRef.current?.({ lat: event.lngLat.lat, lon: event.lngLat.lng });
       });
 
       map.on("moveend", () => {
@@ -296,12 +332,16 @@ export function RouteMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Swap basemap tiles and re-resolve route/endpoint colors when the theme changes.
+  // Swap basemap tiles/layers and re-resolve route/endpoint colors when the theme changes.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
-    const source = map.getSource("basemap");
-    if (source?.setTiles) source.setTiles([basemap(theme)]);
+    if (useVectorBasemap) {
+      setVectorBasemapTheme(map, theme);
+    } else {
+      const source = map.getSource("basemap");
+      if (source?.setTiles) source.setTiles([basemap(theme)]);
+    }
     applyThemeColors(map, mapThemeColors());
   }, [theme]);
 
@@ -413,6 +453,14 @@ export function RouteMap({
       geometry: { type: "Point", coordinates: [rejoin.lon, rejoin.lat] },
     });
   }, [live, rejoin, rejoinPath]);
+
+  // Route-planner waypoint markers.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+    const source = map.getSource("waypoints");
+    if (source) source.setData(waypointsFeatureCollection(waypoints ?? []));
+  }, [waypoints]);
 
   // Fit the camera around an explicit set of coordinates on demand.
   const fitCoordsRef = useRef(fitTo?.coords ?? []);
@@ -581,6 +629,37 @@ function endpointData(points: RidePoint[]) {
           ]
         : [],
   };
+}
+
+function waypointsFeatureCollection(waypoints: { lat: number; lon: number }[]) {
+  return {
+    type: "FeatureCollection" as const,
+    features: waypoints.map((point, index) => ({
+      type: "Feature" as const,
+      properties: {
+        role: index === 0 ? "start" : index === waypoints.length - 1 ? "end" : "via",
+      },
+      geometry: { type: "Point" as const, coordinates: [point.lon, point.lat] },
+    })),
+  };
+}
+
+/** Route-planner click markers — independent of the routed line, so a single tapped point still shows up. */
+function setupWaypointsLayer(map: any, waypoints: { lat: number; lon: number }[]) {
+  if (map.getSource("waypoints")) return;
+  const colors = mapThemeColors();
+  map.addSource("waypoints", { type: "geojson", data: waypointsFeatureCollection(waypoints) });
+  map.addLayer({
+    id: "waypoints-layer",
+    type: "circle",
+    source: "waypoints",
+    paint: {
+      "circle-radius": ["match", ["get", "role"], "via", 5, 7],
+      "circle-color": ["match", ["get", "role"], "start", colors.route, "end", colors.foreground, colors.warning],
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": colors.background,
+    },
+  });
 }
 
 function updateEndpoints(map: any, points: RidePoint[]) {

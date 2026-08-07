@@ -3,13 +3,12 @@
  * and generates loop rides with a cycling router. All client side — no keys.
  */
 import { haversine, type RidePoint } from "./gpx";
-import { type LatLon } from "./rejoin";
+import { fetchOsrmRoute, pathLengthM, type LatLon } from "./routing";
 
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
 ];
-const OSRM_BIKE = "https://routing.openstreetmap.de/routed-bike/route/v1/bike";
 
 export type DiscoveredRoute = {
   id: string;
@@ -21,13 +20,7 @@ export type DiscoveredRoute = {
   distanceM: number;
 };
 
-export function pathLengthM(path: LatLon[]): number {
-  let total = 0;
-  for (let i = 1; i < path.length; i += 1) {
-    total += haversine(path[i - 1].lat, path[i - 1].lon, path[i].lat, path[i].lon);
-  }
-  return total;
-}
+export { pathLengthM };
 
 /** Convert a discovered path into ride points (flat elevation — OSM has none). */
 export function toRidePoints(path: LatLon[]): RidePoint[] {
@@ -183,21 +176,6 @@ function offset(center: LatLon, bearingDeg: number, distanceM: number): LatLon {
   return { lat: (lat2 * 180) / Math.PI, lon: (lon2 * 180) / Math.PI };
 }
 
-async function routeVia(points: LatLon[], signal: AbortSignal) {
-  const coords = points.map((p) => `${p.lon},${p.lat}`).join(";");
-  const response = await fetch(`${OSRM_BIKE}/${coords}?overview=full&geometries=geojson`, {
-    signal,
-  });
-  if (!response.ok) throw new Error(`OSRM ${response.status}`);
-  const data = await response.json();
-  const geometry = data?.routes?.[0]?.geometry?.coordinates;
-  if (!Array.isArray(geometry) || geometry.length < 2) throw new Error("No route geometry");
-  return {
-    path: geometry.map(([lon, lat]: [number, number]) => ({ lat, lon })),
-    distanceM: Number(data.routes[0].distance) || 0,
-  };
-}
-
 /**
  * Loop rides of roughly the requested length, starting and finishing at the
  * given point. Each loop heads out on a different bearing.
@@ -222,7 +200,7 @@ export async function generateLoops(
         offset(start, bearing + 240, radius),
         start,
       ];
-      const routed = await routeVia(waypoints, signal);
+      const routed = await fetchOsrmRoute(waypoints, signal);
       return {
         id: `loop-${index}`,
         name: `${Math.round(routed.distanceM / 1000)} km loop · ${compass(bearing)}`,
