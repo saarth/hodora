@@ -5,6 +5,7 @@
 Hodora is a modern, open-source GPX bike navigation app. Import your GPX routes, view them on an interactive map with elevation profiles, and ride them with live turn-by-turn navigation — even offline.
 
 - **Import GPX routes** from your favorite route planners (Komoot, Strava, Ride with GPS, etc.)
+- **Plan a route** by tapping the map — routed over real roads and paths with OpenStreetMap data (BRouter/OSRM)
 - **Turn-by-turn navigation** with distance, grade, and turn prompts
 - **Offline maps and routes** — save map tiles and GPX data to your device
 - **Light and dark themes** inspired by Sleep for Android
@@ -15,7 +16,10 @@ Hodora is a modern, open-source GPX bike navigation app. Import your GPX routes,
 - [TanStack Start](https://tanstack.com/start) — full-stack React framework
 - [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
 - [Tailwind CSS](https://tailwindcss.com/) — styling
-- [MapLibre GL](https://maplibre.org/) — maps with CARTO raster tiles
+- [MapLibre GL](https://maplibre.org/) — maps, with a CARTO raster basemap by
+  default or an optional custom cycling-focused vector style (see
+  "Route planning & map style" below)
+- [BRouter](https://brouter.de/) / [OSRM](https://routing.openstreetmap.de/) — OSM-based bike routing for route planning and on-route rejoin guidance
 - [Supabase](https://supabase.com/) — auth, database, and storage
 - [Vite PWA](https://vite-pwa-org.netlify.app/) — offline service worker
 
@@ -172,6 +176,28 @@ If you'd rather deploy somewhere other than Cloudflare Workers, `npm run
 build:node` builds Nitro's `node-server` preset instead (see "Self-hosting
 with Docker" below) — see the [Nitro deployment docs](https://nitro.build/deploy)
 for the full list of other presets if you want something else entirely.
+
+### Route planning & map style
+
+**Route planning** (tap the map to build a route on the new **Plan** page,
+plus the "rejoin the route" guide shown when you go off-track during
+navigation) works out of the box against the free public
+[BRouter](https://brouter.de/) server — no signup, no key. If you're
+self-hosting your own BRouter instance (or a BRouter-compatible server), set
+`VITE_BROUTER_URL` to its base URL instead. It's a client-visible `VITE_`
+variable since routing requests are made straight from the rider's browser.
+
+**Map style** defaults to a raster basemap from CARTO (also free, no key).
+Set `VITE_MAPTILER_KEY` to switch to a custom, cycling-focused **vector**
+style instead (`src/lib/cycling-style.ts`) — dedicated cycleways get their
+own color, unpaved tracks/paths are dashed, inspired by
+[CyclOSM](https://www.cyclosm.org/)'s visual language. (CyclOSM itself is a
+Mapnik/CartoCSS raster style with no vector equivalent, so this is a custom
+style built for MapLibre against [MapTiler](https://www.maptiler.com/)'s
+vector tiles, not a port.) Get a free API key at
+[cloud.maptiler.com](https://cloud.maptiler.com/account/keys/) — the free
+tier is generous enough for personal/small-group self-hosting. Leave it
+unset to keep the raster basemap.
 
 ### Self-hosting with Docker (e.g. Unraid)
 

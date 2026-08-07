@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bike, Compass, LogIn, LogOut, Moon, Ruler, Settings, Sun, WifiOff } from "lucide-react";
+import { Bike, Compass, LogIn, LogOut, Moon, Route, Ruler, Settings, Sun, WifiOff } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/use-online";
 import { useUser } from "@/hooks/use-user";
 
@@ -66,6 +66,13 @@ export function AppHeader() {
             <Link to="/explore">
               <Compass className="size-4" />
               Explore
+            </Link>
+          </Button>
+
+          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+            <Link to="/plan">
+              <Route className="size-4" />
+              Plan
             </Link>
           </Button>
 

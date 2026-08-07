@@ -72,6 +72,21 @@ cloudflared/
   automated tests yet — be extra careful with manual verification (a real
   GPX file, a few lat/lon pairs by hand) when touching `parseGpx`,
   `detectTurns`, or `snapToRoute`.
+- **OSM routing** (`src/lib/routing.ts`) is the shared client-side router
+  behind the `/plan` route planner, `src/lib/rejoin.ts` (off-route guidance
+  during navigation), and `src/lib/discover.ts` (Explore's loop generator).
+  It calls the public BRouter/OSRM servers directly from the browser — no
+  keys — and reads `VITE_BROUTER_URL` so self-hosters can point it at their
+  own BRouter instance instead (see `.env.example`). Add new routing
+  call sites on top of `fetchRoute`/`fetchOsrmRoute`/`fetchBrouterRoute`
+  rather than hitting those APIs directly, so the configurable URL and
+  fallback behavior stay in one place.
+- **Vector map style** (`src/lib/cycling-style.ts`) is only used when
+  `VITE_MAPTILER_KEY` is set (`src/components/RouteMap.tsx` falls back to
+  the CARTO raster basemap otherwise). Both light and dark layer sets are
+  baked into one style and toggled via layer `visibility`, not
+  `map.setStyle()` — a full style swap would tear down the route/waypoint
+  layers `RouteMap` adds on top and require re-adding them.
 - **Keep `docs/CODE_REVIEW.md` updated.** When you fix a bug found during a
   review pass, or find a new one, add it there rather than letting findings
   live only in chat history.
