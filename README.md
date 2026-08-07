@@ -76,6 +76,74 @@ Open the URL shown in the terminal, typically `http://localhost:8080`.
 
 The web app is already configured as a Progressive Web App. On Android, open it in Chrome and tap **Add to Home Screen**. On iOS, use Safari → **Share → Add to Home Screen**. For full offline navigation, open a route detail page and tap **Download offline data**.
 
+## Android app (Capacitor)
+
+`android/` is a [Capacitor](https://capacitorjs.com/) native shell around the
+deployed web app — same UI, same account, same offline route/map caching
+(nothing is duplicated locally), plus a real launcher icon, splash screen,
+themed status bar, and hardware back button support. It's a thin WebView
+wrapper, not a separate build: account deletion and the Google
+Drive/OneDrive/Nextcloud cloud sync features need Hodora's server routes
+(`src/routes/api/`), which can't run bundled offline in an APK, so the app
+always loads a live deployment over HTTPS rather than shipping a local copy
+of the site.
+
+`capacitor.config.ts` points `server.url` at `https://hodora.app` by default.
+Override it for local development against the Vite dev server instead:
+
+```sh
+npm run dev                                            # start the dev server
+CAPACITOR_SERVER_URL=http://10.0.2.2:8080 npx cap sync android   # Android emulator
+# or, for a physical device on the same network:
+CAPACITOR_SERVER_URL=http://<your-lan-ip>:8080 npx cap sync android
+```
+
+### Building the APK
+
+You'll need [Android Studio](https://developer.android.com/studio) (which
+bundles the Android SDK) — this repo doesn't vendor one. First time setup:
+
+```sh
+npm install
+npx cap sync android
+npx cap open android      # opens android/ in Android Studio
+```
+
+From Android Studio, **Run** installs a debug build on a connected
+device/emulator; **Build → Generate Signed App Bundle / APK** produces a
+release build (you'll need to create/select a signing keystore — Android
+Studio walks you through this).
+
+Prefer the command line? `cd android && ./gradlew assembleDebug` builds
+`android/app/build/outputs/apk/debug/app-debug.apk` (needs `ANDROID_HOME` set
+and SDK platform/build-tools installed — Android Studio's SDK Manager handles
+that).
+
+### Regenerating icons/splash screen
+
+`assets/icon.png` and `assets/splash.png` are the source images (derived from
+`public/icon-512.png`); the actual per-density Android resources under
+`android/app/src/main/res/` are generated from them, not hand-edited. After
+changing either source image:
+
+```sh
+npx @capacitor/assets generate --android
+```
+
+### Native plugins
+
+`@capacitor/app` (hardware back button → router history, or exits the app at
+the root), `@capacitor/status-bar` (status bar color follows the app's
+light/dark theme), and `@capacitor/splash-screen` are wired up in
+`src/lib/native.ts`, called from `src/routes/__root.tsx`. All three are
+no-ops on the web build (`Capacitor.isNativePlatform()` guards them), so
+there's nothing to conditionally import elsewhere. Geolocation (route
+planning, turn-by-turn nav) uses the browser's `navigator.geolocation` as-is
+— Capacitor's Android WebView bridges that to the native runtime permission
+prompt automatically as long as `ACCESS_FINE_LOCATION`/`ACCESS_COARSE_LOCATION`
+are declared in `android/app/src/main/AndroidManifest.xml` (they already
+are), so no plugin or code change was needed for that.
+
 ## Project structure
 
 ```text

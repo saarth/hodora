@@ -11,9 +11,10 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportError } from "../lib/error-reporting";
-import { ThemeProvider } from "../lib/theme";
+import { ThemeProvider, useTheme } from "../lib/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { registerServiceWorker } from "@/lib/pwa";
+import { initNativeShell, syncStatusBar } from "@/lib/native";
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -137,13 +138,22 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function NativeStatusBarSync() {
+  const { theme } = useTheme();
+  useEffect(() => {
+    void syncStatusBar(theme);
+  }, [theme]);
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
 
   useEffect(() => {
     registerServiceWorker();
-  }, []);
+    void initNativeShell(router);
+  }, [router]);
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
@@ -156,10 +166,10 @@ function RootComponent() {
     return () => data.subscription.unsubscribe();
   }, [queryClient, router]);
 
-
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <NativeStatusBarSync />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <Toaster position="top-center" />

@@ -41,6 +41,13 @@ Dockerfile           # Self-hosted (node-server preset) build — see README.md
 docker-compose.yml   # "Self-hosting with Docker" in README.md
 cloudflared/
   config.yml.example # Template; real config.yml + *.json are gitignored
+android/             # Capacitor native Android project — see README.md
+  app/src/main/res/  # Generated icons/splash; source images are assets/*.png
+capacitor.config.ts  # server.url points the Android WebView at the deployed
+                      # site (see "Android app (Capacitor)" in README.md)
+www/                 # Placeholder webDir Capacitor requires to exist; never
+                      # actually shown since server.url is set
+assets/               # Source icon/splash images for `npx @capacitor/assets generate --android`
 ```
 
 ## Things worth knowing before touching certain areas
@@ -106,3 +113,10 @@ cloudflared/
   `src/routes/api/cloud/<provider>/{authorize,callback,status,disconnect,sync}.tsx`
   set mirroring the existing ones — the generic engine and `classify.ts`
   shouldn't need to change.
+- **Android app.** `android/` (Capacitor) wraps the deployed site in a
+  WebView rather than bundling a local static build — account deletion and
+  cloud sync need `src/routes/api/`, which can't run offline in an APK. Don't
+  add code that assumes the Android app has a local server; `src/lib/native.ts`
+  is the one place native-vs-web branching happens (`Capacitor.isNativePlatform()`),
+  guarded so it's a no-op on the web build. See "Android app (Capacitor)" in
+  README.md.
