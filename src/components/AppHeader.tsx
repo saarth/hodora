@@ -1,25 +1,39 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bike, Compass, LogIn, LogOut, Moon, Route, Ruler, Settings, Sun, WifiOff } from "lucide-react";
+import {
+  Bike,
+  Compass,
+  LogIn,
+  LogOut,
+  Monitor,
+  Moon,
+  Route,
+  Ruler,
+  Settings,
+  Sun,
+  WifiOff,
+} from "lucide-react";
 import { useOnlineStatus } from "@/hooks/use-online";
 import { useUser } from "@/hooks/use-user";
 
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, ridesKeys, updateUnit } from "@/lib/rides";
-import { useTheme } from "@/lib/theme";
+import { useTheme, type ThemeMode } from "@/lib/theme";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function AppHeader() {
-  const { theme, toggle } = useTheme();
+  const { theme, mode, setMode } = useTheme();
   const online = useOnlineStatus();
   const { user, loading } = useUser();
 
@@ -83,14 +97,42 @@ export function AppHeader() {
             </span>
           )}
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggle}
-            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          >
-            {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Theme: ${mode === "system" ? `system (currently ${theme})` : mode}`}
+              >
+                {mode === "system" ? (
+                  <Monitor className="size-4" />
+                ) : theme === "dark" ? (
+                  <Moon className="size-4" />
+                ) : (
+                  <Sun className="size-4" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuRadioGroup
+                value={mode}
+                onValueChange={(value) => setMode(value as ThemeMode)}
+              >
+                <DropdownMenuRadioItem value="light">
+                  <Sun className="mr-2 size-3.5" />
+                  Light
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="dark">
+                  <Moon className="mr-2 size-3.5" />
+                  Dark
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="system">
+                  <Monitor className="mr-2 size-3.5" />
+                  System
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {!signedIn ? (
             !loading && (
