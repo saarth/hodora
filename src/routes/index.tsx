@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Compass, Mountain, Route as RouteIcon, Upload } from "lucide-react";
+import { ArrowRight, Compass, Github, Mountain, Route as RouteIcon, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/hooks/use-user";
 import { useTheme } from "@/lib/theme";
 import { Moon, Sun } from "lucide-react";
+
+const GITHUB_URL = "https://github.com/saarth/hodora";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -55,9 +57,7 @@ function Landing() {
             <span className="accent-gradient flex size-9 items-center justify-center rounded-xl text-primary-foreground">
               <RouteIcon className="size-5" />
             </span>
-            <span className="font-display text-lg font-extrabold tracking-tight">
-              Hodora
-            </span>
+            <span className="font-display text-lg font-extrabold tracking-tight">Hodora</span>
           </span>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
@@ -65,9 +65,7 @@ function Landing() {
             </Button>
             {!loading && (
               <Button asChild variant={user ? "default" : "secondary"}>
-                <Link to={user ? "/rides" : "/auth"}>
-                  {user ? "My rides" : "Sign in"}
-                </Link>
+                <Link to={user ? "/rides" : "/auth"}>{user ? "My rides" : "Sign in"}</Link>
               </Button>
             )}
           </div>
@@ -81,9 +79,8 @@ function Landing() {
             Your bike routes, navigated properly.
           </h1>
           <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
-            Hodora turns a GPX file into a ride you can actually follow — distance,
-            climbing, and calm turn-by-turn guidance that keeps working when the road
-            gets quiet.
+            Hodora turns a GPX file into a ride you can actually follow — distance, climbing, and
+            calm turn-by-turn guidance that keeps working when the road gets quiet.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button asChild size="lg" className="glow-ring">
@@ -108,12 +105,31 @@ function Landing() {
             <article key={feature.title} className="surface p-6">
               <feature.icon className="size-5 text-primary" />
               <h2 className="mt-4 text-base font-bold">{feature.title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {feature.body}
-              </p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{feature.body}</p>
             </article>
           ))}
         </section>
+
+        <footer className="mt-24 border-t border-border pt-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <p className="max-w-md text-sm text-muted-foreground">
+              Hodora is a free, open-source GPX bike navigation app — no ads, no tracking. Built as
+              a learn-by-doing project, so feedback and contributions are very welcome.
+            </p>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <a
+                href={GITHUB_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 hover:text-foreground"
+              >
+                <Github className="size-4" />
+                GitHub
+              </a>
+              <span>MIT licensed</span>
+            </div>
+          </div>
+        </footer>
       </div>
     </main>
   );
