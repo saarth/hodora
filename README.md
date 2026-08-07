@@ -237,6 +237,12 @@ before the image is built), while everything passed with `docker run -e` is a
 `SUPABASE_SERVICE_ROLE_KEY` as a build arg — build args can end up visible in
 the image's layer history, and this key bypasses Row Level Security.
 
+Route planning and the vector map style (see "Route planning & map style"
+above) are also `VITE_`-prefixed, so they're build args too if you want them
+— add `--build-arg VITE_BROUTER_URL=...` and/or
+`--build-arg VITE_MAPTILER_KEY=...` to the `docker build` command above.
+Both are optional; omit them for the zero-config defaults.
+
 **On Unraid specifically:** see **[docs/UNRAID.md](./docs/UNRAID.md)** for a
 full copy-paste walkthrough — installing the Community Applications
 "Docker Compose Manager" plugin, filling in `.env`, and putting a reverse
