@@ -63,11 +63,8 @@ export function ElevationChart({
               color: "var(--color-popover-foreground)",
               fontSize: 12,
             }}
-            labelFormatter={(v: number) => formatDistance(v, metric)}
-            formatter={(v: number) => [
-              metric ? `${v} m` : `${v} ft`,
-              "Elevation",
-            ]}
+            labelFormatter={(v) => formatDistance(Number(v), metric)}
+            formatter={(v) => [metric ? `${Number(v)} m` : `${Number(v)} ft`, "Elevation"]}
           />
           {progressM != null && (
             <ReferenceLine
