@@ -266,7 +266,7 @@ function ExplorePage() {
                   <article
                     key={route.id}
                     className={cn(
-                      "surface p-4 transition-colors",
+                      "surface min-w-0 p-4 transition-colors",
                       active ? "border-primary/60" : "hover:border-primary/30",
                     )}
                   >

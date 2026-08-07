@@ -220,7 +220,7 @@ function RidesPage() {
           {rides?.map((ride) => (
             <article
               key={ride.id}
-              className="surface flex items-center gap-4 p-4 transition-colors hover:border-primary/40"
+              className="surface flex min-w-0 items-center gap-4 p-4 transition-colors hover:border-primary/40"
             >
               <span className="hidden size-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary sm:flex">
                 <Mountain className="size-5" />
