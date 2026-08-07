@@ -93,7 +93,10 @@ function Landing() {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button asChild size="lg" className="glow-ring">
               <Link to="/rides">
-                {user ? "Open my rides" : "Start riding — no account needed"}
+                <span className="sm:hidden">{user ? "Open my rides" : "Start riding"}</span>
+                <span className="hidden sm:inline">
+                  {user ? "Open my rides" : "Start riding — no account needed"}
+                </span>
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
