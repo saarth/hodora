@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Navigation, TrendingDown, TrendingUp, Ruler } from "lucide-react";
+import { ArrowLeft, MapPin, Navigation, TrendingDown, TrendingUp, Ruler } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
@@ -8,7 +8,7 @@ import { OfflineSaveCard } from "@/components/OfflineSaveCard";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDistance, formatElevation } from "@/lib/gpx";
+import { directionsUrl, formatDistance, formatElevation } from "@/lib/gpx";
 import { fetchProfile, fetchRide, ridesKeys } from "@/lib/rides";
 
 export const Route = createFileRoute("/rides/$id/")({
@@ -64,12 +64,24 @@ function RideDetail() {
                   {ride.source_filename ? ` · ${ride.source_filename}` : ""}
                 </p>
               </div>
-              <Button asChild size="lg" className="glow-ring">
-                <Link to="/rides/$id/nav" params={{ id: ride.id }}>
-                  <Navigation className="size-4" />
-                  Start navigation
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild variant="secondary" size="lg">
+                  <a
+                    href={directionsUrl(ride.points[0].lat, ride.points[0].lon)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MapPin className="size-4" />
+                    Directions to start
+                  </a>
+                </Button>
+                <Button asChild size="lg" className="glow-ring">
+                  <Link to="/rides/$id/nav" params={{ id: ride.id }}>
+                    <Navigation className="size-4" />
+                    Start navigation
+                  </Link>
+                </Button>
+              </div>
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
