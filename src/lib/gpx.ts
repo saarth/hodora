@@ -360,3 +360,8 @@ export function formatSpeed(mps: number, metric = true): string {
   if (!Number.isFinite(mps) || mps <= 0) return "0.0";
   return (mps * (metric ? 3.6 : 2.236936)).toFixed(1);
 }
+
+/** Google Maps directions link from the rider's current location to a point, e.g. a route's start. */
+export function directionsUrl(lat: number, lon: number): string {
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=bicycling`;
+}
