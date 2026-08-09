@@ -249,44 +249,76 @@ function NavigatePage() {
 
 
       <div className="pointer-events-none relative z-10 flex min-h-screen flex-col justify-between p-4">
-        <div className="pointer-events-auto flex items-start gap-2">
-          {!topMinimized ? (
-            <>
-              <Button asChild variant="secondary" size="sm" className="glass">
-                <Link to="/rides/$id" params={{ id: ride.id }}>
-                  <ArrowLeft className="size-4" />
-                  End
-                </Link>
-              </Button>
-              <Button
-                variant={follow ? "default" : "secondary"}
-                size="sm"
-                className={follow ? "" : "glass"}
-                onClick={() => setFollow((value) => !value)}
-              >
-                <Crosshair className="size-4" />
-                {follow ? "Following" : "Recenter"}
-              </Button>
+        <div className="flex items-start justify-between gap-2">
+          <div className="pointer-events-auto flex items-start gap-2">
+            {!topMinimized ? (
+              <>
+                <Button asChild variant="secondary" size="sm" className="glass">
+                  <Link to="/rides/$id" params={{ id: ride.id }}>
+                    <ArrowLeft className="size-4" />
+                    End
+                  </Link>
+                </Button>
+                <Button
+                  variant={follow ? "default" : "secondary"}
+                  size="sm"
+                  className={follow ? "" : "glass"}
+                  onClick={() => setFollow((value) => !value)}
+                >
+                  <Crosshair className="size-4" />
+                  {follow ? "Following" : "Recenter"}
+                </Button>
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="glass"
+                  aria-label="Minimise top controls"
+                  onClick={() => setTopMinimized(true)}
+                >
+                  <Minimize2 className="size-4" />
+                </Button>
+              </>
+            ) : (
               <Button
                 size="icon"
                 variant="secondary"
                 className="glass"
-                aria-label="Minimise top controls"
-                onClick={() => setTopMinimized(true)}
+                aria-label="Expand top controls"
+                onClick={() => setTopMinimized(false)}
               >
-                <Minimize2 className="size-4" />
+                <Maximize2 className="size-4" />
               </Button>
-            </>
-          ) : (
-            <Button
-              size="icon"
-              variant="secondary"
-              className="glass"
-              aria-label="Expand top controls"
-              onClick={() => setTopMinimized(false)}
-            >
-              <Maximize2 className="size-4" />
-            </Button>
+            )}
+          </div>
+
+          {weather && (
+            <div className="glass-faint pointer-events-auto flex shrink-0 flex-col items-end gap-1 rounded-xl px-2.5 py-2 text-xs">
+              <div className="flex items-center gap-1.5">
+                <WeatherGlyph
+                  icon={weatherInfo(weather.weatherCode, weather.isDay).icon}
+                  className="size-4 text-primary"
+                />
+                <span className="font-semibold leading-none">
+                  {formatTemperature(weather.temperatureC, metric)}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 whitespace-nowrap text-muted-foreground">
+                <Wind className="size-3 shrink-0" aria-hidden />
+                {formatWindSpeed(weather.windSpeedMs, metric)} {compassLabel(weather.windDirectionDeg)}
+              </div>
+              {wind && wind.effect !== "crosswind" && Math.abs(wind.componentMs) > 1 && (
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                    wind.effect === "headwind"
+                      ? "bg-destructive/15 text-destructive"
+                      : "bg-primary/15 text-primary",
+                  )}
+                >
+                  {wind.effect === "headwind" ? "Headwind" : "Tailwind"}
+                </span>
+              )}
+            </div>
           )}
         </div>
 
@@ -342,44 +374,6 @@ function NavigatePage() {
             <div className="glass-faint flex items-center gap-2 rounded-xl p-2.5 text-xs text-destructive">
               <TriangleAlert className="size-3.5 shrink-0" />
               {geoError} Allow location access to navigate.
-            </div>
-          )}
-
-          {weather && (
-            <div className="glass-faint flex items-center gap-2.5 rounded-xl p-2.5 text-xs">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                <WeatherGlyph
-                  icon={weatherInfo(weather.weatherCode, weather.isDay).icon}
-                  className="size-4"
-                />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold leading-none">
-                  {formatTemperature(weather.temperatureC, metric)}
-                  <span className="font-normal text-muted-foreground">
-                    {" "}
-                    · {weatherInfo(weather.weatherCode, weather.isDay).label}
-                  </span>
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
-                <Wind className="size-3.5 shrink-0" aria-hidden />
-                <span className="whitespace-nowrap">
-                  {formatWindSpeed(weather.windSpeedMs, metric)} {compassLabel(weather.windDirectionDeg)}
-                </span>
-              </div>
-              {wind && wind.effect !== "crosswind" && Math.abs(wind.componentMs) > 1 && (
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                    wind.effect === "headwind"
-                      ? "bg-destructive/15 text-destructive"
-                      : "bg-primary/15 text-primary",
-                  )}
-                >
-                  {wind.effect === "headwind" ? "Headwind" : "Tailwind"}
-                </span>
-              )}
             </div>
           )}
 
