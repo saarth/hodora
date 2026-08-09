@@ -7,6 +7,7 @@ Hodora is a modern, open-source GPX bike navigation app. Import your GPX routes,
 - **Import GPX routes** from your favorite route planners (Komoot, Strava, Ride with GPS, etc.)
 - **Plan a route** by tapping the map — routed over real roads and paths with OpenStreetMap data (BRouter/OSRM)
 - **Turn-by-turn navigation** with distance, grade, and turn prompts
+- **Live weather and wind** during navigation — temperature, conditions, and a headwind/tailwind call-out relative to your direction of travel
 - **Offline maps and routes** — save map tiles and GPX data to your device
 - **Light and dark themes** inspired by Sleep for Android
 - **Cross-platform** — web app and installable PWA on any modern device
@@ -20,6 +21,7 @@ Hodora is a modern, open-source GPX bike navigation app. Import your GPX routes,
   default or an optional custom cycling-focused vector style (see
   "Route planning & map style" below)
 - [BRouter](https://brouter.de/) / [OSRM](https://routing.openstreetmap.de/) — OSM-based bike routing for route planning and on-route rejoin guidance
+- [Open-Meteo](https://open-meteo.com/) — free, no-key weather API for live conditions during navigation
 - [Supabase](https://supabase.com/) — auth, database, and storage
 - [Vite PWA](https://vite-pwa-org.netlify.app/) — offline service worker
 

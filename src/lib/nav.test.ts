@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { haversine, type RidePoint } from "./gpx";
-import { compassLabel, detectTurns, nextTurn, snapToRoute, turnLabel } from "./nav";
+import {
+  compassLabel,
+  detectTurns,
+  nextTurn,
+  routeBearing,
+  snapToRoute,
+  turnLabel,
+  windComponent,
+  windEffect,
+  windRelativeAngle,
+} from "./nav";
 
 const BASE_LAT = 45;
 const BASE_LON = -122;
@@ -101,5 +111,51 @@ describe("nextTurn / turnLabel / compassLabel", () => {
     expect(compassLabel(0)).toBe("north");
     expect(compassLabel(90)).toBe("east");
     expect(compassLabel(180)).toBe("south");
+  });
+});
+
+describe("routeBearing", () => {
+  it("points along the direction of travel on a straight leg", () => {
+    const coords = [];
+    for (let e = 0; e <= 100; e += 10) coords.push({ eastM: e, northM: 0 });
+    const points = buildPoints(coords);
+    expect(routeBearing(points, 2)).toBeCloseTo(90, 0); // due east
+  });
+
+  it("looks backwards near the end of the route", () => {
+    const coords = [];
+    for (let e = 0; e <= 100; e += 10) coords.push({ eastM: e, northM: 0 });
+    const points = buildPoints(coords);
+    expect(routeBearing(points, points.length - 1)).toBeCloseTo(90, 0);
+  });
+
+  it("returns null when a gap blocks both directions", () => {
+    const points = buildPoints([
+      { eastM: 0, northM: 0 },
+      { eastM: 0, northM: 5, gap: true },
+    ]);
+    expect(routeBearing(points, 0, 30)).toBeNull();
+  });
+});
+
+describe("wind helpers", () => {
+  it("classifies wind blowing straight into the rider as a headwind", () => {
+    const relative = windRelativeAngle(90, 90); // traveling east, wind from the east
+    expect(relative).toBeCloseTo(0, 5);
+    expect(windEffect(relative)).toBe("headwind");
+    expect(windComponent(5, relative)).toBeCloseTo(5, 5);
+  });
+
+  it("classifies wind blowing from behind as a tailwind", () => {
+    const relative = windRelativeAngle(90, 270); // traveling east, wind from the west
+    expect(Math.abs(relative)).toBeCloseTo(180, 5);
+    expect(windEffect(relative)).toBe("tailwind");
+    expect(windComponent(5, relative)).toBeCloseTo(-5, 5);
+  });
+
+  it("classifies wind from the side as a crosswind", () => {
+    const relative = windRelativeAngle(90, 0); // traveling east, wind from the north
+    expect(windEffect(relative)).toBe("crosswind");
+    expect(windComponent(5, relative)).toBeCloseTo(0, 5);
   });
 });

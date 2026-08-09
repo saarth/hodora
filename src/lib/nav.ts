@@ -216,3 +216,57 @@ export function compassLabel(deg: number): string {
   const index = Math.round(((deg % 360) + 360) % 360 / 45) % 8;
   return labels[index];
 }
+
+/**
+ * Direction of travel along the route at a given index, sampled over `span`
+ * meters for stability (more reliable than live GPS heading, which is often
+ * null or jittery at cycling speeds). Looks backwards near the end of the
+ * route, and returns null if the route is too short or entirely gapped off.
+ */
+export function routeBearing(points: RidePoint[], index: number, span = 30): number | null {
+  if (points.length < 2) return null;
+  const i = Math.min(Math.max(index, 0), points.length - 1);
+
+  let fwd = i;
+  const fwdTarget = points[i].d + span;
+  while (fwd < points.length - 1 && points[fwd].d < fwdTarget && !points[fwd + 1].gap) fwd++;
+  if (fwd !== i) return bearing(points[i].lat, points[i].lon, points[fwd].lat, points[fwd].lon);
+
+  let back = i;
+  const backTarget = points[i].d - span;
+  while (back > 0 && points[back].d > backTarget && !points[back].gap) back--;
+  if (back !== i) return bearing(points[back].lat, points[back].lon, points[i].lat, points[i].lon);
+
+  return null;
+}
+
+export type WindEffect = "headwind" | "tailwind" | "crosswind";
+
+/**
+ * Signed angle from the direction of travel to where the wind is blowing
+ * from: 0 = wind straight ahead (headwind), ±180 = wind straight behind
+ * (tailwind), ±90 = crosswind.
+ */
+export function windRelativeAngle(travelBearingDeg: number, windFromDeg: number): number {
+  return bearingDelta(travelBearingDeg, windFromDeg);
+}
+
+/**
+ * Classifies wind relative to the direction of travel from the signed angle
+ * between them (0 = wind blowing straight into the rider, ±180 = straight
+ * from behind).
+ */
+export function windEffect(relativeAngleDeg: number): WindEffect {
+  const abs = Math.abs(relativeAngleDeg);
+  if (abs <= 45) return "headwind";
+  if (abs >= 135) return "tailwind";
+  return "crosswind";
+}
+
+/**
+ * Component of wind speed along the direction of travel: positive slows the
+ * rider down (headwind), negative helps them along (tailwind).
+ */
+export function windComponent(windSpeedMs: number, relativeAngleDeg: number): number {
+  return windSpeedMs * Math.cos((relativeAngleDeg * Math.PI) / 180);
+}

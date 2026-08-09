@@ -4,6 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CheckCircle2,
+  Cloud,
+  CloudDrizzle,
+  CloudFog,
+  CloudLightning,
+  CloudMoon,
+  CloudRain,
+  CloudSnow,
+  CloudSun,
   CornerDownLeft,
   CornerDownRight,
   Crosshair,
@@ -13,8 +21,11 @@ import {
   Map as MapIcon,
   Maximize2,
   Minimize2,
+  Moon,
   Navigation,
+  Sun,
   TriangleAlert,
+  Wind,
 } from "lucide-react";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
@@ -25,13 +36,18 @@ import {
   detectTurns,
   nextTurn,
   remainingAscent,
+  routeBearing,
   snapToRoute,
   turnLabel,
   upcomingGrade,
+  windComponent,
+  windEffect,
+  windRelativeAngle,
   type Snap,
 } from "@/lib/nav";
 import { useRejoinRoute } from "@/lib/rejoin";
 import { fetchProfile, fetchRide, ridesKeys } from "@/lib/rides";
+import { formatTemperature, formatWindSpeed, useWeather, weatherInfo, type WeatherIconKey } from "@/lib/weather";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 
 import { cn } from "@/lib/utils";
@@ -58,6 +74,24 @@ type LiveFix = {
   heading: number | null;
   speed: number | null;
 };
+
+const WEATHER_ICONS: Record<WeatherIconKey, typeof Cloud> = {
+  sun: Sun,
+  moon: Moon,
+  "cloud-sun": CloudSun,
+  "cloud-moon": CloudMoon,
+  cloud: Cloud,
+  "cloud-fog": CloudFog,
+  "cloud-drizzle": CloudDrizzle,
+  "cloud-rain": CloudRain,
+  "cloud-snow": CloudSnow,
+  "cloud-lightning": CloudLightning,
+};
+
+function WeatherGlyph({ icon, className }: { icon: WeatherIconKey; className?: string }) {
+  const Icon = WEATHER_ICONS[icon];
+  return <Icon className={className} aria-hidden />;
+}
 
 function NavigatePage() {
   const { id } = Route.useParams();
@@ -125,6 +159,34 @@ function NavigatePage() {
     () => (snap ? nextTurn(turns, snap.progressM) : null),
     [snap, turns],
   );
+
+  // Live position when we have a GPS fix, otherwise the route's start — so
+  // conditions are visible even before location is granted or locked in.
+  const weatherPosition = useMemo(() => {
+    if (fix) return { lat: fix.lat, lon: fix.lon };
+    const start = ride?.points[0];
+    return start ? { lat: start.lat, lon: start.lon } : null;
+  }, [fix, ride]);
+  const { weather } = useWeather(weatherPosition);
+
+  // Direction of travel: the route itself is steadier than live GPS heading,
+  // which is often null or noisy at cycling speeds.
+  const travelBearing = useMemo(() => {
+    if (ride && snap) {
+      const along = routeBearing(ride.points, snap.index);
+      if (along !== null) return along;
+    }
+    return fix?.heading ?? null;
+  }, [ride, snap, fix]);
+
+  const wind = useMemo(() => {
+    if (!weather || travelBearing === null) return null;
+    const relativeAngle = windRelativeAngle(travelBearing, weather.windDirectionDeg);
+    return {
+      effect: windEffect(relativeAngle),
+      componentMs: windComponent(weather.windSpeedMs, relativeAngle),
+    };
+  }, [weather, travelBearing]);
 
   const FINISH_RADIUS_M = 20;
   useEffect(() => {
@@ -280,6 +342,44 @@ function NavigatePage() {
             <div className="glass-faint flex items-center gap-2 rounded-xl p-2.5 text-xs text-destructive">
               <TriangleAlert className="size-3.5 shrink-0" />
               {geoError} Allow location access to navigate.
+            </div>
+          )}
+
+          {weather && (
+            <div className="glass-faint flex items-center gap-2.5 rounded-xl p-2.5 text-xs">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <WeatherGlyph
+                  icon={weatherInfo(weather.weatherCode, weather.isDay).icon}
+                  className="size-4"
+                />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold leading-none">
+                  {formatTemperature(weather.temperatureC, metric)}
+                  <span className="font-normal text-muted-foreground">
+                    {" "}
+                    · {weatherInfo(weather.weatherCode, weather.isDay).label}
+                  </span>
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
+                <Wind className="size-3.5 shrink-0" aria-hidden />
+                <span className="whitespace-nowrap">
+                  {formatWindSpeed(weather.windSpeedMs, metric)} {compassLabel(weather.windDirectionDeg)}
+                </span>
+              </div>
+              {wind && wind.effect !== "crosswind" && Math.abs(wind.componentMs) > 1 && (
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                    wind.effect === "headwind"
+                      ? "bg-destructive/15 text-destructive"
+                      : "bg-primary/15 text-primary",
+                  )}
+                >
+                  {wind.effect === "headwind" ? "Headwind" : "Tailwind"}
+                </span>
+              )}
             </div>
           )}
 
