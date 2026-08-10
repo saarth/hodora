@@ -21,13 +21,16 @@ function lonToX(lon: number, z: number) {
 
 function latToY(lat: number, z: number) {
   const rad = (lat * Math.PI) / 180;
-  return Math.floor(
-    ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** z,
-  );
+  return Math.floor(((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** z);
 }
 
-/** Tile URLs (both light and dark basemaps) needed for a route. */
-export function tileUrlsForRoute(points: RidePoint[]): string[] {
+/**
+ * Every tile URL a route would need, uncapped. Shared by `tileUrlsForRoute`
+ * (which applies the `MAX_TILES` cap) and `isRouteTileSetTruncated` (which
+ * needs to know whether that cap actually cut anything) so both agree on
+ * exactly the same set instead of two independently-drifting computations.
+ */
+function allTileUrlsForRoute(points: RidePoint[]): string[] {
   const keys = new Set<string>();
 
   for (const zoom of ZOOMS) {
@@ -50,24 +53,39 @@ export function tileUrlsForRoute(points: RidePoint[]): string[] {
     const [z, x, y] = key.split("/").map(Number);
     if (x < 0 || y < 0 || x >= 2 ** z || y >= 2 ** z) continue;
     for (const build of TILE_URLS) urls.push(build(z, x, y));
-    if (urls.length >= MAX_TILES) break;
   }
   return urls;
+}
+
+/** Tile URLs (both light and dark basemaps) needed for a route, capped at `MAX_TILES`. */
+export function tileUrlsForRoute(points: RidePoint[]): string[] {
+  return allTileUrlsForRoute(points).slice(0, MAX_TILES);
 }
 
 export function estimateTileCount(points: RidePoint[]): number {
   return tileUrlsForRoute(points).length;
 }
 
+/** True when a route is long enough that `tileUrlsForRoute` had to cut tiles to stay under `MAX_TILES` — the offline map will have gaps outside whatever got queued. */
+export function isRouteTileSetTruncated(points: RidePoint[]): boolean {
+  return allTileUrlsForRoute(points).length > MAX_TILES;
+}
+
+/**
+ * Checks every tile the route needs, not a sample — a route with even a
+ * few missing tiles isn't safely "saved for offline use," and sampling
+ * (the previous approach checked only 3 tiles) can miss large gaps
+ * elsewhere in the route. `cache.match` is a local, synchronous-ish
+ * lookup, so checking the full set (capped at `MAX_TILES` already) is
+ * cheap enough to do on every page load.
+ */
 export async function isRouteMapSaved(points: RidePoint[]): Promise<boolean> {
   if (typeof caches === "undefined" || points.length === 0) return false;
   try {
     const cache = await caches.open(TILE_CACHE);
     const urls = tileUrlsForRoute(points);
-    const samples = [urls[0], urls[Math.floor(urls.length / 2)], urls[urls.length - 1]].filter(
-      Boolean,
-    );
-    const hits = await Promise.all(samples.map((url) => cache.match(url)));
+    if (urls.length === 0) return false;
+    const hits = await Promise.all(urls.map((url) => cache.match(url)));
     return hits.every(Boolean);
   } catch {
     return false;
@@ -97,11 +115,19 @@ export async function downloadRouteTiles(
       const url = urls[cursor++];
       try {
         const existing = await cache.match(url);
-        if (!existing) {
+        if (existing) {
+          saved++;
+        } else {
           const response = await fetch(url, { mode: "cors", credentials: "omit" });
-          if (response.ok) await cache.put(url, response.clone());
+          // Only count it once it's actually in the cache — a failed
+          // fetch (404/429/network error) must not be reported as saved,
+          // or `isRouteMapSaved`'s later full-coverage check and this
+          // count silently disagree about what's really offline-ready.
+          if (response.ok) {
+            await cache.put(url, response.clone());
+            saved++;
+          }
         }
-        saved++;
       } catch {
         /* skip individual tile failures */
       }

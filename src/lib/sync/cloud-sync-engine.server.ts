@@ -72,6 +72,23 @@ function ridePathFallbackName(path: string): string {
   return base.replace(/\.gpx$/i, "");
 }
 
+/**
+ * Some WebDAV reverse proxies (and, less commonly, OAuth providers) don't
+ * return an etag at all. Falling back to the stable remote path keeps
+ * change detection working instead of comparing against `null` — but only
+ * if the *same* fallback value is what actually gets persisted as the
+ * mapping's baseline. Storing the raw (possibly-null) etag while comparing
+ * against this fallback elsewhere is what previously caused files behind
+ * an etag-stripping proxy to re-classify as "changed" on every single
+ * sync run, forever — `classifySyncPair` treats a `null` stored baseline
+ * as unconditionally changed, so if the stored value never stabilizes, the
+ * comparison never stabilizes either. Every place a remote etag is read
+ * for comparison or written to `ride_sync_state` must go through this.
+ */
+function effectiveRemoteEtag(etag: string | null, remotePath: string): string {
+  return etag ?? remotePath;
+}
+
 async function acquireLock(supabase: SupabaseClient, connectionId: string): Promise<void> {
   const staleThreshold = new Date(Date.now() - STALE_LOCK_MS).toISOString();
   const { data, error } = await supabase
@@ -237,6 +254,18 @@ export async function runCloudSync(params: {
     const rideById = new Map(rides.map((r) => [r.id, r]));
     const remoteByPath = new Map(remoteFiles.map((f) => [f.path, f]));
 
+    // A remote listing that comes back completely empty while ride
+    // mappings still exist is far more likely to mean "the listing call
+    // itself failed or returned garbage" (a trashed-and-recreated Drive
+    // folder, a truncated/malformed WebDAV multistatus body) than "the
+    // user genuinely deleted every synced file remotely in one go." Either
+    // way, every mapped ride would otherwise classify as delete-local this
+    // run — so treat it as a suspected listing failure and refuse to run
+    // any local deletions until a listing actually reports files again,
+    // rather than silently wiping the user's ride history.
+    const suspectedListingFailure = remoteFiles.length === 0 && mappings.some((m) => m.rideId);
+    let skippedDeletes = 0;
+
     const allPairs = buildPairs(rides, remoteFiles, mappings, ridePath);
     const toProcess = allPairs.slice(0, MAX_ITEMS_PER_RUN);
     const hasMore = allPairs.length > toProcess.length;
@@ -247,13 +276,25 @@ export async function runCloudSync(params: {
         const remoteFile = remoteByPath.get(pair.remotePath) ?? null;
         const localInfo = ride ? { updatedAt: ride.updatedAt } : null;
         const remoteInfo = remoteFile
-          ? { etag: remoteFile.etag ?? remoteFile.path, lastModified: remoteFile.lastModified }
+          ? {
+              etag: effectiveRemoteEtag(remoteFile.etag, remoteFile.path),
+              lastModified: remoteFile.lastModified,
+            }
           : null;
         const mappingInfo: MappingInfo | null = pair.mapping
           ? { localUpdatedAt: pair.mapping.localUpdatedAt, remoteEtag: pair.mapping.remoteEtag }
           : null;
 
         let action = classifySyncPair(localInfo, mappingInfo, remoteInfo);
+
+        if (action === "delete-local" && suspectedListingFailure) {
+          skippedDeletes++;
+          console.error(
+            `[cloud-sync] skipped delete-local for ride=${pair.rideId}: remote listing came back empty for a connection with existing mappings — treating as a listing failure, not a real deletion`,
+          );
+          continue;
+        }
+
         if (action === "conflict") {
           summary.conflicts++;
           const localTime = localInfo ? Date.parse(localInfo.updatedAt) : -Infinity;
@@ -288,7 +329,15 @@ export async function runCloudSync(params: {
       }
     }
 
-    await releaseLock(supabase, connectionId, { status: "active", lastError: null });
+    if (skippedDeletes > 0) {
+      summary.errors += skippedDeletes;
+      await releaseLock(supabase, connectionId, {
+        status: "error",
+        lastError: `Remote folder listing came back empty, so ${skippedDeletes} local ride${skippedDeletes === 1 ? "" : "s"} that would otherwise have been deleted were left alone. Check that the sync folder still exists, then sync again.`,
+      });
+    } else {
+      await releaseLock(supabase, connectionId, { status: "active", lastError: null });
+    }
     return { summary, hasMore };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -331,7 +380,7 @@ async function executeAction(ctx: {
       await upsertMapping(supabase, connectionId, userId, {
         rideId,
         remotePath,
-        remoteEtag: etag,
+        remoteEtag: effectiveRemoteEtag(etag, remotePath),
         remoteUpdatedAt: lastModified,
         localUpdatedAt: fullRide.updated_at,
       });
@@ -356,7 +405,7 @@ async function executeAction(ctx: {
       await upsertMapping(supabase, connectionId, userId, {
         rideId: written.id,
         remotePath,
-        remoteEtag: remoteFile.etag,
+        remoteEtag: effectiveRemoteEtag(remoteFile.etag, remotePath),
         remoteUpdatedAt: remoteFile.lastModified,
         localUpdatedAt: written.updatedAt,
       });

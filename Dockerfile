@@ -35,6 +35,10 @@ WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000
-COPY --from=build /app/.output ./.output
+COPY --from=build --chown=node:node /app/.output ./.output
+# Run as the non-root `node` user (built into the base image) instead of
+# root — this process only needs to listen on a port and read its own
+# files, not own the container.
+USER node
 EXPOSE 3000
 CMD ["node", ".output/server/index.mjs"]

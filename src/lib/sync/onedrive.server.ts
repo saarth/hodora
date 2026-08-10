@@ -15,6 +15,7 @@
 // Load with a dynamic import inside server handlers — this module makes
 // outbound requests carrying the user's OAuth tokens and shouldn't end up
 // reachable from client-bundled code.
+import { MAX_GPX_DOWNLOAD_BYTES, readTextCapped } from "./http.server";
 
 const TOKEN_ENDPOINT = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 const AUTH_ENDPOINT = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
@@ -241,7 +242,7 @@ export async function downloadFile(accessToken: string, itemId: string): Promise
     method: "GET",
   });
   if (!response.ok) throw new Error(`Download failed (HTTP ${response.status}).`);
-  return response.text();
+  return readTextCapped(response, MAX_GPX_DOWNLOAD_BYTES);
 }
 
 /** Deletes `itemId`. A 404 (already gone) is treated as success. */

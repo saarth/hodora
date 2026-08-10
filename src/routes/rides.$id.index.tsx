@@ -65,16 +65,18 @@ function RideDetail() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button asChild variant="secondary" size="lg">
-                  <a
-                    href={directionsUrl(ride.points[0].lat, ride.points[0].lon)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <MapPin className="size-4" />
-                    Directions to start
-                  </a>
-                </Button>
+                {ride.points.length > 0 && (
+                  <Button asChild variant="secondary" size="lg">
+                    <a
+                      href={directionsUrl(ride.points[0].lat, ride.points[0].lon)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <MapPin className="size-4" />
+                      Directions to start
+                    </a>
+                  </Button>
+                )}
                 <Button asChild size="lg" className="glow-ring">
                   <Link to="/rides/$id/nav" params={{ id: ride.id }}>
                     <Navigation className="size-4" />
