@@ -177,6 +177,7 @@
 
   html {
     color-scheme: light;
+    background-color: var(--color-background);
   }
 
   html:has(body.dark),
@@ -189,6 +190,7 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    padding-top: env(safe-area-inset-top);
   }
 
   h1,
