@@ -292,7 +292,7 @@ function NavigatePage() {
           </div>
 
           {weather && (
-            <div className="glass-faint pointer-events-auto flex shrink-0 flex-col items-end gap-1 rounded-xl px-2.5 py-2 text-xs">
+            <div className="glass-faint pointer-events-auto mr-12 flex shrink-0 flex-col items-end gap-1 rounded-xl px-2.5 py-2 text-xs">
               <div className="flex items-center gap-1.5">
                 <WeatherGlyph
                   icon={weatherInfo(weather.weatherCode, weather.isDay).icon}
