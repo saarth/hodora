@@ -64,7 +64,7 @@ export function AppHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-xl">
+    <header className="sticky top-[env(safe-area-inset-top)] z-30 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4">
         <Link to="/" className="flex items-center gap-2.5">
           <span className="accent-gradient flex size-9 items-center justify-center rounded-xl text-primary-foreground">
