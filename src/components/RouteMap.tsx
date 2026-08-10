@@ -112,32 +112,33 @@ function oklchToRgbaString(oklch: string): string | null {
 }
 
 // MapLibre paint properties need real color strings, not `var(...)` — it
-// paints to a canvas, not the DOM. Resolving a custom property through a
-// hidden probe element lets the browser do the cascade/inheritance work, so
-// the route styling tracks the app's CSS theme tokens instead of being
-// frozen to whatever hex value was hardcoded at write-time.
-let colorProbe: HTMLSpanElement | null = null;
+// paints to a canvas, not the DOM.
+//
+// This used to go through a hidden probe element: set `color: var(--x)` on
+// it, then read back `getComputedStyle(probe).color`. That round-trip is
+// fragile — it depends on how each browser *serializes a resolved <color>
+// property*, and that serialization has changed (and differed between
+// Chromium and Firefox) more than once, each time silently dropping every
+// addLayer() call for the route/casing/endpoints with no thrown error (see
+// git history: "Fix route not rendering on the map").
+//
+// Custom properties don't have that problem. Per the CSS spec, the computed
+// value of a custom property is just its declared token text with nested
+// var() references substituted in — it is never re-serialized as a typed
+// <color>. Reading `--color-route` straight off <html> (where the "dark"
+// class is toggled) returns exactly what styles.css wrote, e.g.
+// "oklch(0.62 0.19 145)", regardless of browser or version.
 function resolveThemeColor(varName: string): string {
   if (typeof document === "undefined") return "#000000";
-  if (!colorProbe) {
-    colorProbe = document.createElement("span");
-    colorProbe.style.display = "none";
-    document.body.appendChild(colorProbe);
-  }
-  colorProbe.style.color = `var(${varName})`;
-  const computed = getComputedStyle(colorProbe).color;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
 
-  // Theme tokens are defined in oklch() (styles.css), and current Chromium
-  // and Firefox now report getComputedStyle colors verbatim in whatever
-  // color space they were specified in instead of always down-converting to
-  // rgb(). MapLibre's paint-property color parser only understands
-  // rgb()/hex/hsl, so an oklch() string here makes every addLayer call fail
-  // style validation silently, dropping the route with no thrown error.
-  if (computed.startsWith("oklch(")) {
-    const converted = oklchToRgbaString(computed);
+  // MapLibre's paint-property color parser only understands rgb()/hex/hsl,
+  // not oklch(), so this still needs converting before it reaches addLayer.
+  if (raw.startsWith("oklch(")) {
+    const converted = oklchToRgbaString(raw);
     if (converted) return converted;
   }
-  return computed;
+  return raw || "#000000";
 }
 
 function mapThemeColors() {
