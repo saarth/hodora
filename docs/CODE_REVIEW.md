@@ -292,3 +292,57 @@ reproduce the checks yourself" above) before merging.
 **Not verified:** no Node.js/npm in this environment, so `npm install`,
 `npx tsc --noEmit`, `npx eslint .`, `npm test`, and `npm run build` all still
 need to be run locally.
+
+---
+
+## 2026-08-10 — Route/map not rendering, again (theme color resolution)
+
+**Status: fixed** (PR #31, `src/components/RouteMap.tsx`).
+
+**What was wrong.** This is the third recurrence of the same bug class: the
+2026-08-01 "theme-aware map colors" fix (above) resolved `--color-route` etc.
+by setting `color: var(--x)` on a hidden probe `<span>` and reading back
+`getComputedStyle(probe).color`. That round-trip depends on how the *browser*
+serializes a resolved `<color>` property — and that serialization is not
+stable across browsers or versions. Theme tokens are `oklch(...)`
+(`styles.css`); MapLibre's paint-property parser only understands
+`rgb()`/`hex`/`hsl()`. Whenever a browser's serialization changed (or simply
+differed — Chromium vs Firefox), `resolveThemeColor()` handed MapLibre a raw
+`oklch(...)` string, which fails style validation and gets silently dropped
+— no thrown error, no listener on `map`'s `error` event, so nothing in the
+console. Confirmed live: basemap tiles rendered fine (raster, no color
+computation involved), but the route line, casing, rejoin path, and
+endpoint markers never appeared, on every page that uses `RouteMap`.
+
+**The fix.** Stop depending on `<color>` serialization entirely.
+`resolveThemeColor()` now reads the custom property's *raw declared text*
+directly off `<html>` — `getComputedStyle(documentElement).getPropertyValue(varName)`
+— instead of round-tripping through a `color` property. Per the CSS spec, a
+custom property's computed value is just its declared tokens with nested
+`var()` references substituted; it is never re-serialized as a typed color.
+This always returns exactly what `styles.css` wrote (e.g.
+`"oklch(0.62 0.19 145)"`), regardless of browser or version, removing the
+dependency on that moving target for good. The existing pure-math
+`oklchToRgbaString()` conversion (added in an earlier round of this same
+bug) is unchanged — MapLibre still needs an `rgba()` string, this only fixes
+*getting the right oklch string to convert in the first place*.
+
+**Verified:** `tsc --noEmit` and `npm test` (109 passing) clean, no new
+`eslint` issues. Confirmed end-to-end against a real production build
+(`vite build --mode node`, real hashed chunks, the actual MapLibre worker —
+not `vite dev`) using the reporting user's real 11k-point route: valid
+`rgba()` paint colors, correct `MultiLineString` geometry, route line
+renders correctly in Chromium.
+
+**False leads ruled out while investigating:** the MapLibre worker's
+`maplibre-gl-shared.mjs` dependency (see `vite.config.ts`'s
+`maplibreWorkerShared` plugin) lands correctly in `.output/public/assets`
+for both the `cloudflare-module` and `node-server` presets — not a
+build-output-directory bug this time. A subsequent report of "basemap shows,
+route still doesn't" after this fix shipped turned out to be the reporting
+user testing on **Firefox Nightly** specifically — reproducing fine on
+stable Firefox/Edge. Given MapLibre's GeoJSON sources are processed through
+a module `Worker` (raster tiles are not, which is why basemap kept working
+throughout this whole saga), a Nightly-channel quirk in worker/module
+handling is the likely explanation, not an app bug — not something to chase
+further here.
