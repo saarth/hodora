@@ -9,6 +9,7 @@ import {
   downloadRouteTiles,
   estimateTileCount,
   isRouteMapSaved,
+  isRouteTileSetTruncated,
   removeRouteTiles,
 } from "@/lib/offline-tiles";
 import { deleteOfflineRide, putOfflineRide } from "@/lib/offline-db";
@@ -42,6 +43,7 @@ export function OfflineSaveCard({ ride }: { ride: Ride }) {
   const saved = Boolean(status?.route && status?.tiles);
   const tileCount = estimateTileCount(ride.points);
   const approxMb = Math.max(1, Math.round((tileCount * 22) / 1024));
+  const truncated = isRouteTileSetTruncated(ride.points);
 
   async function handleSave() {
     const controller = new AbortController();
@@ -97,6 +99,12 @@ export function OfflineSaveCard({ ride }: { ride: Ride }) {
             <p className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
               <WifiOff className="size-3.5" />
               You're offline — reconnect to download maps.
+            </p>
+          )}
+          {truncated && (
+            <p className="mt-2 text-xs text-destructive">
+              This route is long enough that only part of its map can be saved for offline use —
+              some sections may be missing with no signal.
             </p>
           )}
         </div>

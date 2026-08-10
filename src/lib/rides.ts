@@ -189,6 +189,9 @@ export async function createRide(input: {
   bounds: { minLat: number; minLon: number; maxLat: number; maxLon: number } | null;
   points: RidePoint[];
 }): Promise<string> {
+  if (input.points.length < 2) {
+    throw new Error("A route needs at least two points.");
+  }
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) {
     // Guest: keep the route on the device only.

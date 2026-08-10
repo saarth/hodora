@@ -30,6 +30,47 @@ export type OAuthCloudStatus =
       syncing: boolean;
     };
 
+function mergeSyncSummary(a: SyncSummary, b: SyncSummary): SyncSummary {
+  return {
+    uploaded: a.uploaded + b.uploaded,
+    downloaded: a.downloaded + b.downloaded,
+    deletedRemote: a.deletedRemote + b.deletedRemote,
+    deletedLocal: a.deletedLocal + b.deletedLocal,
+    conflicts: a.conflicts + b.conflicts,
+    errors: a.errors + b.errors,
+  };
+}
+
+// Each round syncs at most 25 items server-side (see MAX_ITEMS_PER_RUN in
+// cloud-sync-engine.server.ts) — 20 rounds covers up to 500 rides in one
+// "Sync now" click, comfortably more than an interactive click should ever
+// need. It's a safety cap against looping forever if `hasMore` never
+// clears, not a limit anyone should realistically hit.
+const MAX_SYNC_ROUNDS = 20;
+
+/** Repeatedly calls `runOnce` while it reports `hasMore`, merging summaries, so a large first sync actually finishes instead of stopping after one server-side batch. */
+async function runSyncToCompletion(
+  runOnce: () => Promise<{ summary: SyncSummary; hasMore: boolean }>,
+): Promise<{ summary: SyncSummary; hasMore: boolean }> {
+  let summary: SyncSummary = {
+    uploaded: 0,
+    downloaded: 0,
+    deletedRemote: 0,
+    deletedLocal: 0,
+    conflicts: 0,
+    errors: 0,
+  };
+  let hasMore = true;
+  let rounds = 0;
+  while (hasMore && rounds < MAX_SYNC_ROUNDS) {
+    const result = await runOnce();
+    summary = mergeSyncSummary(summary, result.summary);
+    hasMore = result.hasMore;
+    rounds++;
+  }
+  return { summary, hasMore };
+}
+
 async function authedFetch(path: string, init?: RequestInit): Promise<Response> {
   const {
     data: { session },
@@ -82,14 +123,19 @@ export async function disconnectNextcloud(): Promise<void> {
   }
 }
 
-export async function syncNextcloudNow(): Promise<SyncSummary> {
+async function syncNextcloudOnce(): Promise<{ summary: SyncSummary; hasMore: boolean }> {
   const response = await authedFetch("/api/cloud/nextcloud/sync", { method: "POST" });
   const body = (await response.json().catch(() => null)) as
     { ok: true; summary: SyncSummary; hasMore: boolean } | { ok: false; message?: string } | null;
   if (!response.ok || !body?.ok) {
     throw new Error((body && "message" in body && body.message) || "Sync failed.");
   }
-  return body.summary;
+  return { summary: body.summary, hasMore: body.hasMore };
+}
+
+/** Keeps calling the sync endpoint while `hasMore` is true, so a first-time sync with a large ride history actually finishes instead of silently making partial progress. */
+export async function syncNextcloudNow(): Promise<{ summary: SyncSummary; hasMore: boolean }> {
+  return runSyncToCompletion(syncNextcloudOnce);
 }
 
 /** Shared client for the two OAuth-based providers (Google Drive, OneDrive) — same shape, different URL prefix. */
@@ -134,21 +180,38 @@ export async function disconnectOAuthCloud(provider: OAuthProvider): Promise<voi
   }
 }
 
-export async function syncOAuthCloudNow(provider: OAuthProvider): Promise<SyncSummary> {
+async function syncOAuthCloudOnce(
+  provider: OAuthProvider,
+): Promise<{ summary: SyncSummary; hasMore: boolean }> {
   const response = await authedFetch(`/api/cloud/${provider}/sync`, { method: "POST" });
   const body = (await response.json().catch(() => null)) as
     { ok: true; summary: SyncSummary; hasMore: boolean } | { ok: false; message?: string } | null;
   if (!response.ok || !body?.ok) {
     throw new Error((body && "message" in body && body.message) || "Sync failed.");
   }
-  return body.summary;
+  return { summary: body.summary, hasMore: body.hasMore };
+}
+
+/** Keeps calling the sync endpoint while `hasMore` is true, so a first-time sync with a large ride history actually finishes instead of silently making partial progress. */
+export async function syncOAuthCloudNow(
+  provider: OAuthProvider,
+): Promise<{ summary: SyncSummary; hasMore: boolean }> {
+  return runSyncToCompletion(() => syncOAuthCloudOnce(provider));
 }
 
 /**
  * Best-effort sync trigger for app-open/import/delete moments. Silently
  * no-ops for guests or when nothing's connected — this is a background
  * nicety, not a user action, so it never surfaces an error toast on its own.
- * Runs whichever connections exist in parallel; each is independent.
+ *
+ * Runs whichever connections exist one at a time, not in parallel: each
+ * provider's sync lock only covers its own `cloud_connections` row, not the
+ * `rides` rows it reads and writes — two providers racing to act on the
+ * same ride at once (one downloading a divergent remote copy while another
+ * deletes it, say) could otherwise silently clobber one write with the
+ * other. Serializing trades a bit of latency (rare in practice; most
+ * riders connect exactly one cloud provider) for never having two sync
+ * engines touch the same ride table concurrently.
  */
 export async function triggerCloudSyncIfConnected(): Promise<void> {
   if (!(await isSignedIn())) return;
@@ -166,15 +229,13 @@ export async function triggerCloudSyncIfConnected(): Promise<void> {
     }
   };
 
-  await Promise.all([
-    attempt(fetchNextcloudStatus, syncNextcloudNow),
-    attempt(
-      () => fetchOAuthCloudStatus("google-drive"),
-      () => syncOAuthCloudNow("google-drive"),
-    ),
-    attempt(
-      () => fetchOAuthCloudStatus("onedrive"),
-      () => syncOAuthCloudNow("onedrive"),
-    ),
-  ]);
+  await attempt(fetchNextcloudStatus, syncNextcloudNow);
+  await attempt(
+    () => fetchOAuthCloudStatus("google-drive"),
+    () => syncOAuthCloudNow("google-drive"),
+  );
+  await attempt(
+    () => fetchOAuthCloudStatus("onedrive"),
+    () => syncOAuthCloudNow("onedrive"),
+  );
 }

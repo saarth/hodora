@@ -48,7 +48,11 @@ services:
   # whole service out if you're running cloudflared some other way (native
   # install, a separate Unraid container, etc.).
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    # Pinned, not `:latest` — this is the one component that terminates
+    # public internet traffic into the self-hosted deployment, so an
+    # unreviewed upstream update shouldn't be able to change its behavior
+    # silently. Bump deliberately: https://github.com/cloudflare/cloudflared/releases
+    image: cloudflare/cloudflared:2026.7.3
     command: tunnel run
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}

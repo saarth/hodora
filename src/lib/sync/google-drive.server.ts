@@ -12,6 +12,7 @@
 // Load with a dynamic import inside server handlers — this module makes
 // outbound requests carrying the user's OAuth tokens and shouldn't end up
 // reachable from client-bundled code.
+import { MAX_GPX_DOWNLOAD_BYTES, readTextCapped } from "./http.server";
 
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -285,7 +286,7 @@ export async function uploadFile(
 export async function downloadFile(accessToken: string, fileId: string): Promise<string> {
   const response = await driveRequest(accessToken, `/files/${fileId}?alt=media`, { method: "GET" });
   if (!response.ok) throw new Error(`Download failed (HTTP ${response.status}).`);
-  return response.text();
+  return readTextCapped(response, MAX_GPX_DOWNLOAD_BYTES);
 }
 
 /** Deletes `fileId`. A 404 (already gone) is treated as success. */

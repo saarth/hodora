@@ -117,13 +117,16 @@ function Section({
   );
 }
 
-function syncSummaryMessage(summary: {
-  uploaded: number;
-  downloaded: number;
-  deletedRemote: number;
-  deletedLocal: number;
-  conflicts: number;
-}): string {
+function syncSummaryMessage(
+  summary: {
+    uploaded: number;
+    downloaded: number;
+    deletedRemote: number;
+    deletedLocal: number;
+    conflicts: number;
+  },
+  hasMore = false,
+): string {
   const parts = [
     summary.uploaded > 0 ? `${summary.uploaded} uploaded` : null,
     summary.downloaded > 0 ? `${summary.downloaded} downloaded` : null,
@@ -131,7 +134,12 @@ function syncSummaryMessage(summary: {
     summary.deletedLocal > 0 ? `${summary.deletedLocal} removed locally` : null,
     summary.conflicts > 0 ? `${summary.conflicts} conflicts resolved` : null,
   ].filter(Boolean);
-  return parts.length > 0 ? `Synced — ${parts.join(", ")}` : "Already up to date";
+  const base = parts.length > 0 ? `Synced — ${parts.join(", ")}` : "Already up to date";
+  // Only reachable after runSyncToCompletion's own round cap — a normal
+  // sync run keeps calling the endpoint until the server reports nothing
+  // left, so this means there's still unusually more work than that cap
+  // covers, not a routine "come back later."
+  return hasMore ? `${base} — more still to sync, run "Sync now" again` : base;
 }
 
 const OAUTH_PROVIDER_LABEL: Record<OAuthProvider, string> = {
@@ -158,10 +166,10 @@ function OAuthCloudCard({ provider }: { provider: OAuthProvider }) {
 
   const syncMutation = useMutation({
     mutationFn: () => syncOAuthCloudNow(provider),
-    onSuccess: (summary) => {
+    onSuccess: ({ summary, hasMore }) => {
       queryClient.invalidateQueries({ queryKey: statusKey });
       queryClient.invalidateQueries({ queryKey: ridesKeys.all });
-      toast.success(syncSummaryMessage(summary));
+      toast.success(syncSummaryMessage(summary, hasMore));
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Sync failed"),
   });
@@ -437,10 +445,10 @@ function SettingsPage() {
 
   const syncNextcloudMutation = useMutation({
     mutationFn: () => syncNextcloudNow(),
-    onSuccess: (summary) => {
+    onSuccess: ({ summary, hasMore }) => {
       queryClient.invalidateQueries({ queryKey: nextcloudStatusKey });
       queryClient.invalidateQueries({ queryKey: ridesKeys.all });
-      toast.success(syncSummaryMessage(summary));
+      toast.success(syncSummaryMessage(summary, hasMore));
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Sync failed"),
   });

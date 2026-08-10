@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-
 const searchSchema = z.object({
   redirect: z.string().optional(),
 });
@@ -24,13 +23,15 @@ export const Route = createFileRoute("/auth")({
         content: "Sign in to Hodora with your email to import and navigate your GPX bike routes.",
       },
       { property: "og:title", content: "Sign in — Hodora" },
-      { property: "og:description", content: "Sign in to import and navigate your GPX bike routes." },
+      {
+        property: "og:description",
+        content: "Sign in to import and navigate your GPX bike routes.",
+      },
     ],
   }),
   pendingComponent: AuthPending,
   component: AuthPage,
 });
-
 
 const signUpSchema = z.object({
   email: z.string().trim().email("Enter a valid email address").max(255),
@@ -154,8 +155,8 @@ function AuthPage() {
               <Mountain className="mx-auto size-8 text-primary" />
               <h1 className="mt-4 text-xl font-bold">Confirm your email</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                We sent you a confirmation link. Click it and you'll land right back
-                here, signed in.
+                We sent you a confirmation link. Click it and you'll land right back here, signed
+                in.
               </p>
               <Button
                 variant="ghost"
@@ -204,9 +205,7 @@ function AuthPage() {
                           placeholder="you@example.com"
                           maxLength={255}
                         />
-                        {errors.email && (
-                          <p className="text-xs text-destructive">{errors.email}</p>
-                        )}
+                        {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                       </div>
 
                       {tab === "signup" && (
@@ -234,9 +233,10 @@ function AuthPage() {
                               className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                               onClick={(event) => {
                                 const form = event.currentTarget.closest("form");
-                                const email = form?.querySelector<HTMLInputElement>(
-                                  'input[name="email"]',
-                                )?.value;
+                                const email =
+                                  form?.querySelector<HTMLInputElement>(
+                                    'input[name="email"]',
+                                  )?.value;
                                 void handleForgotPassword(email ?? "");
                               }}
                             >
@@ -292,8 +292,24 @@ function AuthPending() {
   );
 }
 
+/**
+ * Only a same-origin relative path is safe to hand to `navigate()` here —
+ * `search.redirect` comes straight from the URL, so an attacker can set it
+ * to anything. Rejecting `//host` alone isn't enough: browsers normalize a
+ * leading backslash to a forward slash for URLs with a special scheme, so
+ * `/\evil.com` resolves to `https://evil.com/` even though it doesn't
+ * start with `//`. Resolving against a fixed dummy origin (not the real
+ * one — this has to work during SSR, where `window` doesn't exist) and
+ * checking the origin survived is what actually catches that, instead of
+ * trying to enumerate every string trick that produces the same result.
+ */
 function safePath(value?: string): string | null {
-  if (!value) return null;
-  if (!value.startsWith("/") || value.startsWith("//")) return null;
+  if (!value || !value.startsWith("/") || value.includes("\\")) return null;
+  try {
+    const resolved = new URL(value, "http://same-origin.invalid");
+    if (resolved.origin !== "http://same-origin.invalid") return null;
+  } catch {
+    return null;
+  }
   return value;
 }

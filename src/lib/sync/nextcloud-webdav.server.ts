@@ -10,6 +10,7 @@
 // outbound requests carrying the user's WebDAV credentials and shouldn't end
 // up reachable from client-bundled code.
 import { XMLParser } from "fast-xml-parser";
+import { MAX_GPX_DOWNLOAD_BYTES, readTextCapped } from "./http.server";
 
 export type NextcloudConnParams = {
   url: string;
@@ -39,8 +40,76 @@ function normalizeBaseUrl(url: string): string {
   return url.trim().replace(/\/+$/, "");
 }
 
+/** Thrown by `assertPublicHttpUrl` — distinguishes a rejected URL from a network-level fetch failure. */
+export class BlockedUrlError extends Error {}
+
+/**
+ * Blocks SSRF against loopback/private/link-local/CGNAT addresses (this
+ * includes the `169.254.169.254` cloud-metadata endpoint) before any
+ * server-side WebDAV request is issued against a user-supplied server URL.
+ * Hostname-based only — it can't defend against DNS rebinding (a domain
+ * that resolves to a private IP only after this check runs), since neither
+ * the Cloudflare Workers nor the self-hosted Node runtime this code has to
+ * run on lets `fetch` pin/inspect the resolved IP. It still closes the
+ * trivial, most-likely-to-be-abused case: a user pointing the connection
+ * directly at an IP literal or `localhost`.
+ */
+function isBlockedHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
+
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [a, b] = ipv4.slice(1).map(Number);
+    if (a === 0) return true; // "this network"
+    if (a === 10) return true; // RFC1918
+    if (a === 127) return true; // loopback
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+    if (a === 169 && b === 254) return true; // link-local incl. cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true; // RFC1918
+    if (a === 192 && b === 168) return true; // RFC1918
+    if (a >= 224) return true; // multicast + reserved
+    return false;
+  }
+
+  if (host === "::1" || host === "::") return true;
+  if (host.startsWith("fe80:") || host.startsWith("fe8") || host.startsWith("fe9")) return true;
+  if (host.startsWith("fea") || host.startsWith("feb")) return true; // fe80::/10 link-local
+  if (host.startsWith("fc") || host.startsWith("fd")) return true; // fc00::/7 unique local
+  const v4mapped = host.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (v4mapped) return isBlockedHostname(v4mapped[1]);
+
+  return false;
+}
+
+/** Throws `BlockedUrlError` unless `url` is an `http(s)` URL pointing somewhere other than a loopback/private/link-local address. */
+function assertPublicHttpUrl(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new BlockedUrlError("Invalid server URL.");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new BlockedUrlError("Server URL must be http:// or https://.");
+  }
+  if (isBlockedHostname(parsed.hostname)) {
+    throw new BlockedUrlError("That server address isn't allowed.");
+  }
+}
+
+/**
+ * Not a cross-user boundary either way — this only ever addresses the
+ * caller's own DAV namespace with their own credentials — but a `..`
+ * segment has no legitimate reason to appear in a sync-folder name, so
+ * reject it outright rather than relying on `buildDavUrl`'s per-segment
+ * `encodeURIComponent` to make it merely harmless.
+ */
 function normalizeFolder(folder: string): string {
   const trimmed = folder.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+  if (trimmed.split("/").some((segment) => segment === "..")) {
+    throw new Error("Sync folder name can't contain '..'.");
+  }
   return trimmed ? `/${trimmed}` : "";
 }
 
@@ -55,7 +124,9 @@ function buildDavUrl(conn: NextcloudConnParams, path: string): string {
 }
 
 function davRequest(conn: NextcloudConnParams, path: string, init: RequestInit): Promise<Response> {
-  return fetch(buildDavUrl(conn, path), {
+  const url = buildDavUrl(conn, path);
+  assertPublicHttpUrl(url);
+  return fetch(url, {
     ...init,
     headers: {
       Authorization: basicAuthHeader(conn.username, conn.password),
@@ -84,13 +155,15 @@ export async function testConnection(
       return { ok: false, message: "Check your username and app password." };
     }
     if (!response.ok && response.status !== 207) {
-      return {
-        ok: false,
-        message: `Server responded with ${response.status}. Check the server URL.`,
-      };
+      // Deliberately generic: echoing the exact HTTP status back to the
+      // caller would give an authenticated user a status-code oracle for
+      // probing whatever this server can reach (see assertPublicHttpUrl's
+      // doc comment for why that's a real, not just theoretical, concern).
+      return { ok: false, message: "Could not connect. Check the server URL." };
     }
     return { ok: true };
-  } catch {
+  } catch (error) {
+    if (error instanceof BlockedUrlError) return { ok: false, message: error.message };
     return { ok: false, message: "Could not reach that server. Check the server URL." };
   }
 }
@@ -137,7 +210,15 @@ export async function listFolder(conn: NextcloudConnParams, folder: string): Pro
   const parsed = xmlParser.parse(body) as {
     multistatus?: { response?: MultistatusResponse | MultistatusResponse[] };
   };
-  const responses = parsed.multistatus?.response;
+  // A well-formed 207 always has a <multistatus> root, even for an empty
+  // folder (it still contains the folder's own <response> entry). Its
+  // absence means the body was truncated or otherwise garbled — surface
+  // that as a failure instead of quietly treating it as "zero files,"
+  // which the sync engine can't distinguish from a real empty folder.
+  if (!parsed.multistatus) {
+    throw new Error("Could not list the sync folder (malformed server response).");
+  }
+  const responses = parsed.multistatus.response;
   const list = Array.isArray(responses) ? responses : responses ? [responses] : [];
 
   const files: WebdavFile[] = [];
@@ -185,7 +266,7 @@ export async function downloadFile(conn: NextcloudConnParams, path: string): Pro
   if (!response.ok) {
     throw new Error(`Download failed (HTTP ${response.status}).`);
   }
-  return response.text();
+  return readTextCapped(response, MAX_GPX_DOWNLOAD_BYTES);
 }
 
 /** Deletes `path`. A 404 (already gone) is treated as success. */
@@ -197,4 +278,10 @@ export async function deleteFile(conn: NextcloudConnParams, path: string): Promi
 }
 
 // Exported for tests only.
-export const __test__ = { buildDavUrl, basicAuthHeader, normalizeFolder };
+export const __test__ = {
+  buildDavUrl,
+  basicAuthHeader,
+  normalizeFolder,
+  isBlockedHostname,
+  assertPublicHttpUrl,
+};
