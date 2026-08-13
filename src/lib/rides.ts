@@ -12,6 +12,19 @@ import {
 } from "./offline-db";
 
 
+export type RideDifficulty = "easy" | "moderate" | "hard" | "extreme";
+export type RideSurface = "paved" | "gravel" | "mixed" | "unpaved";
+
+export type RideNote = {
+  id: string;
+  /** cumulative route distance in meters where the note sits */
+  distanceM: number;
+  lat: number;
+  lon: number;
+  text: string;
+  createdAt: string;
+};
+
 export type Ride = {
   id: string;
   user_id: string;
@@ -26,11 +39,14 @@ export type Ride = {
   max_lat: number | null;
   max_lon: number | null;
   points: RidePoint[];
+  difficulty: RideDifficulty | null;
+  surface: RideSurface | null;
+  notes: RideNote[];
   created_at: string;
   updated_at: string;
 };
 
-export type RideSummary = Omit<Ride, "points">;
+export type RideSummary = Omit<Ride, "points" | "notes">;
 
 export type Profile = {
   id: string;
@@ -42,7 +58,7 @@ export type Profile = {
 };
 
 const SUMMARY_COLUMNS =
-  "id,user_id,name,description,source_filename,distance_m,ascent_m,descent_m,min_lat,min_lon,max_lat,max_lon,created_at,updated_at";
+  "id,user_id,name,description,source_filename,distance_m,ascent_m,descent_m,min_lat,min_lon,max_lat,max_lon,difficulty,surface,created_at,updated_at";
 
 export const ridesKeys = {
   all: ["rides"] as const,
@@ -65,7 +81,7 @@ export async function isSignedIn(): Promise<boolean> {
 }
 
 function toSummary(ride: Ride): RideSummary {
-  const { points: _points, ...summary } = ride;
+  const { points: _points, notes: _notes, ...summary } = ride;
   return summary;
 }
 
@@ -144,6 +160,34 @@ export async function renameRide(id: string, name: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Sets a route's difficulty/surface tags. `undefined` leaves a field unchanged, `null` clears it. */
+export async function updateRideTags(
+  id: string,
+  tags: { difficulty?: RideDifficulty | null; surface?: RideSurface | null },
+): Promise<void> {
+  if (!(await isSignedIn())) {
+    const saved = await getOfflineRide(id);
+    if (saved) await putOfflineRide({ ...saved, ...tags });
+    return;
+  }
+  const { error } = await supabase.from("rides").update(tags).eq("id", id);
+  if (error) throw error;
+}
+
+/** Replaces a route's full notes list — the caller already has `ride.notes` loaded to add/edit/remove from. */
+export async function updateRideNotes(id: string, notes: RideNote[]): Promise<void> {
+  if (!(await isSignedIn())) {
+    const saved = await getOfflineRide(id);
+    if (saved) await putOfflineRide({ ...saved, notes });
+    return;
+  }
+  const { error } = await supabase
+    .from("rides")
+    .update({ notes: notes as unknown as never })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function fetchProfile(): Promise<Profile | null> {
   if (!(await isSignedIn())) return null;
   if (isOffline()) {
@@ -211,6 +255,9 @@ export async function createRide(input: {
       max_lat: input.bounds?.maxLat ?? null,
       max_lon: input.bounds?.maxLon ?? null,
       points: input.points,
+      difficulty: null,
+      surface: null,
+      notes: [],
       created_at: now,
       updated_at: now,
     });

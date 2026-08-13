@@ -46,8 +46,10 @@ type RouteMapProps = {
   onViewChange?: (view: { center: { lat: number; lon: number }; radiusM: number }) => void;
   /** points to mark on the map that aren't part of a drawn route yet, e.g. route-planner clicks */
   waypoints?: { lat: number; lon: number }[] | null;
-  /** fires with the clicked map coordinate; used by the route planner to add waypoints */
+  /** fires with the clicked map coordinate; used by the route planner to add waypoints and to place ride notes */
   onMapClick?: (point: { lat: number; lon: number }) => void;
+  /** rider-authored notes pinned along the route */
+  notes?: { id: string; lat: number; lon: number }[] | null;
 };
 
 const basemap = (theme: "light" | "dark") =>
@@ -148,6 +150,7 @@ function mapThemeColors() {
     mutedForeground: resolveThemeColor("--color-muted-foreground"),
     warning: resolveThemeColor("--color-warning"),
     foreground: resolveThemeColor("--color-foreground"),
+    chart2: resolveThemeColor("--color-chart-2"),
   };
 }
 
@@ -190,6 +193,10 @@ function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
     ]);
     map.setPaintProperty("waypoints-layer", "circle-stroke-color", colors.background);
   }
+  if (map.getLayer("notes-layer")) {
+    map.setPaintProperty("notes-layer", "circle-color", colors.chart2);
+    map.setPaintProperty("notes-layer", "circle-stroke-color", colors.background);
+  }
 }
 
 export function RouteMap({
@@ -210,6 +217,7 @@ export function RouteMap({
   onViewChange,
   waypoints = null,
   onMapClick,
+  notes = null,
 }: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -226,6 +234,8 @@ export function RouteMap({
   mapClickRef.current = onMapClick;
   const waypointsRef = useRef(waypoints);
   waypointsRef.current = waypoints;
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
   const { theme } = useTheme();
 
   // Boot the map once, client side only.
@@ -296,6 +306,7 @@ export function RouteMap({
         const current = pointsRef.current;
         drawRoute(map, current);
         setupWaypointsLayer(map, waypointsRef.current ?? []);
+        setupNotesLayer(map, notesRef.current ?? []);
         // Show the complete route until the first live GPS fix takes over.
         if (current.length > 1) fitRoute(map, current, 48);
         // Some browsers can report their final size after MapLibre's initial
@@ -462,6 +473,14 @@ export function RouteMap({
     const source = map.getSource("waypoints");
     if (source) source.setData(waypointsFeatureCollection(waypoints ?? []));
   }, [waypoints]);
+
+  // Rider-authored note pins.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+    const source = map.getSource("notes");
+    if (source) source.setData(notesFeatureCollection(notes ?? []));
+  }, [notes]);
 
   // Fit the camera around an explicit set of coordinates on demand.
   const fitCoordsRef = useRef(fitTo?.coords ?? []);
@@ -657,6 +676,35 @@ function setupWaypointsLayer(map: any, waypoints: { lat: number; lon: number }[]
     paint: {
       "circle-radius": ["match", ["get", "role"], "via", 5, 7],
       "circle-color": ["match", ["get", "role"], "start", colors.route, "end", colors.foreground, colors.warning],
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": colors.background,
+    },
+  });
+}
+
+function notesFeatureCollection(notes: { id: string; lat: number; lon: number }[]) {
+  return {
+    type: "FeatureCollection" as const,
+    features: notes.map((note) => ({
+      type: "Feature" as const,
+      properties: { id: note.id },
+      geometry: { type: "Point" as const, coordinates: [note.lon, note.lat] },
+    })),
+  };
+}
+
+/** Rider-authored note pins — a distinct color from route/waypoint/endpoint markers so they read as annotations, not navigation geometry. */
+function setupNotesLayer(map: any, notes: { id: string; lat: number; lon: number }[]) {
+  if (map.getSource("notes")) return;
+  const colors = mapThemeColors();
+  map.addSource("notes", { type: "geojson", data: notesFeatureCollection(notes) });
+  map.addLayer({
+    id: "notes-layer",
+    type: "circle",
+    source: "notes",
+    paint: {
+      "circle-radius": 6,
+      "circle-color": colors.chart2,
       "circle-stroke-width": 2.5,
       "circle-stroke-color": colors.background,
     },

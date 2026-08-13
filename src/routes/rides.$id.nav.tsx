@@ -242,6 +242,7 @@ function NavigatePage() {
         pitch={angled ? 60 : 0}
         rejoin={offRoute && snap ? { lat: snap.lat, lon: snap.lon } : null}
         rejoinPath={offRoute ? rejoinRoute?.path ?? null : null}
+        notes={ride.notes ?? []}
 
         fitTo={fitTo}
         showFitControl={false}

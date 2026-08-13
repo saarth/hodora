@@ -146,6 +146,7 @@ export type Database = {
           created_at: string;
           descent_m: number;
           description: string | null;
+          difficulty: string | null;
           distance_m: number;
           id: string;
           max_lat: number | null;
@@ -153,8 +154,10 @@ export type Database = {
           min_lat: number | null;
           min_lon: number | null;
           name: string;
+          notes: Json;
           points: Json;
           source_filename: string | null;
+          surface: string | null;
           updated_at: string;
           user_id: string;
         };
@@ -163,6 +166,7 @@ export type Database = {
           created_at?: string;
           descent_m?: number;
           description?: string | null;
+          difficulty?: string | null;
           distance_m?: number;
           id?: string;
           max_lat?: number | null;
@@ -170,8 +174,10 @@ export type Database = {
           min_lat?: number | null;
           min_lon?: number | null;
           name: string;
+          notes?: Json;
           points?: Json;
           source_filename?: string | null;
+          surface?: string | null;
           updated_at?: string;
           user_id: string;
         };
@@ -180,6 +186,7 @@ export type Database = {
           created_at?: string;
           descent_m?: number;
           description?: string | null;
+          difficulty?: string | null;
           distance_m?: number;
           id?: string;
           max_lat?: number | null;
@@ -187,8 +194,10 @@ export type Database = {
           min_lat?: number | null;
           min_lon?: number | null;
           name?: string;
+          notes?: Json;
           points?: Json;
           source_filename?: string | null;
+          surface?: string | null;
           updated_at?: string;
           user_id?: string;
         };
