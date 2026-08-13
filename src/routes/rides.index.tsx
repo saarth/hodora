@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { listOfflineRideIds } from "@/lib/offline-db";
 import { offlineKeys } from "@/components/OfflineSaveCard";
+import { DifficultyBadge } from "@/components/RideTags";
 
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -243,6 +244,7 @@ function RidesPage() {
                       Offline
                     </span>
                   )}
+                  {ride.difficulty && <DifficultyBadge value={ride.difficulty} />}
                 </span>
 
                 <p className="mt-1 font-mono text-xs text-muted-foreground">
