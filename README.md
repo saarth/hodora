@@ -123,6 +123,13 @@ Prefer the command line? `cd android && ./gradlew assembleDebug` builds
 and SDK platform/build-tools installed — Android Studio's SDK Manager handles
 that).
 
+**"Invalid Gradle JDK configuration" on first open:** the Android Gradle
+Plugin here (8.13.0) needs JDK 17+, and a fresh checkout has no Project JDK
+set. In the dialog, click **Use Embedded JDK** (or set it manually under
+**Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle
+JDK**) to point at Android Studio's bundled JBR. This is a local IDE setting,
+not something tracked in the repo.
+
 ### Regenerating icons/splash screen
 
 `assets/icon.png` and `assets/splash.png` are the source images (derived from
