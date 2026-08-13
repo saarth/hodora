@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bike,
   Compass,
+  History,
   LogIn,
   LogOut,
   Monitor,
@@ -87,6 +88,13 @@ export function AppHeader() {
             <Link to="/plan">
               <Route className="size-4" />
               Plan
+            </Link>
+          </Button>
+
+          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+            <Link to="/history">
+              <History className="size-4" />
+              History
             </Link>
           </Button>
 

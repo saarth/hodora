@@ -98,6 +98,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      ride_sessions: {
+        Row: {
+          ascent_m: number;
+          created_at: string;
+          descent_m: number;
+          distance_m: number;
+          ended_at: string;
+          id: string;
+          ride_id: string | null;
+          ride_name: string;
+          started_at: string;
+          track: Json;
+          user_id: string;
+        };
+        Insert: {
+          ascent_m?: number;
+          created_at?: string;
+          descent_m?: number;
+          distance_m?: number;
+          ended_at: string;
+          id?: string;
+          ride_id?: string | null;
+          ride_name: string;
+          started_at: string;
+          track?: Json;
+          user_id: string;
+        };
+        Update: {
+          ascent_m?: number;
+          created_at?: string;
+          descent_m?: number;
+          distance_m?: number;
+          ended_at?: string;
+          id?: string;
+          ride_id?: string | null;
+          ride_name?: string;
+          started_at?: string;
+          track?: Json;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       ride_sync_state: {
         Row: {
           connection_id: string;

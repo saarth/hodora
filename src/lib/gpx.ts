@@ -365,3 +365,27 @@ export function formatSpeed(mps: number, metric = true): string {
 export function directionsUrl(lat: number, lon: number): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=bicycling`;
 }
+
+/** A filesystem/URL-safe version of a ride name, for use as a download filename. */
+export function gpxFilename(name: string, suffix = ""): string {
+  const slug =
+    name
+      .trim()
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "route";
+  return `${slug}${suffix}.gpx`;
+}
+
+/** Triggers a browser download of `ride` as a GPX file. Client-side only. */
+export function downloadGpx(ride: { name: string; points: RidePoint[] }, filename: string): void {
+  const blob = new Blob([toGpx(ride)], { type: "application/gpx+xml" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}

@@ -30,7 +30,14 @@ import {
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
 import { Button } from "@/components/ui/button";
-import { bearing, formatDistance, formatElevation, formatSpeed } from "@/lib/gpx";
+import {
+  bearing,
+  buildParsedRide,
+  formatDistance,
+  formatElevation,
+  formatSpeed,
+  haversine,
+} from "@/lib/gpx";
 import {
   compassLabel,
   detectTurns,
@@ -46,7 +53,8 @@ import {
   type Snap,
 } from "@/lib/nav";
 import { useRejoinRoute } from "@/lib/rejoin";
-import { fetchProfile, fetchRide, ridesKeys } from "@/lib/rides";
+import { fetchProfile, fetchRide, ridesKeys, type Ride } from "@/lib/rides";
+import { saveRideSession } from "@/lib/sessions";
 import { formatTemperature, formatWindSpeed, useWeather, weatherInfo, type WeatherIconKey } from "@/lib/weather";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 
@@ -195,6 +203,68 @@ function NavigatePage() {
   }, [ride, snap, finished]);
 
   useWakeLock(Boolean(ride) && !finished);
+
+  // Records the actual GPS trace ridden, distinct from `ride.points` (the
+  // planned route) — this is what powers ride history and "recorded vs.
+  // planned" GPX comparison. Elevation is looked up from the route's
+  // profile at the snapped point rather than device altitude, which is
+  // frequently absent or noisy; that's a good proxy on-route but means the
+  // recorded elevation can be misleading during a long off-route detour.
+  const rideRef = useRef<Ride | undefined>(ride);
+  rideRef.current = ride;
+  const trackRef = useRef<{ lat: number; lon: number; ele: number }[]>([]);
+  const startedAtRef = useRef(new Date().toISOString());
+  const sessionSavedRef = useRef(false);
+
+  useEffect(() => {
+    if (!fix || !ride) return;
+    const track = trackRef.current;
+    const last = track[track.length - 1];
+    if (last && haversine(last.lat, last.lon, fix.lat, fix.lon) < 12) return;
+    const ele = snap ? (ride.points[snap.index]?.ele ?? 0) : 0;
+    track.push({ lat: fix.lat, lon: fix.lon, ele });
+  }, [fix, ride, snap]);
+
+  useEffect(() => {
+    const persistSession = () => {
+      if (sessionSavedRef.current) return;
+      const current = rideRef.current;
+      const track = trackRef.current;
+      if (!current || track.length < 2) return;
+      let distance = 0;
+      for (let i = 1; i < track.length; i++) {
+        distance += haversine(track[i - 1].lat, track[i - 1].lon, track[i].lat, track[i].lon);
+      }
+      if (distance < 50) return; // not a real ride, e.g. a fix or two before backing out
+      sessionSavedRef.current = true;
+      try {
+        const parsed = buildParsedRide(
+          track.map((p) => ({ lat: p.lat, lon: p.lon, ele: p.ele, gap: false })),
+          current.name,
+        );
+        void saveRideSession({
+          rideId: current.id,
+          rideName: current.name,
+          startedAt: startedAtRef.current,
+          endedAt: new Date().toISOString(),
+          distanceM: parsed.distanceM,
+          ascentM: parsed.ascentM,
+          descentM: parsed.descentM,
+          track: parsed.points,
+        });
+      } catch {
+        /* best-effort — losing a session record shouldn't block leaving the nav page */
+      }
+    };
+
+    // `pagehide` catches the tab closing or the app being backgrounded on
+    // mobile, which an unmount-only cleanup would miss.
+    window.addEventListener("pagehide", persistSession);
+    return () => {
+      window.removeEventListener("pagehide", persistSession);
+      persistSession();
+    };
+  }, []);
 
   if (isLoading || !ride) {
     return (

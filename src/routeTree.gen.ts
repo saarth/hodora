@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ExploreRouteImport } from './routes/explore'
+import { Route as HistoryRouteImport } from './routes/history'
 import { Route as PlanRouteImport } from './routes/plan'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -52,6 +53,11 @@ const AuthRoute = AuthRouteImport.update({
 const ExploreRoute = ExploreRouteImport.update({
   id: '/explore',
   path: '/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlanRoute = PlanRouteImport.update({
@@ -173,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
+  '/history': typeof HistoryRoute
   '/plan': typeof PlanRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
+  '/history': typeof HistoryRoute
   '/plan': typeof PlanRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -227,6 +235,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
+  '/history': typeof HistoryRoute
   '/plan': typeof PlanRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -255,6 +264,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/explore'
+    | '/history'
     | '/plan'
     | '/reset-password'
     | '/settings'
@@ -281,6 +291,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/explore'
+    | '/history'
     | '/plan'
     | '/reset-password'
     | '/settings'
@@ -308,6 +319,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/explore'
+    | '/history'
     | '/plan'
     | '/reset-password'
     | '/_authenticated/settings'
@@ -336,6 +348,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ExploreRoute: typeof ExploreRoute
+  HistoryRoute: typeof HistoryRoute
   PlanRoute: typeof PlanRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiDeleteAccountRoute: typeof ApiDeleteAccountRoute
@@ -386,6 +399,13 @@ declare module '@tanstack/react-router' {
       path: '/explore'
       fullPath: '/explore'
       preLoaderRoute: typeof ExploreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plan': {
@@ -554,6 +574,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ExploreRoute: ExploreRoute,
+  HistoryRoute: HistoryRoute,
   PlanRoute: PlanRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiDeleteAccountRoute: ApiDeleteAccountRoute,

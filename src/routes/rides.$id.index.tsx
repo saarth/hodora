@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  Download,
   Gauge,
   Layers,
   MapPin,
@@ -33,7 +34,13 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { directionsUrl, formatDistance, formatElevation } from "@/lib/gpx";
+import {
+  directionsUrl,
+  downloadGpx,
+  formatDistance,
+  formatElevation,
+  gpxFilename,
+} from "@/lib/gpx";
 import { snapToRoute } from "@/lib/nav";
 import {
   fetchProfile,
@@ -177,6 +184,14 @@ function RideDetail() {
                     </a>
                   </Button>
                 )}
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => downloadGpx(ride, gpxFilename(ride.name))}
+                >
+                  <Download className="size-4" />
+                  Export GPX
+                </Button>
                 <Button asChild size="lg" className="glow-ring">
                   <Link to="/rides/$id/nav" params={{ id: ride.id }}>
                     <Navigation className="size-4" />

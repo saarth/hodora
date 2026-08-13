@@ -4,12 +4,14 @@
  * working with no network connection at all.
  */
 import type { Ride, RideSummary, Profile } from "./rides";
+import type { RideSession } from "./sessions";
 import { TILE_CACHE } from "./offline-tiles";
 
 const DB_NAME = "hodora-offline";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const RIDES = "rides";
 const META = "meta";
+const SESSIONS = "sessions";
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -22,6 +24,8 @@ function openDb(): Promise<IDBDatabase> {
       const db = request.result;
       if (!db.objectStoreNames.contains(RIDES)) db.createObjectStore(RIDES, { keyPath: "id" });
       if (!db.objectStoreNames.contains(META)) db.createObjectStore(META);
+      if (!db.objectStoreNames.contains(SESSIONS))
+        db.createObjectStore(SESSIONS, { keyPath: "id" });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -125,7 +129,45 @@ export async function getCachedProfile(): Promise<Profile | null> {
   return cached ?? null;
 }
 
-/** Wipes every locally cached ride, tile index entry and profile snapshot. */
+export async function putOfflineSession(session: RideSession): Promise<void> {
+  await safe(
+    tx(SESSIONS, "readwrite", (store) => store.put(session)),
+    undefined,
+  );
+}
+
+export async function listOfflineSessions(): Promise<RideSession[]> {
+  const sessions = await safe(
+    tx<RideSession[]>(SESSIONS, "readonly", (store) => store.getAll()),
+    [],
+  );
+  return sessions.sort((a, b) => (a.started_at < b.started_at ? 1 : -1));
+}
+
+export async function deleteOfflineSession(id: string): Promise<void> {
+  await safe(
+    tx(SESSIONS, "readwrite", (store) => store.delete(id)),
+    undefined,
+  );
+}
+
+/** Cached session list for signed-in riders so history renders offline. */
+export async function putSessionListCache(sessions: RideSession[]): Promise<void> {
+  await safe(
+    tx(META, "readwrite", (store) => store.put(sessions, "session-list")),
+    undefined,
+  );
+}
+
+export async function getSessionListCache(): Promise<RideSession[] | null> {
+  const cached = await safe(
+    tx<RideSession[] | undefined>(META, "readonly", (store) => store.get("session-list")),
+    undefined,
+  );
+  return cached ?? null;
+}
+
+/** Wipes every locally cached ride, session, tile index entry and profile snapshot. */
 export async function clearOfflineData(): Promise<void> {
   await safe(
     tx(RIDES, "readwrite", (store) => store.clear()),
@@ -133,6 +175,10 @@ export async function clearOfflineData(): Promise<void> {
   );
   await safe(
     tx(META, "readwrite", (store) => store.clear()),
+    undefined as unknown as undefined,
+  );
+  await safe(
+    tx(SESSIONS, "readwrite", (store) => store.clear()),
     undefined as unknown as undefined,
   );
   if (typeof caches !== "undefined") {
