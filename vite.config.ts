@@ -77,7 +77,26 @@ export default defineConfig(({ command, mode }) => ({
     // (Docker, Unraid, etc.) instead of a Cloudflare Worker bundle — see
     // the Dockerfile and the "Self-hosting with Docker" section in README.md.
     command === "build"
-      ? nitro({ defaultPreset: mode === "node" ? "node-server" : "cloudflare-module" })
+      ? nitro(
+          mode === "node"
+            ? { defaultPreset: "node-server" }
+            : {
+                defaultPreset: "cloudflare-module",
+                // Baked into the generated wrangler.json on every build so
+                // Workers Logs stay on regardless of what a dashboard
+                // toggle says — a git-triggered deploy regenerates this
+                // file from scratch and would otherwise silently drop any
+                // observability setting made only in the dashboard.
+                cloudflare: {
+                  wrangler: {
+                    observability: {
+                      enabled: true,
+                      logs: { enabled: true },
+                    },
+                  },
+                },
+              },
+        )
       : null,
     react(),
     maplibreWorkerShared(),
