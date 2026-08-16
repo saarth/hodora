@@ -5,6 +5,92 @@ correctness (GPX parsing, navigation math, offline storage), build/deploy
 correctness, and maintainability. Verified with `tsc --noEmit`, `eslint`, and
 real production builds — not just a read-through.
 
+## 2026-08-16 — Thorough test pass on wake lock, ride-finished, elevation,
+## tagging, notes and offline maps
+
+Wake lock, the ride-finished state, the elevation chart, difficulty/surface
+tagging, segment/waypoint notes, and offline map tiles were all already
+implemented (see the "Add route difficulty/surface tagging and segment notes"
+merge). This pass verified each of them end-to-end — real unit tests plus a
+Playwright smoke run against a live dev server (GPX import → tag → note →
+elevation → offline save → navigate to finish) — rather than re-implementing
+anything. Proximity alerts were deliberately left out, per the task's own
+note that it should wait on a background-geolocation plugin decision.
+
+**Two real bugs found and fixed by that testing, not by inspection:**
+
+- **🟠 `snapToRoute` never got continuity, breaking ride-finished detection on
+  loop/out-and-back routes.** `snapToRoute(points, lat, lon, lastIndex)`
+  accepts a `lastIndex` to window its search around the rider's last known
+  position — but neither call site (`rides.$id.nav.tsx`,
+  `rides.$id.index.tsx`) ever passed it, so `lastIndex` silently defaulted to
+  0 on every GPS fix. For a route whose start and finish sit near each other
+  (a loop closing, an out-and-back), a fix near the true finish is often just
+  as close to the route's *start* — a plain global nearest-point search can
+  snap to progress ≈0 instead of ≈total distance, so `ride.distance_m -
+  snap.progressM <= FINISH_RADIUS_M` never fires and "Ride complete!" never
+  shows. Reproduced live: driving a simulated rider around a closed-loop test
+  route in a headless browser, the nav UI's "To go" jumped from 41 m back to
+  the full 1.79 km right as the loop closed. Fixed in `rides.$id.nav.tsx` by
+  tracking the previous snap's index in a ref and threading it through;
+  regression-tested in `nav.test.ts` (a 300-point loop, cold vs.
+  continuity-seeded search). `rides.$id.index.tsx`'s one-off "place a note"
+  click doesn't need this — there's no previous position to carry forward for
+  a single tap.
+- **🟠 Offline-save toast claimed success even when zero tiles were cached.**
+  `downloadRouteTiles` deliberately never throws on an individual tile
+  failure (a flaky connection just means fewer tiles get cached) — but
+  `OfflineSaveCard`'s `handleSave` treated "the promise resolved" as "it
+  worked" and always showed `toast.success(...)`, regardless of the actual
+  `{ saved, total }` counts. Reproduced live: with outbound tile requests
+  blocked, "Save for offline" toasted "Route and maps saved for offline use"
+  while the card underneath still read "Save the route plus about 114 map
+  tiles" — a rider could head out on a route they believed was cached and get
+  a blank map with no signal. Fixed by extracting `describeTileSaveResult(saved,
+  total)` into `offline-tiles.ts` (success only when `saved >= total`, a
+  distinct partial-failure message when some tiles saved, and a full-failure
+  message when none did) and using it in `OfflineSaveCard`; unit-tested in
+  `offline-tiles.test.ts`.
+
+**Test coverage added** (no behavior changes beyond the two fixes above):
+`src/lib/offline-db.test.ts` (new — the "No automated tests for
+`offline-db.ts`" gap called out below; `fake-indexeddb` added as a
+devDependency since jsdom doesn't implement IndexedDB), `src/lib/rides.test.ts`
+(new — guest/offline code paths: `createRide`, `updateRideTags`,
+`updateRideNotes`, `fetchRides`, `renameRide`, `deleteRide`, `fetchProfile`,
+mocking the Supabase client so a guard assertion fails the test if a guest
+path ever reaches the network), plus `remainingAscent`/`upcomingGrade` cases
+in `nav.test.ts` and the `describeTileSaveResult` cases in
+`offline-tiles.test.ts` mentioned above.
+
+**Verified:** `npx tsc --noEmit`, `npx eslint .` (no new errors — see the note
+below about `eslint-plugin-react-hooks`'s newer `set-state-in-effect`/`refs`
+rules), and `npx vitest run` (139 tests, up from 109) all pass. The
+Playwright smoke run also confirmed, by direct observation rather than
+reading the code: the elevation chart renders a correct profile for a real
+GPX import, difficulty/surface tags persist through the `ToggleGroup` UI, a
+note placed by tapping the map saves and lists correctly, `navigator.wakeLock
+.request("screen")` is actually called while navigating and `release()` fires
+once `finished` flips true, and the "Ride complete!" card renders with the
+right distance/elevation-gain summary.
+
+**Note on `rides.$id.nav.tsx`'s three `eslint-disable-next-line` comments**
+(one `react-hooks/refs`, two `react-hooks/set-state-in-effect`): the `refs`
+one guards the new `lastSnapIndexRef` read described above (the standard
+"remember the previous render's value" ref idiom — the ref is only ever
+written *after* render to seed the *next* computation, never making the
+current render depend on when it runs). The two `set-state-in-effect`
+comments are on **pre-existing, untouched lines** (`setGeoError` when
+`navigator.geolocation` is unavailable, and the `finished` latch) that lint
+cleanly reported zero issues on before this pass touched the file at all —
+adding the ref-based hook above appears to raise this component's hook count
+past whatever threshold makes `eslint-plugin-react-hooks` v7's newer,
+compiler-derived rules start reporting on other effects in the same
+component, even ones matching the rule's own stated "acceptable" pattern
+(external-system sync / a deliberate one-way latch). Left the working,
+already-reviewed logic alone rather than restructuring it to dodge an
+experimental rule; each disable has a comment explaining why.
+
 ## Fixed in this pass
 
 ### 🔴 Critical — offline mode was silently broken in production
@@ -73,11 +159,9 @@ Nitro preset later, re-check that `.output/public` is still the right
    exercise than a bug. **Not run in this pass** — this environment has no
    Node.js/npm installed, so `eslint`/`prettier`/`tsc`/`vitest` could not
    actually be executed here; run them locally before merging.
-2. **No automated tests for `offline-db.ts`.** `gpx.ts` and `nav.ts` now have
-   fixture-based unit tests (see the 2026-08-01 entry below), but
-   `offline-db.ts` (IndexedDB-backed ride/profile caching) still has none.
-   Would need `fake-indexeddb` (or similar) as a devDependency to run under
-   Vitest without a real browser.
+2. ~~**No automated tests for `offline-db.ts`.**~~ **Fixed 2026-08-16** — see
+   `src/lib/offline-db.test.ts` in the entry above (`fake-indexeddb` added as
+   a devDependency).
 
 ## What's already solid (confirmed, not just assumed)
 
