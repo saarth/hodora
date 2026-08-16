@@ -4,14 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CheckCircle2,
-  Cloud,
-  CloudDrizzle,
-  CloudFog,
-  CloudLightning,
-  CloudMoon,
-  CloudRain,
-  CloudSnow,
-  CloudSun,
   Contrast,
   CornerDownLeft,
   CornerDownRight,
@@ -22,19 +14,19 @@ import {
   Map as MapIcon,
   Maximize2,
   Minimize2,
-  Moon,
   Navigation,
   StickyNote,
-  Sun,
   TriangleAlert,
   Wind,
 } from "lucide-react";
 import { toast } from "sonner";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
+import { WeatherGlyph } from "@/components/WeatherGlyph";
 import { Button } from "@/components/ui/button";
 import { bearing, formatDistance, formatElevation, formatSpeed } from "@/lib/gpx";
 import {
+  compassAbbrev,
   compassLabel,
   detectTurns,
   findProximityAlert,
@@ -51,13 +43,7 @@ import {
 } from "@/lib/nav";
 import { useRejoinRoute } from "@/lib/rejoin";
 import { fetchProfile, fetchRide, ridesKeys } from "@/lib/rides";
-import {
-  formatTemperature,
-  formatWindSpeed,
-  useWeather,
-  weatherInfo,
-  type WeatherIconKey,
-} from "@/lib/weather";
+import { formatTemperature, formatWindSpeed, useWeather, weatherInfo } from "@/lib/weather";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { useTheme } from "@/lib/theme";
 
@@ -88,24 +74,6 @@ type LiveFix = {
   heading: number | null;
   speed: number | null;
 };
-
-const WEATHER_ICONS: Record<WeatherIconKey, typeof Cloud> = {
-  sun: Sun,
-  moon: Moon,
-  "cloud-sun": CloudSun,
-  "cloud-moon": CloudMoon,
-  cloud: Cloud,
-  "cloud-fog": CloudFog,
-  "cloud-drizzle": CloudDrizzle,
-  "cloud-rain": CloudRain,
-  "cloud-snow": CloudSnow,
-  "cloud-lightning": CloudLightning,
-};
-
-function WeatherGlyph({ icon, className }: { icon: WeatherIconKey; className?: string }) {
-  const Icon = WEATHER_ICONS[icon];
-  return <Icon className={className} aria-hidden />;
-}
 
 function NavigatePage() {
   const { id } = Route.useParams();
@@ -306,7 +274,7 @@ function NavigatePage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-background">
+    <div className="screen-fill relative overflow-hidden bg-background">
       <RouteMap
         points={ride.points}
         className="absolute inset-0 h-full w-full"
@@ -323,8 +291,8 @@ function NavigatePage() {
         showFitControl={false}
       />
 
-      <div className="pointer-events-none relative z-10 flex min-h-screen flex-col justify-between p-4">
-        <div className="flex items-start justify-between gap-2">
+      <div className="pointer-events-none relative z-10 flex h-full flex-col justify-between gap-2 p-4">
+        <div className="flex shrink-0 flex-wrap items-start justify-between gap-2">
           <div className="pointer-events-auto flex items-start gap-2">
             {!topMinimized ? (
               <>
@@ -380,7 +348,7 @@ function NavigatePage() {
               <div className="flex items-center gap-1 whitespace-nowrap text-muted-foreground">
                 <Wind className="size-3 shrink-0" aria-hidden />
                 {formatWindSpeed(weather.windSpeedMs, metric)}{" "}
-                {compassLabel(weather.windDirectionDeg)}
+                {compassAbbrev(weather.windDirectionDeg)}
               </div>
               {wind && wind.effect !== "crosswind" && Math.abs(wind.componentMs) > 1 && (
                 <span
@@ -398,8 +366,8 @@ function NavigatePage() {
           )}
         </div>
 
-        <div className="space-y-3">
-          <div className="pointer-events-auto flex justify-end gap-2">
+        <div className="flex min-h-0 flex-col gap-3">
+          <div className="pointer-events-auto flex shrink-0 justify-end gap-2">
             <Button
               variant={highContrast ? "default" : "secondary"}
               size="sm"
@@ -437,7 +405,15 @@ function NavigatePage() {
           </div>
 
           {!bottomMinimized && (
-            <div className="pointer-events-auto space-y-2">
+            /*
+             * Scrolls within itself rather than growing the page: on a short
+             * screen the off-route banner + turn card + metrics + elevation
+             * chart can exceed the space left under the map controls, and
+             * the page itself is height-locked so it can't scroll to reveal
+             * them. `min-h-0` is what actually lets this flex child shrink
+             * below its content height.
+             */
+            <div className="pointer-events-auto min-h-0 space-y-2 overflow-y-auto overscroll-contain">
               {finished ? (
                 <div className="glass-faint space-y-3 rounded-2xl p-4 text-center">
                   <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">

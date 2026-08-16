@@ -5,6 +5,7 @@ import { buildCyclingStyle, setVectorBasemapTheme } from "@/lib/cycling-style";
 import { haversine, splitBySegments, type RidePoint } from "@/lib/gpx";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
+import { windSegmentsToGeoJSON, type WindSegment } from "@/lib/windScore";
 
 // Optional: set VITE_MAPTILER_KEY to swap the default raster CARTO basemap
 // for a custom cycling-focused vector style (see src/lib/cycling-style.ts).
@@ -52,6 +53,8 @@ type RouteMapProps = {
   onMapClick?: (point: { lat: number; lon: number }) => void;
   /** rider-authored notes pinned along the route */
   notes?: { id: string; lat: number; lon: number }[] | null;
+  /** per-segment wind classification; when present, the route is colored tailwind/headwind/crosswind instead of the theme's single route color */
+  windSegments?: WindSegment[] | null;
 };
 
 const basemap = (theme: "light" | "dark") =>
@@ -153,8 +156,20 @@ function mapThemeColors() {
     warning: resolveThemeColor("--color-warning"),
     foreground: resolveThemeColor("--color-foreground"),
     chart2: resolveThemeColor("--color-chart-2"),
+    primary: resolveThemeColor("--color-primary"),
+    destructive: resolveThemeColor("--color-destructive"),
   };
 }
+
+const WIND_LINE_COLOR_EXPRESSION = (colors: ReturnType<typeof mapThemeColors>) => [
+  "match",
+  ["get", "effect"],
+  "tailwind",
+  colors.primary,
+  "headwind",
+  colors.destructive,
+  colors.warning,
+];
 
 function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
   if (map.getLayer("route-casing")) {
@@ -162,6 +177,9 @@ function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
   }
   if (map.getLayer("route-line")) {
     map.setPaintProperty("route-line", "line-color", colors.route);
+  }
+  if (map.getLayer("route-wind-line")) {
+    map.setPaintProperty("route-wind-line", "line-color", WIND_LINE_COLOR_EXPRESSION(colors));
   }
   if (map.getLayer("route-done-line")) {
     map.setPaintProperty("route-done-line", "line-color", colors.mutedForeground);
@@ -221,6 +239,7 @@ export function RouteMap({
   waypoints = null,
   onMapClick,
   notes = null,
+  windSegments = null,
 }: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -228,6 +247,8 @@ export function RouteMap({
   const readyRef = useRef(false);
   const pointsRef = useRef<RidePoint[]>(points);
   pointsRef.current = points;
+  const windSegmentsRef = useRef(windSegments);
+  windSegmentsRef.current = windSegments;
   const pitchRef = useRef(pitch);
   pitchRef.current = pitch;
   const riderMarkerRef = useRef<any>(null);
@@ -310,6 +331,7 @@ export function RouteMap({
         readyRef.current = true;
         const current = pointsRef.current;
         drawRoute(map, current);
+        applyWindSegments(map, current, windSegmentsRef.current);
         setupWaypointsLayer(map, waypointsRef.current ?? []);
         setupNotesLayer(map, notesRef.current ?? []);
         // Show the complete route until the first live GPS fix takes over.
@@ -383,9 +405,17 @@ export function RouteMap({
     const map = mapRef.current;
     if (!map || !readyRef.current || points.length === 0) return;
     drawRoute(map, points);
+    applyWindSegments(map, points, windSegmentsRef.current);
     fitRoute(map, points, follow ? 0 : 48);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points]);
+
+  // Toggle wind-colored segments on/off and repaint when the selection changes.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+    applyWindSegments(map, points, windSegments);
+  }, [windSegments, points]);
 
   // Progress marker: dim what's already ridden.
   useEffect(() => {
@@ -596,6 +626,17 @@ function drawRoute(map: any, points: RidePoint[]) {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": colors.route, "line-width": 4.5 },
   });
+  map.addSource("route-wind", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  });
+  map.addLayer({
+    id: "route-wind-line",
+    type: "line",
+    source: "route-wind",
+    layout: { "line-cap": "round", "line-join": "round", visibility: "none" },
+    paint: { "line-color": WIND_LINE_COLOR_EXPRESSION(colors), "line-width": 4.5 },
+  });
   map.addSource("route-done", { type: "geojson", data: lineFeature([]) });
   map.addLayer({
     id: "route-done-line",
@@ -729,6 +770,33 @@ function setupNotesLayer(map: any, notes: { id: string; lat: number; lon: number
       "circle-stroke-color": colors.background,
     },
   });
+}
+
+/**
+ * Toggles between the theme's single-color route line and a per-segment
+ * tailwind/headwind/crosswind coloring, depending on whether `windSegments`
+ * is populated. Idempotent — safe to call on every points/windSegments
+ * change once the map has loaded.
+ */
+function applyWindSegments(
+  map: any,
+  points: RidePoint[],
+  windSegments: WindSegment[] | null | undefined,
+) {
+  const source = map.getSource("route-wind");
+  if (!source) return;
+  const hasWind = Boolean(windSegments && windSegments.length > 0);
+  source.setData(
+    hasWind
+      ? windSegmentsToGeoJSON(points, windSegments!)
+      : { type: "FeatureCollection", features: [] },
+  );
+  if (map.getLayer("route-wind-line")) {
+    map.setLayoutProperty("route-wind-line", "visibility", hasWind ? "visible" : "none");
+  }
+  if (map.getLayer("route-line")) {
+    map.setLayoutProperty("route-line", "visibility", hasWind ? "none" : "visible");
+  }
 }
 
 function updateEndpoints(map: any, points: RidePoint[]) {

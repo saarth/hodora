@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import {
   MapPin,
   MapPinPlus,
   Navigation,
+  Share2,
   StickyNote,
   Trash2,
   TrendingDown,
@@ -21,6 +22,9 @@ import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
 import { OfflineSaveCard } from "@/components/OfflineSaveCard";
 import { DIFFICULTY_OPTIONS, SURFACE_OPTIONS } from "@/components/RideTags";
+import { DayTabs } from "@/components/DayTabs";
+import { HourPicker } from "@/components/HourPicker";
+import { WindStatsBar } from "@/components/WindStatsBar";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +40,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { directionsUrl, formatDistance, formatElevation } from "@/lib/gpx";
 import { snapToRoute } from "@/lib/nav";
 import {
+  createSharedLink,
   fetchProfile,
   fetchRide,
   ridesKeys,
@@ -47,6 +52,13 @@ import {
   type RideSurface,
 } from "@/lib/rides";
 import { cn } from "@/lib/utils";
+import {
+  closestHourIndex,
+  fetchHourlyWind,
+  groupForecastByDay,
+  isDaytimeHour,
+} from "@/lib/weather";
+import { buildWindSegments, scoreRoute } from "@/lib/windScore";
 
 export const Route = createFileRoute("/rides/$id/")({
   ssr: false,
@@ -82,6 +94,65 @@ function RideDetail() {
     queryFn: () => fetchRide(id),
   });
 
+  const start = ride?.points[0];
+  const { data: hourly } = useQuery({
+    queryKey: ["ride-wind-forecast", id, start?.lat, start?.lon],
+    queryFn: () => fetchHourlyWind(start!.lat, start!.lon),
+    enabled: Boolean(start),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const days = useMemo(() => groupForecastByDay(hourly ?? []), [hourly]);
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+  const [selectedHourIso, setSelectedHourIso] = useState<string | null>(null);
+
+  const selectedDay = days.find((day) => day.dateKey === selectedDayKey) ?? days[0] ?? null;
+  const selectedHour =
+    selectedDay?.hours.find((hour) => hour.atIso === selectedHourIso) ??
+    (selectedDay ? selectedDay.hours[closestHourIndex(selectedDay.hours)] : null);
+
+  // Wind score for every hour of the selected day, so the picker can star the best one.
+  const dayScores = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!ride || !selectedDay) return map;
+    for (const hour of selectedDay.hours) {
+      const result = scoreRoute(ride.points, {
+        windSpeedMs: hour.windSpeedMs,
+        windDirectionDeg: hour.windDirectionDeg,
+      });
+      if (result) map.set(hour.atIso, result.windScore);
+    }
+    return map;
+  }, [ride, selectedDay]);
+
+  const bestHourIso = useMemo(() => {
+    let best: string | null = null;
+    let bestScore = -Infinity;
+    for (const [atIso, hourScore] of dayScores) {
+      if (hourScore > bestScore) {
+        bestScore = hourScore;
+        best = atIso;
+      }
+    }
+    return best;
+  }, [dayScores]);
+
+  const windScore = useMemo(() => {
+    if (!ride || !selectedHour) return null;
+    return scoreRoute(ride.points, {
+      windSpeedMs: selectedHour.windSpeedMs,
+      windDirectionDeg: selectedHour.windDirectionDeg,
+    });
+  }, [ride, selectedHour]);
+
+  const windSegments = useMemo(() => {
+    if (!ride || !selectedHour) return null;
+    return buildWindSegments(ride.points, {
+      windSpeedMs: selectedHour.windSpeedMs,
+      windDirectionDeg: selectedHour.windDirectionDeg,
+    });
+  }, [ride, selectedHour]);
+
   const [addingNote, setAddingNote] = useState(false);
   const [pendingNote, setPendingNote] = useState<{
     lat: number;
@@ -110,6 +181,29 @@ function RideDetail() {
       );
     },
     onError: () => toast.error("Could not save that note"),
+  });
+
+  const shareMutation = useMutation({
+    mutationFn: () =>
+      createSharedLink({
+        rideId: id,
+        windHour: selectedHour?.atIso ?? null,
+        windSpeedMs: selectedHour?.windSpeedMs,
+        windDirectionDeg: selectedHour?.windDirectionDeg,
+        temperatureC: selectedHour?.temperatureC,
+        weatherCode: selectedHour?.weatherCode,
+      }),
+    onSuccess: async (token) => {
+      const url = `${window.location.origin}/share/${token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Share link copied to clipboard");
+      } catch {
+        toast.success(url, { description: "Share link created" });
+      }
+    },
+    onError: (mutationError: Error) =>
+      toast.error(mutationError.message || "Could not create a share link"),
   });
 
   function handleMapClick(point: { lat: number; lon: number }) {
@@ -177,6 +271,15 @@ function RideDetail() {
                     </a>
                   </Button>
                 )}
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => shareMutation.mutate()}
+                  disabled={shareMutation.isPending}
+                >
+                  <Share2 className="size-4" />
+                  Share
+                </Button>
                 <Button asChild size="lg" className="glow-ring">
                   <Link to="/rides/$id/nav" params={{ id: ride.id }}>
                     <Navigation className="size-4" />
@@ -200,6 +303,41 @@ function RideDetail() {
               />
             </div>
 
+            {windScore && selectedHour && (
+              <div className="mt-4 space-y-3">
+                <WindStatsBar
+                  score={windScore}
+                  windDirectionDeg={selectedHour.windDirectionDeg}
+                  metric={metric}
+                  detail={{
+                    distanceM: ride.distance_m,
+                    elevationM: ride.ascent_m,
+                    temperatureC: selectedHour.temperatureC,
+                    weatherCode: selectedHour.weatherCode,
+                    isDay: isDaytimeHour(selectedHour.atIso),
+                  }}
+                />
+                {days.length > 0 && selectedDay && (
+                  <div className="space-y-2">
+                    <DayTabs
+                      days={days}
+                      value={selectedDay.dateKey}
+                      onChange={(dateKey) => {
+                        setSelectedDayKey(dateKey);
+                        setSelectedHourIso(null);
+                      }}
+                    />
+                    <HourPicker
+                      hours={selectedDay.hours}
+                      value={selectedHour.atIso}
+                      onChange={setSelectedHourIso}
+                      bestAtIso={bestHourIso}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="surface relative mt-4 overflow-hidden">
               <RouteMap
                 points={ride.points}
@@ -211,6 +349,7 @@ function RideDetail() {
                 }))}
                 onMapClick={handleMapClick}
                 showFitControl={!addingNote}
+                windSegments={windSegments}
               />
               {addingNote && (
                 <div className="glass-faint pointer-events-none absolute inset-x-3 top-3 z-10 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs">

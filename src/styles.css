@@ -277,6 +277,18 @@
   letter-spacing: -0.03em;
 }
 
+/*
+ * Exact-viewport height for full-bleed screens that must never scroll the
+ * page (live navigation). `body` already carries the top safe-area inset,
+ * so a plain `100dvh`/`min-h-screen` child overflows by exactly that inset
+ * and leaves the page scrollable by a few pixels on any device with a
+ * status-bar cutout — subtract it here instead. `dvh` (not `vh`) so the
+ * height tracks mobile browser chrome collapsing/expanding.
+ */
+@utility screen-fill {
+  height: calc(100dvh - env(safe-area-inset-top));
+}
+
 /* MapLibre canvas + controls tuned to the design system */
 .map-shell .maplibregl-canvas {
   outline: none;

@@ -203,6 +203,45 @@ export type Database = {
         };
         Relationships: [];
       };
+      shared_links: {
+        Row: {
+          created_at: string;
+          id: string;
+          ride_id: string;
+          temperature_c: number | null;
+          token: string;
+          user_id: string;
+          weather_code: number | null;
+          wind_direction_deg: number | null;
+          wind_hour: string | null;
+          wind_speed_ms: number | null;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          ride_id: string;
+          temperature_c?: number | null;
+          token: string;
+          user_id: string;
+          weather_code?: number | null;
+          wind_direction_deg?: number | null;
+          wind_hour?: string | null;
+          wind_speed_ms?: number | null;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          ride_id?: string;
+          temperature_c?: number | null;
+          token?: string;
+          user_id?: string;
+          weather_code?: number | null;
+          wind_direction_deg?: number | null;
+          wind_hour?: string | null;
+          wind_speed_ms?: number | null;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

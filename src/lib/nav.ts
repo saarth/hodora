@@ -246,6 +246,13 @@ export function compassLabel(deg: number): string {
   return labels[index];
 }
 
+/** Abbreviated compass label ("N", "SE", …) for a bearing in degrees — shorter than `compassLabel` for tight layouts. */
+export function compassAbbrev(deg: number): string {
+  const abbreviations = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const index = Math.round((((deg % 360) + 360) % 360) / 45) % 8;
+  return abbreviations[index];
+}
+
 /**
  * Direction of travel along the route at a given index, sampled over `span`
  * meters for stability (more reliable than live GPS heading, which is often
