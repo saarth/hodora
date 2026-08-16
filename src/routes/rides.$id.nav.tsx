@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -12,6 +12,7 @@ import {
   CloudRain,
   CloudSnow,
   CloudSun,
+  Contrast,
   CornerDownLeft,
   CornerDownRight,
   Crosshair,
@@ -49,6 +50,7 @@ import { useRejoinRoute } from "@/lib/rejoin";
 import { fetchProfile, fetchRide, ridesKeys } from "@/lib/rides";
 import { formatTemperature, formatWindSpeed, useWeather, weatherInfo, type WeatherIconKey } from "@/lib/weather";
 import { useWakeLock } from "@/hooks/use-wake-lock";
+import { useTheme } from "@/lib/theme";
 
 import { cn } from "@/lib/utils";
 
@@ -67,6 +69,8 @@ export const Route = createFileRoute("/rides/$id/nav")({
   }),
   component: NavigatePage,
 });
+
+const HC_STORAGE_KEY = "hodora-nav-hc";
 
 type LiveFix = {
   lat: number;
@@ -109,6 +113,12 @@ function NavigatePage() {
   const [topMinimized, setTopMinimized] = useState(false);
   const [bottomMinimized, setBottomMinimized] = useState(false);
   const [finished, setFinished] = useState(false);
+  // Lazy initializer (not an effect): this route is client-only (ssr: false),
+  // so localStorage is always available on first render here.
+  const [highContrast, setHighContrast] = useState(
+    () => window.localStorage.getItem(HC_STORAGE_KEY) === "1",
+  );
+  const { theme } = useTheme();
   const [fitTo, setFitTo] = useState<{
     coords: { lat: number; lon: number }[];
     nonce: number;
@@ -196,6 +206,20 @@ function NavigatePage() {
 
   useWakeLock(Boolean(ride) && !finished);
 
+  // Apply the nav-only high-contrast palette directly to <html>, alongside
+  // (not instead of) the app's own light/dark class — layoutEffect so this
+  // lands before RouteMap's passive effect re-resolves --color-* off the DOM.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("hc-dark", highContrast);
+    root.classList.toggle("dark", highContrast || theme === "dark");
+    window.localStorage.setItem(HC_STORAGE_KEY, highContrast ? "1" : "0");
+    return () => {
+      root.classList.remove("hc-dark");
+      root.classList.toggle("dark", theme === "dark");
+    };
+  }, [highContrast, theme]);
+
   if (isLoading || !ride) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -240,6 +264,7 @@ function NavigatePage() {
         follow={follow}
         progressIndex={snap?.index ?? null}
         pitch={angled ? 60 : 0}
+        highContrast={highContrast}
         rejoin={offRoute && snap ? { lat: snap.lat, lon: snap.lon } : null}
         rejoinPath={offRoute ? rejoinRoute?.path ?? null : null}
         notes={ride.notes ?? []}
@@ -325,6 +350,17 @@ function NavigatePage() {
 
         <div className="space-y-3">
           <div className="pointer-events-auto flex justify-end gap-2">
+            <Button
+              variant={highContrast ? "default" : "secondary"}
+              size="sm"
+              className={highContrast ? "" : "glass"}
+              onClick={() => setHighContrast((value) => !value)}
+              aria-label={highContrast ? "Turn off high contrast" : "Turn on high contrast"}
+              aria-pressed={highContrast}
+            >
+              <Contrast className="size-4" />
+              Contrast
+            </Button>
             <Button
               variant="secondary"
               size="sm"
