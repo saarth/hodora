@@ -83,14 +83,8 @@ export function detectTurns(points: RidePoint[], minAngle = 35): Turn[] {
  * distance stay accurate on long straight segments. Searches near the last
  * known index for speed, and falls back to a full scan when far away.
  */
-export function snapToRoute(
-  points: RidePoint[],
-  lat: number,
-  lon: number,
-  lastIndex = 0,
-): Snap {
-  if (points.length === 0)
-    return { index: 0, offRouteM: 0, progressM: 0, lat, lon };
+export function snapToRoute(points: RidePoint[], lat: number, lon: number, lastIndex = 0): Snap {
+  if (points.length === 0) return { index: 0, offRouteM: 0, progressM: 0, lat, lon };
   if (points.length === 1) {
     return {
       index: 0,
@@ -164,6 +158,41 @@ export function nextTurn(turns: Turn[], progressM: number): Turn | null {
   return null;
 }
 
+/** Default lookahead distance for `findProximityAlert` — far enough to give a rider a few seconds' notice at cycling speed, close enough not to fire miles early. */
+export const PROXIMITY_ALERT_RADIUS_M = 150;
+
+/**
+ * The nearest not-yet-alerted note within `radiusM` ahead of the rider's
+ * current progress, or `null` if there isn't one. Built on the same live
+ * position stream navigation already uses (`snap.progressM`) rather than a
+ * separate background-geolocation plugin — proximity alerts are only
+ * meaningful while navigation is actively running (tab open, wake lock
+ * holding the screen on), so there's no case here that needs tracking to
+ * continue once the rider backgrounds the app.
+ *
+ * A small negative slack (-20m) is allowed so a note doesn't get skipped by
+ * GPS/snap jitter landing a couple of meters past it before the alert fires.
+ */
+export function findProximityAlert<T extends { id: string; distanceM: number }>(
+  notes: readonly T[],
+  progressM: number,
+  alerted: ReadonlySet<string>,
+  radiusM = PROXIMITY_ALERT_RADIUS_M,
+): T | null {
+  let best: T | null = null;
+  let bestAhead = Infinity;
+  for (const note of notes) {
+    if (alerted.has(note.id)) continue;
+    const ahead = note.distanceM - progressM;
+    if (ahead < -20 || ahead > radiusM) continue;
+    if (ahead < bestAhead) {
+      best = note;
+      bestAhead = ahead;
+    }
+  }
+  return best;
+}
+
 export function turnLabel(direction: TurnDirection): string {
   switch (direction) {
     case "left":
@@ -213,7 +242,7 @@ export function compassLabel(deg: number): string {
     "west",
     "north-west",
   ];
-  const index = Math.round(((deg % 360) + 360) % 360 / 45) % 8;
+  const index = Math.round((((deg % 360) + 360) % 360) / 45) % 8;
   return labels[index];
 }
 

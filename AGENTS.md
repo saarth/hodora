@@ -120,3 +120,15 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   is the one place native-vs-web branching happens (`Capacitor.isNativePlatform()`),
   guarded so it's a no-op on the web build. See "Android app (Capacitor)" in
   README.md.
+- **Proximity alerts** (`findProximityAlert` in `src/lib/nav.ts`, wired into
+  `src/routes/rides.$id.nav.tsx`) run on the same foreground
+  `navigator.geolocation.watchPosition` stream every other location feature
+  in this app already uses — a deliberate decision, not an oversight, made so
+  this feature didn't have to wait on evaluating/adding a native
+  background-geolocation Capacitor plugin. Alerts only need to fire while
+  navigation is actively running (tab open, `useWakeLock` holding the screen
+  on), so there's no case that needs location tracking to continue once the
+  rider backgrounds the app or locks the screen. If a future feature actually
+  needs that (e.g. alerts with the app closed), that's a much bigger addition
+  — a foreground Android service, a persistent notification, battery-exemption
+  UX — and deserves its own design pass rather than retrofitting this one.

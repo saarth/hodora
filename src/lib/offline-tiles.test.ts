@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  describeTileSaveResult,
   downloadRouteTiles,
   estimateTileCount,
   isRouteMapSaved,
@@ -96,6 +97,27 @@ describe("offline tiles", () => {
       const { saved, total } = await downloadRouteTiles(shortRoute);
       expect(saved).toBe(total);
       expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("describeTileSaveResult", () => {
+    it("reports success only when every tile saved", () => {
+      expect(describeTileSaveResult(50, 50)).toEqual({
+        ok: true,
+        message: "Route and maps saved for offline use",
+      });
+    });
+
+    it("reports a partial-failure error when some but not all tiles saved", () => {
+      const result = describeTileSaveResult(30, 50);
+      expect(result.ok).toBe(false);
+      expect(result.message).toContain("30 of 50");
+    });
+
+    it("reports a total-failure error when nothing saved — this must not read as success just because downloadRouteTiles didn't throw", () => {
+      const result = describeTileSaveResult(0, 50);
+      expect(result.ok).toBe(false);
+      expect(result.message).toMatch(/couldn't download/i);
     });
   });
 

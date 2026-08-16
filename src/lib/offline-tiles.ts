@@ -141,6 +141,31 @@ export async function downloadRouteTiles(
   return { saved, total: urls.length };
 }
 
+/**
+ * Turns a `downloadRouteTiles` result into the outcome the UI should report.
+ * `downloadRouteTiles` never throws on individual tile failures (a flaky
+ * connection just means fewer tiles get cached), so callers must check the
+ * counts themselves instead of assuming success just because nothing threw.
+ */
+export function describeTileSaveResult(
+  saved: number,
+  total: number,
+): { ok: true; message: string } | { ok: false; message: string } {
+  if (saved >= total) {
+    return { ok: true, message: "Route and maps saved for offline use" };
+  }
+  if (saved > 0) {
+    return {
+      ok: false,
+      message: `Only ${saved} of ${total} map tiles downloaded — some areas may be missing offline. Try again with a better connection.`,
+    };
+  }
+  return {
+    ok: false,
+    message: "Couldn't download map tiles — check your connection and try again.",
+  };
+}
+
 export async function removeRouteTiles(points: RidePoint[]): Promise<void> {
   if (typeof caches === "undefined") return;
   const cache = await caches.open(TILE_CACHE);

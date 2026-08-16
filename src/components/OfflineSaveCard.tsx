@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { getOfflineRide } from "@/lib/offline-db";
 import {
+  describeTileSaveResult,
   downloadRouteTiles,
   estimateTileCount,
   isRouteMapSaved,
@@ -51,12 +52,14 @@ export function OfflineSaveCard({ ride }: { ride: Ride }) {
     setProgress(0);
     try {
       await putOfflineRide(ride);
-      await downloadRouteTiles(
+      const { saved, total } = await downloadRouteTiles(
         ride.points,
         (done, total) => setProgress(Math.round((done / total) * 100)),
         controller.signal,
       );
-      toast.success("Route and maps saved for offline use");
+      const result = describeTileSaveResult(saved, total);
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save this route offline");
     } finally {
