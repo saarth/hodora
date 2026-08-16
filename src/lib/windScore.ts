@@ -153,14 +153,6 @@ export function windSegmentsToGeoJSON(points: RidePoint[], segments: WindSegment
   };
 }
 
-const COMPASS_ABBREVIATIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-
-/** Abbreviated compass label ("N", "SE", …) for a bearing/direction in degrees. */
-export function compassAbbrev(deg: number): string {
-  const index = Math.round((((deg % 360) + 360) % 360) / 45) % 8;
-  return COMPASS_ABBREVIATIONS[index];
-}
-
 /**
  * Rotation (degrees, 0-360) for an arrow icon that should point where the
  * wind is blowing TOWARD, given the meteorological "blowing FROM" direction

@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { WeatherGlyph } from "@/components/WeatherGlyph";
 import { formatDistance, formatElevation } from "@/lib/gpx";
-import { compassAbbrev, windArrowRotation, type WindScoreResult } from "@/lib/windScore";
+import { compassAbbrev } from "@/lib/nav";
+import { windArrowRotation, type WindScoreResult } from "@/lib/windScore";
 import {
   formatTemperature,
   formatWindSpeed,

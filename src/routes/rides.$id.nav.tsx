@@ -23,6 +23,7 @@ import { WeatherGlyph } from "@/components/WeatherGlyph";
 import { Button } from "@/components/ui/button";
 import { bearing, formatDistance, formatElevation, formatSpeed } from "@/lib/gpx";
 import {
+  compassAbbrev,
   compassLabel,
   detectTurns,
   nextTurn,
@@ -223,7 +224,7 @@ function NavigatePage() {
 
 
       <div className="pointer-events-none relative z-10 flex min-h-screen flex-col justify-between p-4">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="pointer-events-auto flex items-start gap-2">
             {!topMinimized ? (
               <>
@@ -278,7 +279,7 @@ function NavigatePage() {
               </div>
               <div className="flex items-center gap-1 whitespace-nowrap text-muted-foreground">
                 <Wind className="size-3 shrink-0" aria-hidden />
-                {formatWindSpeed(weather.windSpeedMs, metric)} {compassLabel(weather.windDirectionDeg)}
+                {formatWindSpeed(weather.windSpeedMs, metric)} {compassAbbrev(weather.windDirectionDeg)}
               </div>
               {wind && wind.effect !== "crosswind" && Math.abs(wind.componentMs) > 1 && (
                 <span
