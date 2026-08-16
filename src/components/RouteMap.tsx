@@ -30,6 +30,8 @@ type RouteMapProps = {
   interactive?: boolean;
   /** map tilt in degrees: 0 = birds-eye, ~60 = angled */
   pitch?: number;
+  /** forces the dark basemap plus a punchier navigation-only palette, regardless of the app theme */
+  highContrast?: boolean;
   /** dashed guide line from the live position to the closest route point */
   rejoin?: { lat: number; lon: number } | null;
   /** bike-friendly path back to the track; falls back to a straight dashed line */
@@ -225,6 +227,7 @@ export function RouteMap({
   progressIndex = null,
   interactive = true,
   pitch = 0,
+  highContrast = false,
   rejoin = null,
   rejoinPath = null,
 
@@ -249,6 +252,7 @@ export function RouteMap({
   const pitchRef = useRef(pitch);
   pitchRef.current = pitch;
   const riderMarkerRef = useRef<any>(null);
+  const riderHeadingRef = useRef(0);
   const viewChangeRef = useRef(onViewChange);
   viewChangeRef.current = onViewChange;
   const mapClickRef = useRef(onMapClick);
@@ -278,16 +282,17 @@ export function RouteMap({
       maplibre.setWorkerUrl(maplibreWorkerUrl);
       libRef.current = maplibre;
 
+      const initialTheme = highContrast ? "dark" : theme;
       const map = new maplibre.Map({
         container: containerRef.current,
         style: useVectorBasemap
-          ? buildCyclingStyle(theme, maptilerKey!)
+          ? buildCyclingStyle(initialTheme, maptilerKey!)
           : {
               version: 8,
               sources: {
                 basemap: {
                   type: "raster",
-                  tiles: [basemap(theme)],
+                  tiles: [basemap(initialTheme)],
                   tileSize: 256,
                   attribution:
                     '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
@@ -366,18 +371,20 @@ export function RouteMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Swap basemap tiles/layers and re-resolve route/endpoint colors when the theme changes.
+  // Swap basemap tiles/layers and re-resolve route/endpoint colors when the
+  // theme (or the nav-only high-contrast override) changes.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
+    const effectiveTheme = highContrast ? "dark" : theme;
     if (useVectorBasemap) {
-      setVectorBasemapTheme(map, theme);
+      setVectorBasemapTheme(map, effectiveTheme);
     } else {
       const source = map.getSource("basemap");
-      if (source?.setTiles) source.setTiles([basemap(theme)]);
+      if (source?.setTiles) source.setTiles([basemap(effectiveTheme)]);
     }
     applyThemeColors(map, mapThemeColors());
-  }, [theme]);
+  }, [theme, highContrast]);
 
   // Move the camera to an explicit point (locate me, explore results).
   useEffect(() => {
@@ -435,14 +442,27 @@ export function RouteMap({
 
     if (!riderMarkerRef.current) {
       const el = document.createElement("div");
-      el.className = "rider-dot";
-      el.innerHTML = '<span class="rider-dot__pulse"></span><span class="rider-dot__core"></span>';
-      riderMarkerRef.current = new maplibre.Marker({ element: el })
+      el.className = "rider-arrow";
+      el.innerHTML =
+        '<span class="rider-arrow__pulse"></span>' +
+        '<svg class="rider-arrow__glyph" viewBox="0 0 24 24"><path d="M12 1.5 L20.5 21 L12 16.5 L3.5 21 Z" /></svg>';
+      // rotationAlignment: "map" ties the marker's rotation to map-north
+      // rather than the viewport, so setRotation(heading) always points the
+      // arrow the rider's true direction of travel — including while
+      // `follow` mode is rotating the whole map to keep heading "up".
+      riderMarkerRef.current = new maplibre.Marker({ element: el, rotationAlignment: "map" })
         .setLngLat([live.lon, live.lat])
         .addTo(map);
     } else {
       riderMarkerRef.current.setLngLat([live.lon, live.lat]);
     }
+
+    // GPS heading drops out (null) at low speed/standstill — hold the last
+    // known heading instead of snapping the arrow back to north.
+    if (typeof live.heading === "number") {
+      riderHeadingRef.current = live.heading;
+    }
+    riderMarkerRef.current.setRotation(riderHeadingRef.current);
 
     if (follow) {
       map.easeTo({

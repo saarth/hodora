@@ -3,10 +3,13 @@ import { haversine, type RidePoint } from "./gpx";
 import {
   compassLabel,
   detectTurns,
+  findProximityAlert,
   nextTurn,
+  remainingAscent,
   routeBearing,
   snapToRoute,
   turnLabel,
+  upcomingGrade,
   windComponent,
   windEffect,
   windRelativeAngle,
@@ -89,6 +92,82 @@ describe("snapToRoute", () => {
     expect(snap.index).toBe(0);
     expect(snap.offRouteM).toBeGreaterThan(0);
   });
+
+  it("stays near the last known index instead of jumping back to a spatially-close-but-far-in-progress point on a loop", () => {
+    // A large loop whose start and finish sit right next to each other (a
+    // rider closing the lap). With no continuity, a fix near the finish is
+    // just as close to the *start* of the loop as to the finish, and a plain
+    // global nearest-point search can snap to progress ~0 instead of ~total
+    // — the bug that let a loop's "ride finished" detection never fire
+    // (src/routes/rides.$id.nav.tsx passes the previous snap's index in as
+    // `lastIndex` specifically to prevent this).
+    const coords: { eastM: number; northM: number }[] = [];
+    const n = 300;
+    const radius = 200;
+    for (let i = 0; i < n; i++) {
+      const angle = (i / (n - 1)) * 2 * Math.PI;
+      coords.push({ eastM: radius * Math.sin(angle), northM: radius * (1 - Math.cos(angle)) });
+    }
+    const points = buildPoints(coords);
+    const totalDistance = points[points.length - 1].d;
+
+    // The rider is essentially back at the shared start/finish coordinate.
+    const live = offset(coords[n - 1].eastM, coords[n - 1].northM);
+
+    // Naive global search (no continuity) resolves to the start of the loop.
+    const cold = snapToRoute(points, live.lat, live.lon);
+    expect(cold.progressM).toBeLessThan(totalDistance * 0.1);
+
+    // Continuity-aware search, seeded with the previous fix's index near the
+    // finish, correctly resolves to the finish instead.
+    const warm = snapToRoute(points, live.lat, live.lon, n - 10);
+    expect(warm.progressM).toBeGreaterThan(totalDistance * 0.9);
+  });
+});
+
+describe("findProximityAlert", () => {
+  const notes = [
+    { id: "a", distanceM: 1000 },
+    { id: "b", distanceM: 1100 },
+    { id: "c", distanceM: 5000 },
+  ];
+
+  it("returns the nearest not-yet-alerted note within radius ahead of progress", () => {
+    const alert = findProximityAlert(notes, 950, new Set());
+    expect(alert?.id).toBe("a");
+  });
+
+  it("prefers the closer of two candidates both within radius", () => {
+    const alert = findProximityAlert(notes, 1060, new Set());
+    expect(alert?.id).toBe("b"); // 40m ahead, closer than "a" which is now 60m behind
+  });
+
+  it("ignores notes already alerted, falling through to the next candidate in range", () => {
+    // "b" at 1100 is exactly 150m ahead of progress 950 — still within radius.
+    expect(findProximityAlert(notes, 950, new Set(["a"]))?.id).toBe("b");
+    // With "b" also alerted, nothing else is close enough.
+    expect(findProximityAlert(notes, 950, new Set(["a", "b"]))).toBeNull();
+  });
+
+  it("ignores notes further ahead than the radius", () => {
+    const alert = findProximityAlert(notes, 0, new Set(), 150);
+    expect(alert).toBeNull();
+  });
+
+  it("allows a small slack behind progress so jitter doesn't skip a note right as it's passed", () => {
+    expect(findProximityAlert(notes, 1010, new Set())?.id).toBe("a"); // 10m behind — within slack
+    expect(findProximityAlert([notes[0]], 1025, new Set())).toBeNull(); // 25m behind — past the slack
+  });
+
+  it("returns null once every nearby note has already been alerted", () => {
+    const alert = findProximityAlert(notes, 950, new Set(["a", "b", "c"]));
+    expect(alert).toBeNull();
+  });
+
+  it("respects a custom radius", () => {
+    expect(findProximityAlert(notes, 0, new Set(), 2000)?.id).toBe("a");
+    expect(findProximityAlert(notes, 0, new Set(), 500)).toBeNull();
+  });
 });
 
 describe("nextTurn / turnLabel / compassLabel", () => {
@@ -135,6 +214,64 @@ describe("routeBearing", () => {
       { eastM: 0, northM: 5, gap: true },
     ]);
     expect(routeBearing(points, 0, 30)).toBeNull();
+  });
+});
+
+describe("remainingAscent", () => {
+  const points: RidePoint[] = [
+    { lat: 0, lon: 0, ele: 0, d: 0 },
+    { lat: 0, lon: 0, ele: 10, d: 100 }, // +10 climb
+    { lat: 0, lon: 0, ele: 5, d: 200 }, // -5 descent, ignored
+    { lat: 0, lon: 0, ele: 20, d: 300 }, // +15 climb
+  ];
+
+  it("sums only upward elevation deltas above the noise threshold from the start", () => {
+    expect(remainingAscent(points, 0)).toBe(25);
+  });
+
+  it("only counts climbing from the given index onwards", () => {
+    expect(remainingAscent(points, 2)).toBe(15);
+  });
+
+  it("ignores climbs of 0.5m or less as GPS noise", () => {
+    const noisy: RidePoint[] = [
+      { lat: 0, lon: 0, ele: 0, d: 0 },
+      { lat: 0, lon: 0, ele: 0.3, d: 10 },
+      { lat: 0, lon: 0, ele: 0.5, d: 20 },
+    ];
+    expect(remainingAscent(noisy, 0)).toBe(0);
+  });
+});
+
+describe("upcomingGrade", () => {
+  it("computes average percent grade over the requested span", () => {
+    const points: RidePoint[] = [
+      { lat: 0, lon: 0, ele: 0, d: 0 },
+      { lat: 0, lon: 0, ele: 10, d: 100 },
+      { lat: 0, lon: 0, ele: 20, d: 200 },
+    ];
+    expect(upcomingGrade(points, 0, 200)).toBeCloseTo(10, 5); // 20m climb / 200m run
+  });
+
+  it("returns a negative grade on a descent", () => {
+    const points: RidePoint[] = [
+      { lat: 0, lon: 0, ele: 20, d: 0 },
+      { lat: 0, lon: 0, ele: 0, d: 100 },
+    ];
+    expect(upcomingGrade(points, 0, 100)).toBeCloseTo(-20, 5);
+  });
+
+  it("returns 0 when the remaining route is shorter than 20m (too little run to trust)", () => {
+    const points: RidePoint[] = [
+      { lat: 0, lon: 0, ele: 0, d: 0 },
+      { lat: 0, lon: 0, ele: 5, d: 10 },
+    ];
+    expect(upcomingGrade(points, 0)).toBe(0);
+  });
+
+  it("returns 0 for an out-of-range index", () => {
+    const points: RidePoint[] = [{ lat: 0, lon: 0, ele: 0, d: 0 }];
+    expect(upcomingGrade(points, 5)).toBe(0);
   });
 });
 

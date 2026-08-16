@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CheckCircle2,
+  Contrast,
   CornerDownLeft,
   CornerDownRight,
   Crosshair,
@@ -14,9 +15,11 @@ import {
   Maximize2,
   Minimize2,
   Navigation,
+  StickyNote,
   TriangleAlert,
   Wind,
 } from "lucide-react";
+import { toast } from "sonner";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
 import { WeatherGlyph } from "@/components/WeatherGlyph";
@@ -26,6 +29,7 @@ import {
   compassAbbrev,
   compassLabel,
   detectTurns,
+  findProximityAlert,
   nextTurn,
   remainingAscent,
   routeBearing,
@@ -41,6 +45,7 @@ import { useRejoinRoute } from "@/lib/rejoin";
 import { fetchProfile, fetchRide, ridesKeys } from "@/lib/rides";
 import { formatTemperature, formatWindSpeed, useWeather, weatherInfo } from "@/lib/weather";
 import { useWakeLock } from "@/hooks/use-wake-lock";
+import { useTheme } from "@/lib/theme";
 
 import { cn } from "@/lib/utils";
 
@@ -51,7 +56,8 @@ export const Route = createFileRoute("/rides/$id/nav")({
       { title: "Navigate — Hodora" },
       {
         name: "description",
-        content: "Live turn-by-turn navigation along your GPX route with distance to go, next turn and off-route alerts.",
+        content:
+          "Live turn-by-turn navigation along your GPX route with distance to go, next turn and off-route alerts.",
       },
       { property: "og:title", content: "Navigate — Hodora" },
       { property: "og:description", content: "Live turn-by-turn navigation along your GPX route." },
@@ -59,6 +65,8 @@ export const Route = createFileRoute("/rides/$id/nav")({
   }),
   component: NavigatePage,
 });
+
+const HC_STORAGE_KEY = "hodora-nav-hc";
 
 type LiveFix = {
   lat: number;
@@ -83,6 +91,12 @@ function NavigatePage() {
   const [topMinimized, setTopMinimized] = useState(false);
   const [bottomMinimized, setBottomMinimized] = useState(false);
   const [finished, setFinished] = useState(false);
+  // Lazy initializer (not an effect): this route is client-only (ssr: false),
+  // so localStorage is always available on first render here.
+  const [highContrast, setHighContrast] = useState(
+    () => window.localStorage.getItem(HC_STORAGE_KEY) === "1",
+  );
+  const { theme } = useTheme();
   const [fitTo, setFitTo] = useState<{
     coords: { lat: number; lon: number }[];
     nonce: number;
@@ -91,6 +105,9 @@ function NavigatePage() {
 
   useEffect(() => {
     if (!("geolocation" in navigator)) {
+      // Reports that an external API (geolocation) is unavailable — not
+      // deriving state from props/state, so there's no callback to move it into.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setGeoError("This device doesn't support location.");
       return;
     }
@@ -100,9 +117,7 @@ function NavigatePage() {
         setFix({
           lat: position.coords.latitude,
           lon: position.coords.longitude,
-          heading: Number.isFinite(position.coords.heading ?? NaN)
-            ? position.coords.heading
-            : null,
+          heading: Number.isFinite(position.coords.heading ?? NaN) ? position.coords.heading : null,
           speed: Number.isFinite(position.coords.speed ?? NaN) ? position.coords.speed : null,
         });
       },
@@ -116,10 +131,31 @@ function NavigatePage() {
 
   const turns = useMemo(() => (ride ? detectTurns(ride.points) : []), [ride]);
 
+  // Carries the previous fix's snapped index into the next search so it stays
+  // windowed around the rider's actual progress instead of a fresh global
+  // nearest-point search every fix. Without this, a route that crosses near
+  // itself (a loop's start/finish, an out-and-back) can snap to the wrong
+  // crossing — most visibly, a loop's finish snapping back to progress 0
+  // because the start point is just as close as the true finish. This is the
+  // standard "remember the previous render's derived value" ref idiom: the
+  // ref is written after render (below) and only ever read here to seed the
+  // *next* computation, so it never makes this render's output depend on
+  // when it runs — eslint-plugin-react-hooks' newer `refs` rule flags any
+  // ref read inside a memo regardless, so it's suppressed for this one line.
+  const lastSnapIndexRef = useRef(0);
+  useEffect(() => {
+    lastSnapIndexRef.current = 0;
+  }, [ride?.id]);
+
   const snap: Snap | null = useMemo(() => {
     if (!ride || !fix) return null;
-    return snapToRoute(ride.points, fix.lat, fix.lon);
+    // eslint-disable-next-line react-hooks/refs -- see comment above
+    return snapToRoute(ride.points, fix.lat, fix.lon, lastSnapIndexRef.current);
   }, [ride, fix]);
+
+  useEffect(() => {
+    if (snap) lastSnapIndexRef.current = snap.index;
+  }, [snap]);
 
   const offRoute = snap ? snap.offRouteM > 40 : false;
   // Bike-friendly path back to the track, refreshed as the rider moves.
@@ -129,10 +165,7 @@ function NavigatePage() {
     offRoute,
   );
 
-  const turn = useMemo(
-    () => (snap ? nextTurn(turns, snap.progressM) : null),
-    [snap, turns],
-  );
+  const turn = useMemo(() => (snap ? nextTurn(turns, snap.progressM) : null), [snap, turns]);
 
   // Live position when we have a GPS fix, otherwise the route's start — so
   // conditions are visible even before location is granted or locked in.
@@ -165,10 +198,45 @@ function NavigatePage() {
   const FINISH_RADIUS_M = 20;
   useEffect(() => {
     if (finished || !ride || !snap) return;
+    // Deliberate one-way latch, not a plain derived value: it must persist
+    // once true so GPS jitter briefly pushing progress back doesn't un-finish the ride.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (ride.distance_m - snap.progressM <= FINISH_RADIUS_M) setFinished(true);
   }, [ride, snap, finished]);
 
+  // Alerts the rider once per note as they approach it. Runs off the same
+  // live position stream navigation already uses, not a separate
+  // background-geolocation plugin — see findProximityAlert's doc comment.
+  const alertedNoteIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    alertedNoteIdsRef.current = new Set();
+  }, [ride?.id]);
+
+  useEffect(() => {
+    if (finished || !ride || !snap) return;
+    const alert = findProximityAlert(ride.notes ?? [], snap.progressM, alertedNoteIdsRef.current);
+    if (!alert) return;
+    alertedNoteIdsRef.current = new Set(alertedNoteIdsRef.current).add(alert.id);
+    toast(`Coming up: ${alert.text}`, { icon: <StickyNote className="size-4" /> });
+    if (typeof navigator !== "undefined" && "vibrate" in navigator)
+      navigator.vibrate([120, 60, 120]);
+  }, [ride, snap, finished]);
+
   useWakeLock(Boolean(ride) && !finished);
+
+  // Apply the nav-only high-contrast palette directly to <html>, alongside
+  // (not instead of) the app's own light/dark class — layoutEffect so this
+  // lands before RouteMap's passive effect re-resolves --color-* off the DOM.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("hc-dark", highContrast);
+    root.classList.toggle("dark", highContrast || theme === "dark");
+    window.localStorage.setItem(HC_STORAGE_KEY, highContrast ? "1" : "0");
+    return () => {
+      root.classList.remove("hc-dark");
+      root.classList.toggle("dark", theme === "dark");
+    };
+  }, [highContrast, theme]);
 
   if (isLoading || !ride) {
     return (
@@ -185,9 +253,10 @@ function NavigatePage() {
   // Direction to start riding: along the cycling path when we have one.
   const rejoinStep = rejoinRoute?.path?.[1] ?? (snap ? { lat: snap.lat, lon: snap.lon } : null);
   const rejoinBearing =
-    offRoute && fix && rejoinStep ? bearing(fix.lat, fix.lon, rejoinStep.lat, rejoinStep.lon) : null;
-  const rejoinDistanceM = rejoinRoute?.routed ? rejoinRoute.distanceM : snap?.offRouteM ?? 0;
-
+    offRoute && fix && rejoinStep
+      ? bearing(fix.lat, fix.lon, rejoinStep.lat, rejoinStep.lon)
+      : null;
+  const rejoinDistanceM = rejoinRoute?.routed ? rejoinRoute.distanceM : (snap?.offRouteM ?? 0);
 
   const showRejoinOnMap = () => {
     if (!fix || !snap) return;
@@ -204,7 +273,6 @@ function NavigatePage() {
     });
   };
 
-
   return (
     <div className="relative min-h-screen bg-background">
       <RouteMap
@@ -214,14 +282,14 @@ function NavigatePage() {
         follow={follow}
         progressIndex={snap?.index ?? null}
         pitch={angled ? 60 : 0}
+        highContrast={highContrast}
         rejoin={offRoute && snap ? { lat: snap.lat, lon: snap.lon } : null}
-        rejoinPath={offRoute ? rejoinRoute?.path ?? null : null}
+        rejoinPath={offRoute ? (rejoinRoute?.path ?? null) : null}
         notes={ride.notes ?? []}
 
         fitTo={fitTo}
         showFitControl={false}
       />
-
 
       <div className="pointer-events-none relative z-10 flex min-h-screen flex-col justify-between p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -279,7 +347,8 @@ function NavigatePage() {
               </div>
               <div className="flex items-center gap-1 whitespace-nowrap text-muted-foreground">
                 <Wind className="size-3 shrink-0" aria-hidden />
-                {formatWindSpeed(weather.windSpeedMs, metric)} {compassAbbrev(weather.windDirectionDeg)}
+                {formatWindSpeed(weather.windSpeedMs, metric)}{" "}
+                {compassAbbrev(weather.windDirectionDeg)}
               </div>
               {wind && wind.effect !== "crosswind" && Math.abs(wind.componentMs) > 1 && (
                 <span
@@ -300,6 +369,17 @@ function NavigatePage() {
         <div className="space-y-3">
           <div className="pointer-events-auto flex justify-end gap-2">
             <Button
+              variant={highContrast ? "default" : "secondary"}
+              size="sm"
+              className={highContrast ? "" : "glass"}
+              onClick={() => setHighContrast((value) => !value)}
+              aria-label={highContrast ? "Turn off high contrast" : "Turn on high contrast"}
+              aria-pressed={highContrast}
+            >
+              <Contrast className="size-4" />
+              Contrast
+            </Button>
+            <Button
               variant="secondary"
               size="sm"
               className="glass"
@@ -316,141 +396,150 @@ function NavigatePage() {
               aria-label={bottomMinimized ? "Expand navigation info" : "Minimise navigation info"}
               onClick={() => setBottomMinimized((value) => !value)}
             >
-              {bottomMinimized ? <Maximize2 className="size-4" /> : <Minimize2 className="size-4" />}
+              {bottomMinimized ? (
+                <Maximize2 className="size-4" />
+              ) : (
+                <Minimize2 className="size-4" />
+              )}
             </Button>
           </div>
 
           {!bottomMinimized && (
             <div className="pointer-events-auto space-y-2">
-          {finished ? (
-            <div className="glass-faint space-y-3 rounded-2xl p-4 text-center">
-              <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
-                <CheckCircle2 className="size-6" />
-              </span>
-              <div>
-                <p className="text-lg font-bold leading-none">Ride complete!</p>
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  You've reached the end of {ride.name}.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 border-t border-border pt-3 text-left">
-                <Metric label="Distance" value={formatDistance(ride.distance_m, metric)} />
-                <Metric label="Elevation gain" value={formatElevation(ride.ascent_m, metric)} />
-              </div>
-              <Button asChild className="w-full">
-                <Link to="/rides/$id" params={{ id: ride.id }}>
-                  Finish ride
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <>
-          {geoError && (
-            <div className="glass-faint flex items-center gap-2 rounded-xl p-2.5 text-xs text-destructive">
-              <TriangleAlert className="size-3.5 shrink-0" />
-              {geoError} Allow location access to navigate.
-            </div>
-          )}
-
-          {offRoute && snap && (
-            <div className="glass-faint space-y-2 rounded-xl border border-destructive/30 p-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
-                <TriangleAlert className="size-3.5 shrink-0" />
-                Off route — {formatDistance(snap.offRouteM, metric)} from the track
-              </div>
-              <div className="flex items-center gap-2.5">
-                <span
-                  className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/15 text-destructive"
-                  aria-hidden
-                >
-                  <Navigation
-                    className="size-4"
-                    style={{
-                      transform: `rotate(${(rejoinBearing ?? 0) - (fix?.heading ?? 0)}deg)`,
-                    }}
-                  />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-mono text-base font-bold leading-none">
-                    {formatDistance(rejoinDistanceM, metric)}
-                  </p>
-                  <p className="mt-1 text-[11px] leading-tight text-muted-foreground">
-                    {rejoinLoading && !rejoinRoute
-                      ? "Finding a cycling route back to the track…"
-                      : rejoinRoute?.routed
-                        ? `Follow the orange cycling route — head ${rejoinBearing !== null ? compassLabel(rejoinBearing) : "—"} to start`
-                        : `Head ${rejoinBearing !== null ? compassLabel(rejoinBearing) : "—"} to the closest point of the route`}
-                  </p>
+              {finished ? (
+                <div className="glass-faint space-y-3 rounded-2xl p-4 text-center">
+                  <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                    <CheckCircle2 className="size-6" />
+                  </span>
+                  <div>
+                    <p className="text-lg font-bold leading-none">Ride complete!</p>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      You've reached the end of {ride.name}.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 border-t border-border pt-3 text-left">
+                    <Metric label="Distance" value={formatDistance(ride.distance_m, metric)} />
+                    <Metric label="Elevation gain" value={formatElevation(ride.ascent_m, metric)} />
+                  </div>
+                  <Button asChild className="w-full">
+                    <Link to="/rides/$id" params={{ id: ride.id }}>
+                      Finish ride
+                    </Link>
+                  </Button>
                 </div>
-
-                <Button size="sm" variant="secondary" className="glass-faint h-8 text-xs" onClick={showRejoinOnMap}>
-                  Show
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <div className="glass-faint rounded-2xl p-3">
-            {turn ? (
-              <div className="flex items-center gap-3">
-                <span
-                  className={cn(
-                    "flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary",
+              ) : (
+                <>
+                  {geoError && (
+                    <div className="glass-faint flex items-center gap-2 rounded-xl p-2.5 text-xs text-destructive">
+                      <TriangleAlert className="size-3.5 shrink-0" />
+                      {geoError} Allow location access to navigate.
+                    </div>
                   )}
-                >
-                  {turn.direction.includes("left") ? (
-                    <CornerDownLeft className="size-5" />
-                  ) : (
-                    <CornerDownRight className="size-5" />
+
+                  {offRoute && snap && (
+                    <div className="glass-faint space-y-2 rounded-xl border border-destructive/30 p-2.5">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
+                        <TriangleAlert className="size-3.5 shrink-0" />
+                        Off route — {formatDistance(snap.offRouteM, metric)} from the track
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/15 text-destructive"
+                          aria-hidden
+                        >
+                          <Navigation
+                            className="size-4"
+                            style={{
+                              transform: `rotate(${(rejoinBearing ?? 0) - (fix?.heading ?? 0)}deg)`,
+                            }}
+                          />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-mono text-base font-bold leading-none">
+                            {formatDistance(rejoinDistanceM, metric)}
+                          </p>
+                          <p className="mt-1 text-[11px] leading-tight text-muted-foreground">
+                            {rejoinLoading && !rejoinRoute
+                              ? "Finding a cycling route back to the track…"
+                              : rejoinRoute?.routed
+                                ? `Follow the orange cycling route — head ${rejoinBearing !== null ? compassLabel(rejoinBearing) : "—"} to start`
+                                : `Head ${rejoinBearing !== null ? compassLabel(rejoinBearing) : "—"} to the closest point of the route`}
+                          </p>
+                        </div>
+
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="glass-faint h-8 text-xs"
+                          onClick={showRejoinOnMap}
+                        >
+                          Show
+                        </Button>
+                      </div>
+                    </div>
                   )}
-                </span>
-                <div className="min-w-0">
-                  <p className="font-mono text-xl font-bold leading-none">
-                    {turnDistance !== null ? formatDistance(turnDistance, metric) : "—"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {turnLabel(turn.direction)}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                  <Flag className="size-4" />
-                </span>
-                <div>
-                  <p className="font-mono text-xl font-bold leading-none">
-                    {formatDistance(remainingM, metric)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Continue straight to the finish
-                  </p>
-                </div>
-              </div>
-            )}
 
-            <div className="mt-3 grid grid-cols-4 gap-2 border-t border-border pt-3">
-              <Metric label="To go" value={formatDistance(remainingM, metric)} />
-              <Metric label="Climb left" value={formatElevation(climbLeft, metric)} />
-              <Metric label="Grade" value={`${grade > 0 ? "+" : ""}${grade.toFixed(1)}%`} />
-              <Metric
-                label="Speed"
-                value={fix?.speed != null ? formatSpeed(fix.speed, metric) : "—"}
-              />
-            </div>
+                  <div className="glass-faint rounded-2xl p-3">
+                    {turn ? (
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={cn(
+                            "flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary",
+                          )}
+                        >
+                          {turn.direction.includes("left") ? (
+                            <CornerDownLeft className="size-5" />
+                          ) : (
+                            <CornerDownRight className="size-5" />
+                          )}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-mono text-xl font-bold leading-none">
+                            {turnDistance !== null ? formatDistance(turnDistance, metric) : "—"}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {turnLabel(turn.direction)}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                          <Flag className="size-4" />
+                        </span>
+                        <div>
+                          <p className="font-mono text-xl font-bold leading-none">
+                            {formatDistance(remainingM, metric)}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Continue straight to the finish
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
-            <div className="mt-3">
-              <ElevationChart
-                points={ride.points}
-                metric={metric}
-                progressM={snap?.progressM ?? null}
-                height={70}
-              />
+                    <div className="mt-3 grid grid-cols-4 gap-2 border-t border-border pt-3">
+                      <Metric label="To go" value={formatDistance(remainingM, metric)} />
+                      <Metric label="Climb left" value={formatElevation(climbLeft, metric)} />
+                      <Metric label="Grade" value={`${grade > 0 ? "+" : ""}${grade.toFixed(1)}%`} />
+                      <Metric
+                        label="Speed"
+                        value={fix?.speed != null ? formatSpeed(fix.speed, metric) : "—"}
+                      />
+                    </div>
+
+                    <div className="mt-3">
+                      <ElevationChart
+                        points={ride.points}
+                        metric={metric}
+                        progressM={snap?.progressM ?? null}
+                        height={70}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-          </div>
-          </>
-          )}
-          </div>
           )}
         </div>
       </div>
