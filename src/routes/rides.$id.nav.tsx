@@ -274,7 +274,7 @@ function NavigatePage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-background">
+    <div className="screen-fill relative overflow-hidden bg-background">
       <RouteMap
         points={ride.points}
         className="absolute inset-0 h-full w-full"
@@ -291,8 +291,8 @@ function NavigatePage() {
         showFitControl={false}
       />
 
-      <div className="pointer-events-none relative z-10 flex min-h-screen flex-col justify-between p-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
+      <div className="pointer-events-none relative z-10 flex h-full flex-col justify-between gap-2 p-4">
+        <div className="flex shrink-0 flex-wrap items-start justify-between gap-2">
           <div className="pointer-events-auto flex items-start gap-2">
             {!topMinimized ? (
               <>
@@ -366,8 +366,8 @@ function NavigatePage() {
           )}
         </div>
 
-        <div className="space-y-3">
-          <div className="pointer-events-auto flex justify-end gap-2">
+        <div className="flex min-h-0 flex-col gap-3">
+          <div className="pointer-events-auto flex shrink-0 justify-end gap-2">
             <Button
               variant={highContrast ? "default" : "secondary"}
               size="sm"
@@ -405,7 +405,15 @@ function NavigatePage() {
           </div>
 
           {!bottomMinimized && (
-            <div className="pointer-events-auto space-y-2">
+            /*
+             * Scrolls within itself rather than growing the page: on a short
+             * screen the off-route banner + turn card + metrics + elevation
+             * chart can exceed the space left under the map controls, and
+             * the page itself is height-locked so it can't scroll to reveal
+             * them. `min-h-0` is what actually lets this flex child shrink
+             * below its content height.
+             */
+            <div className="pointer-events-auto min-h-0 space-y-2 overflow-y-auto overscroll-contain">
               {finished ? (
                 <div className="glass-faint space-y-3 rounded-2xl p-4 text-center">
                   <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
