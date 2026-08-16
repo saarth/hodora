@@ -50,6 +50,132 @@ export async function fetchWeather(
   };
 }
 
+export type HourlyForecast = {
+  /** local timestamp for this slot, e.g. "2026-08-16T15:00" (no UTC offset — Open-Meteo's `timezone=auto`) */
+  atIso: string;
+  temperatureC: number;
+  windSpeedMs: number;
+  /** degrees the wind is blowing FROM, meteorological convention */
+  windDirectionDeg: number;
+  weatherCode: number;
+};
+
+const HOURLY_FIELDS = "temperature_2m,wind_speed_10m,wind_direction_10m,weather_code";
+const DEFAULT_FORECAST_DAYS = 8;
+
+// Keyed by rounded coordinate + day count so paging the day/hour pickers for
+// the same route never refetches. Forecasts change slowly enough that
+// ~1km-precision coordinates are an appropriate cache granularity.
+const hourlyCache = new Map<string, Promise<HourlyForecast[]>>();
+
+/**
+ * Fetches an hourly wind/temperature forecast for a coordinate, `forecastDays`
+ * days out. Values are SI (°C, m/s); convert for display. Shares one in-flight
+ * or resolved request per rounded coordinate — callers don't need their own
+ * caching layer.
+ */
+export function fetchHourlyWind(
+  lat: number,
+  lon: number,
+  forecastDays = DEFAULT_FORECAST_DAYS,
+): Promise<HourlyForecast[]> {
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)}:${forecastDays}`;
+  const cached = hourlyCache.get(key);
+  if (cached) return cached;
+
+  const promise = (async () => {
+    const url = `${WEATHER_ENDPOINT}?latitude=${lat}&longitude=${lon}&hourly=${HOURLY_FIELDS}&wind_speed_unit=ms&timezone=auto&forecast_days=${forecastDays}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Open-Meteo ${response.status}`);
+    const data = await response.json();
+    const hourly = data?.hourly;
+    if (!Array.isArray(hourly?.time)) throw new Error("Open-Meteo: no hourly forecast");
+    return hourly.time.map((atIso: string, i: number): HourlyForecast => ({
+      atIso,
+      temperatureC: Number(hourly.temperature_2m?.[i]) || 0,
+      windSpeedMs: Number(hourly.wind_speed_10m?.[i]) || 0,
+      windDirectionDeg: Number(hourly.wind_direction_10m?.[i]) || 0,
+      weatherCode: Number(hourly.weather_code?.[i]) || 0,
+    }));
+  })();
+
+  hourlyCache.set(key, promise);
+  promise.catch(() => hourlyCache.delete(key));
+  return promise;
+}
+
+export type ForecastDay = {
+  /** local calendar date this bucket covers, e.g. "2026-08-16" */
+  dateKey: string;
+  label: string;
+  hours: HourlyForecast[];
+};
+
+/**
+ * Groups a flat hourly forecast into per-day buckets with "Today"/"Tomorrow"/
+ * weekday labels. Relies on Open-Meteo always starting the forecast at the
+ * location's current local day, so the first two buckets in list order are
+ * always today and tomorrow.
+ */
+export function groupForecastByDay(hourly: HourlyForecast[]): ForecastDay[] {
+  const days = new Map<string, HourlyForecast[]>();
+  for (const hour of hourly) {
+    const dateKey = hour.atIso.slice(0, 10);
+    const bucket = days.get(dateKey);
+    if (bucket) bucket.push(hour);
+    else days.set(dateKey, [hour]);
+  }
+
+  const dayFormatter = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric" });
+
+  return Array.from(days.entries()).map(([dateKey, hours], index) => {
+    let label: string;
+    if (index === 0) label = "Today";
+    else if (index === 1) label = "Tomorrow";
+    else label = dayFormatter.format(new Date(`${dateKey}T00:00:00`));
+    return { dateKey, label, hours };
+  });
+}
+
+/**
+ * Index of the forecast hour closest to the current local hour-of-day, used
+ * to pick a sensible default slot. Compares hour-of-day only (not full
+ * date/time) so it's independent of the visitor's own timezone — the first,
+ * closest match in list order naturally falls within today's bucket.
+ */
+export function closestHourIndex(hourly: HourlyForecast[], atHour = new Date().getHours()): number {
+  let bestIndex = 0;
+  let bestDiff = Infinity;
+  for (let i = 0; i < hourly.length; i++) {
+    const hour = Number(hourly[i].atIso.slice(11, 13));
+    const diff = Math.abs(hour - atHour);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestIndex = i;
+    }
+  }
+  return bestIndex;
+}
+
+/**
+ * Rough daytime guess (6am-8pm) for an hourly forecast slot, read directly
+ * off its local timestamp string — hourly forecasts don't include the
+ * sunrise/sunset-derived `is_day` flag that `fetchWeather` gets for free.
+ */
+export function isDaytimeHour(atIso: string): boolean {
+  const hour = Number(atIso.slice(11, 13));
+  return hour >= 6 && hour < 20;
+}
+
+/** "3pm"-style label for an hourly forecast slot, read directly off its local timestamp string. */
+export function formatHourLabel(atIso: string): string {
+  const hour = Number(atIso.slice(11, 13));
+  if (!Number.isFinite(hour)) return atIso;
+  const period = hour < 12 ? "am" : "pm";
+  const twelve = hour % 12 === 0 ? 12 : hour % 12;
+  return `${twelve}${period}`;
+}
+
 /**
  * Keeps live weather in sync with the rider without hammering the API:
  * refreshes on a timer, and sooner if the rider has moved far enough that

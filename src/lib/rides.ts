@@ -283,3 +283,49 @@ export async function createRide(input: {
   if (error) throw error;
   return (data as { id: string }).id;
 }
+
+/**
+ * Mints a public `/share/:token` link for one of the caller's own rides,
+ * snapshotting the wind sample shown at share time. Same bearer-token
+ * pattern as the cloud-sync client wrappers in `sync/connections.ts`, since
+ * this goes through a plain `/api/*` route rather than a server function.
+ */
+export async function createSharedLink(input: {
+  rideId: string;
+  windHour?: string | null;
+  windSpeedMs?: number;
+  windDirectionDeg?: number;
+  temperatureC?: number;
+  weatherCode?: number;
+}): Promise<string> {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError || !session) {
+    throw new Error("You must be signed in to share a route.");
+  }
+  const response = await fetch(`${window.location.origin}/api/shared-links`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      rideId: input.rideId,
+      windHour: input.windHour ?? null,
+      windSpeedMs: input.windSpeedMs,
+      windDirectionDeg: input.windDirectionDeg,
+      temperatureC: input.temperatureC,
+      weatherCode: input.weatherCode,
+    }),
+  });
+  const body = (await response.json().catch(() => null)) as {
+    token?: string;
+    error?: string;
+  } | null;
+  if (!response.ok || !body?.token) {
+    throw new Error(body?.error || "Could not create a share link.");
+  }
+  return body.token;
+}

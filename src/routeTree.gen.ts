@@ -15,9 +15,13 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as PlanRouteImport } from './routes/plan'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as WindRouteImport } from './routes/wind'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as ApiDeleteAccountRouteImport } from './routes/api/delete-account'
+import { Route as ApiSharedLinksRouteImport } from './routes/api/shared-links'
 import { Route as RidesIndexRouteImport } from './routes/rides.index'
+import { Route as ShareIdRouteImport } from './routes/share.$id'
+import { Route as ApiShareTokenRouteImport } from './routes/api/share/$token'
 import { Route as RidesIdIndexRouteImport } from './routes/rides.$id.index'
 import { Route as RidesIdNavRouteImport } from './routes/rides.$id.nav'
 import { Route as ApiCloudGoogleDriveAuthorizeRouteImport } from './routes/api/cloud/google-drive/authorize'
@@ -64,6 +68,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WindRoute = WindRouteImport.update({
+  id: '/wind',
+  path: '/wind',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -74,9 +83,24 @@ const ApiDeleteAccountRoute = ApiDeleteAccountRouteImport.update({
   path: '/api/delete-account',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSharedLinksRoute = ApiSharedLinksRouteImport.update({
+  id: '/api/shared-links',
+  path: '/api/shared-links',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RidesIndexRoute = RidesIndexRouteImport.update({
   id: '/rides/',
   path: '/rides/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShareIdRoute = ShareIdRouteImport.update({
+  id: '/share/$id',
+  path: '/share/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShareTokenRoute = ApiShareTokenRouteImport.update({
+  id: '/api/share/$token',
+  path: '/api/share/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RidesIdIndexRoute = RidesIdIndexRouteImport.update({
@@ -175,9 +199,13 @@ export interface FileRoutesByFullPath {
   '/explore': typeof ExploreRoute
   '/plan': typeof PlanRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/wind': typeof WindRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/delete-account': typeof ApiDeleteAccountRoute
+  '/api/shared-links': typeof ApiSharedLinksRoute
+  '/share/$id': typeof ShareIdRoute
   '/rides/': typeof RidesIndexRoute
+  '/api/share/$token': typeof ApiShareTokenRoute
   '/rides/$id/nav': typeof RidesIdNavRoute
   '/rides/$id/': typeof RidesIdIndexRoute
   '/api/cloud/google-drive/authorize': typeof ApiCloudGoogleDriveAuthorizeRoute
@@ -201,9 +229,13 @@ export interface FileRoutesByTo {
   '/explore': typeof ExploreRoute
   '/plan': typeof PlanRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/wind': typeof WindRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/delete-account': typeof ApiDeleteAccountRoute
+  '/api/shared-links': typeof ApiSharedLinksRoute
+  '/share/$id': typeof ShareIdRoute
   '/rides': typeof RidesIndexRoute
+  '/api/share/$token': typeof ApiShareTokenRoute
   '/rides/$id/nav': typeof RidesIdNavRoute
   '/rides/$id': typeof RidesIdIndexRoute
   '/api/cloud/google-drive/authorize': typeof ApiCloudGoogleDriveAuthorizeRoute
@@ -229,9 +261,13 @@ export interface FileRoutesById {
   '/explore': typeof ExploreRoute
   '/plan': typeof PlanRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/wind': typeof WindRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/delete-account': typeof ApiDeleteAccountRoute
+  '/api/shared-links': typeof ApiSharedLinksRoute
+  '/share/$id': typeof ShareIdRoute
   '/rides/': typeof RidesIndexRoute
+  '/api/share/$token': typeof ApiShareTokenRoute
   '/rides/$id/nav': typeof RidesIdNavRoute
   '/rides/$id/': typeof RidesIdIndexRoute
   '/api/cloud/google-drive/authorize': typeof ApiCloudGoogleDriveAuthorizeRoute
@@ -257,9 +293,13 @@ export interface FileRouteTypes {
     | '/explore'
     | '/plan'
     | '/reset-password'
+    | '/wind'
     | '/settings'
     | '/api/delete-account'
+    | '/api/shared-links'
+    | '/share/$id'
     | '/rides/'
+    | '/api/share/$token'
     | '/rides/$id/nav'
     | '/rides/$id/'
     | '/api/cloud/google-drive/authorize'
@@ -283,9 +323,13 @@ export interface FileRouteTypes {
     | '/explore'
     | '/plan'
     | '/reset-password'
+    | '/wind'
     | '/settings'
     | '/api/delete-account'
+    | '/api/shared-links'
+    | '/share/$id'
     | '/rides'
+    | '/api/share/$token'
     | '/rides/$id/nav'
     | '/rides/$id'
     | '/api/cloud/google-drive/authorize'
@@ -310,9 +354,13 @@ export interface FileRouteTypes {
     | '/explore'
     | '/plan'
     | '/reset-password'
+    | '/wind'
     | '/_authenticated/settings'
     | '/api/delete-account'
+    | '/api/shared-links'
+    | '/share/$id'
     | '/rides/'
+    | '/api/share/$token'
     | '/rides/$id/nav'
     | '/rides/$id/'
     | '/api/cloud/google-drive/authorize'
@@ -338,8 +386,12 @@ export interface RootRouteChildren {
   ExploreRoute: typeof ExploreRoute
   PlanRoute: typeof PlanRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  WindRoute: typeof WindRoute
   ApiDeleteAccountRoute: typeof ApiDeleteAccountRoute
+  ApiSharedLinksRoute: typeof ApiSharedLinksRoute
+  ShareIdRoute: typeof ShareIdRoute
   RidesIndexRoute: typeof RidesIndexRoute
+  ApiShareTokenRoute: typeof ApiShareTokenRoute
   RidesIdNavRoute: typeof RidesIdNavRoute
   RidesIdIndexRoute: typeof RidesIdIndexRoute
   ApiCloudGoogleDriveAuthorizeRoute: typeof ApiCloudGoogleDriveAuthorizeRoute
@@ -402,6 +454,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wind': {
+      id: '/wind'
+      path: '/wind'
+      fullPath: '/wind'
+      preLoaderRoute: typeof WindRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -416,11 +475,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDeleteAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/shared-links': {
+      id: '/api/shared-links'
+      path: '/api/shared-links'
+      fullPath: '/api/shared-links'
+      preLoaderRoute: typeof ApiSharedLinksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/rides/': {
       id: '/rides/'
       path: '/rides'
       fullPath: '/rides/'
       preLoaderRoute: typeof RidesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/share/$id': {
+      id: '/share/$id'
+      path: '/share/$id'
+      fullPath: '/share/$id'
+      preLoaderRoute: typeof ShareIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/share/$token': {
+      id: '/api/share/$token'
+      path: '/api/share/$token'
+      fullPath: '/api/share/$token'
+      preLoaderRoute: typeof ApiShareTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/rides/$id/': {
@@ -556,8 +636,12 @@ const rootRouteChildren: RootRouteChildren = {
   ExploreRoute: ExploreRoute,
   PlanRoute: PlanRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  WindRoute: WindRoute,
   ApiDeleteAccountRoute: ApiDeleteAccountRoute,
+  ApiSharedLinksRoute: ApiSharedLinksRoute,
+  ShareIdRoute: ShareIdRoute,
   RidesIndexRoute: RidesIndexRoute,
+  ApiShareTokenRoute: ApiShareTokenRoute,
   RidesIdNavRoute: RidesIdNavRoute,
   RidesIdIndexRoute: RidesIdIndexRoute,
   ApiCloudGoogleDriveAuthorizeRoute: ApiCloudGoogleDriveAuthorizeRoute,

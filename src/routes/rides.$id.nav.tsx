@@ -4,14 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CheckCircle2,
-  Cloud,
-  CloudDrizzle,
-  CloudFog,
-  CloudLightning,
-  CloudMoon,
-  CloudRain,
-  CloudSnow,
-  CloudSun,
   CornerDownLeft,
   CornerDownRight,
   Crosshair,
@@ -21,14 +13,13 @@ import {
   Map as MapIcon,
   Maximize2,
   Minimize2,
-  Moon,
   Navigation,
-  Sun,
   TriangleAlert,
   Wind,
 } from "lucide-react";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
+import { WeatherGlyph } from "@/components/WeatherGlyph";
 import { Button } from "@/components/ui/button";
 import { bearing, formatDistance, formatElevation, formatSpeed } from "@/lib/gpx";
 import {
@@ -47,7 +38,7 @@ import {
 } from "@/lib/nav";
 import { useRejoinRoute } from "@/lib/rejoin";
 import { fetchProfile, fetchRide, ridesKeys } from "@/lib/rides";
-import { formatTemperature, formatWindSpeed, useWeather, weatherInfo, type WeatherIconKey } from "@/lib/weather";
+import { formatTemperature, formatWindSpeed, useWeather, weatherInfo } from "@/lib/weather";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 
 import { cn } from "@/lib/utils";
@@ -74,24 +65,6 @@ type LiveFix = {
   heading: number | null;
   speed: number | null;
 };
-
-const WEATHER_ICONS: Record<WeatherIconKey, typeof Cloud> = {
-  sun: Sun,
-  moon: Moon,
-  "cloud-sun": CloudSun,
-  "cloud-moon": CloudMoon,
-  cloud: Cloud,
-  "cloud-fog": CloudFog,
-  "cloud-drizzle": CloudDrizzle,
-  "cloud-rain": CloudRain,
-  "cloud-snow": CloudSnow,
-  "cloud-lightning": CloudLightning,
-};
-
-function WeatherGlyph({ icon, className }: { icon: WeatherIconKey; className?: string }) {
-  const Icon = WEATHER_ICONS[icon];
-  return <Icon className={className} aria-hidden />;
-}
 
 function NavigatePage() {
   const { id } = Route.useParams();

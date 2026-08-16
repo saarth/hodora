@@ -12,6 +12,7 @@ import {
   Settings,
   Sun,
   WifiOff,
+  Wind,
 } from "lucide-react";
 import { useOnlineStatus } from "@/hooks/use-online";
 import { useUser } from "@/hooks/use-user";
@@ -87,6 +88,13 @@ export function AppHeader() {
             <Link to="/plan">
               <Route className="size-4" />
               Plan
+            </Link>
+          </Button>
+
+          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+            <Link to="/wind">
+              <Wind className="size-4" />
+              Wind
             </Link>
           </Button>
 
