@@ -5,6 +5,34 @@ correctness (GPX parsing, navigation math, offline storage), build/deploy
 correctness, and maintainability. Verified with `tsc --noEmit`, `eslint`, and
 real production builds — not just a read-through.
 
+## 2026-08-16 — Added proximity alerts (resolved the background-geolocation
+## plugin question by deliberately not needing one)
+
+The one remaining roadmap feature from the entry below. The background
+geolocation plugin decision it was waiting on: **use the existing foreground
+`navigator.geolocation.watchPosition` stream, no new Capacitor plugin.**
+Every other location feature in this app (route planning, turn-by-turn nav,
+`useWakeLock`) is already built on that same foreground API, and proximity
+alerts are only useful while navigation is actively running — which already
+requires the tab open and the wake lock holding the screen on. A real
+background-geolocation plugin (foreground Android service, persistent
+notification, battery-exemption UX) would be a much bigger, separate feature
+with no clear need yet; see the note added to AGENTS.md.
+
+**What shipped:** `findProximityAlert()` in `src/lib/nav.ts` — a pure
+function that, given a route's waypoint notes, the rider's current progress,
+and the set of note ids already alerted this session, returns the nearest
+qualifying note within `PROXIMITY_ALERT_RADIUS_M` (150 m) ahead, or `null`.
+Wired into `rides.$id.nav.tsx` alongside the existing `snap`/finish-detection
+effects: fires a `sonner` toast ("Coming up: <note text>") and
+`navigator.vibrate([120, 60, 120])` once per note, tracked in a ref reset
+whenever the loaded ride changes. Unit-tested in `nav.test.ts` (nearest-of-two
+candidates, already-alerted exclusion, the small behind-progress slack that
+absorbs GPS jitter, radius boundary). Verified live: Playwright drove a
+simulated rider along an imported test loop toward a real waypoint note and
+confirmed both the toast and the `vibrate()` call fired exactly once as the
+rider entered the 150 m radius.
+
 ## 2026-08-16 — Thorough test pass on wake lock, ride-finished, elevation,
 ## tagging, notes and offline maps
 

@@ -23,10 +23,12 @@ import {
   Minimize2,
   Moon,
   Navigation,
+  StickyNote,
   Sun,
   TriangleAlert,
   Wind,
 } from "lucide-react";
+import { toast } from "sonner";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,7 @@ import { bearing, formatDistance, formatElevation, formatSpeed } from "@/lib/gpx
 import {
   compassLabel,
   detectTurns,
+  findProximityAlert,
   nextTurn,
   remainingAscent,
   routeBearing,
@@ -221,6 +224,24 @@ function NavigatePage() {
     // once true so GPS jitter briefly pushing progress back doesn't un-finish the ride.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (ride.distance_m - snap.progressM <= FINISH_RADIUS_M) setFinished(true);
+  }, [ride, snap, finished]);
+
+  // Alerts the rider once per note as they approach it. Runs off the same
+  // live position stream navigation already uses, not a separate
+  // background-geolocation plugin — see findProximityAlert's doc comment.
+  const alertedNoteIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    alertedNoteIdsRef.current = new Set();
+  }, [ride?.id]);
+
+  useEffect(() => {
+    if (finished || !ride || !snap) return;
+    const alert = findProximityAlert(ride.notes ?? [], snap.progressM, alertedNoteIdsRef.current);
+    if (!alert) return;
+    alertedNoteIdsRef.current = new Set(alertedNoteIdsRef.current).add(alert.id);
+    toast(`Coming up: ${alert.text}`, { icon: <StickyNote className="size-4" /> });
+    if (typeof navigator !== "undefined" && "vibrate" in navigator)
+      navigator.vibrate([120, 60, 120]);
   }, [ride, snap, finished]);
 
   useWakeLock(Boolean(ride) && !finished);

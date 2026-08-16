@@ -3,6 +3,7 @@ import { haversine, type RidePoint } from "./gpx";
 import {
   compassLabel,
   detectTurns,
+  findProximityAlert,
   nextTurn,
   remainingAscent,
   routeBearing,
@@ -121,6 +122,51 @@ describe("snapToRoute", () => {
     // finish, correctly resolves to the finish instead.
     const warm = snapToRoute(points, live.lat, live.lon, n - 10);
     expect(warm.progressM).toBeGreaterThan(totalDistance * 0.9);
+  });
+});
+
+describe("findProximityAlert", () => {
+  const notes = [
+    { id: "a", distanceM: 1000 },
+    { id: "b", distanceM: 1100 },
+    { id: "c", distanceM: 5000 },
+  ];
+
+  it("returns the nearest not-yet-alerted note within radius ahead of progress", () => {
+    const alert = findProximityAlert(notes, 950, new Set());
+    expect(alert?.id).toBe("a");
+  });
+
+  it("prefers the closer of two candidates both within radius", () => {
+    const alert = findProximityAlert(notes, 1060, new Set());
+    expect(alert?.id).toBe("b"); // 40m ahead, closer than "a" which is now 60m behind
+  });
+
+  it("ignores notes already alerted, falling through to the next candidate in range", () => {
+    // "b" at 1100 is exactly 150m ahead of progress 950 — still within radius.
+    expect(findProximityAlert(notes, 950, new Set(["a"]))?.id).toBe("b");
+    // With "b" also alerted, nothing else is close enough.
+    expect(findProximityAlert(notes, 950, new Set(["a", "b"]))).toBeNull();
+  });
+
+  it("ignores notes further ahead than the radius", () => {
+    const alert = findProximityAlert(notes, 0, new Set(), 150);
+    expect(alert).toBeNull();
+  });
+
+  it("allows a small slack behind progress so jitter doesn't skip a note right as it's passed", () => {
+    expect(findProximityAlert(notes, 1010, new Set())?.id).toBe("a"); // 10m behind — within slack
+    expect(findProximityAlert([notes[0]], 1025, new Set())).toBeNull(); // 25m behind — past the slack
+  });
+
+  it("returns null once every nearby note has already been alerted", () => {
+    const alert = findProximityAlert(notes, 950, new Set(["a", "b", "c"]));
+    expect(alert).toBeNull();
+  });
+
+  it("respects a custom radius", () => {
+    expect(findProximityAlert(notes, 0, new Set(), 2000)?.id).toBe("a");
+    expect(findProximityAlert(notes, 0, new Set(), 500)).toBeNull();
   });
 });
 
