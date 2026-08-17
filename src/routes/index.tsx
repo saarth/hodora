@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Compass, Mountain, Route as RouteIcon, Upload } from "lucide-react";
+import { ArrowRight, Compass, Mountain, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/hooks/use-user";
 import { useTheme } from "@/lib/theme";
+import { HodoraLogo } from "@/components/HodoraLogo";
 import { Moon, Sun } from "lucide-react";
 
 const GITHUB_URL = "https://github.com/saarth/hodora";
@@ -61,12 +62,7 @@ function Landing() {
     <main className="hero-surface min-h-screen">
       <div className="mx-auto w-full max-w-6xl px-5 pb-24">
         <nav className="flex h-20 items-center justify-between">
-          <span className="flex items-center gap-2.5">
-            <span className="accent-gradient flex size-9 items-center justify-center rounded-xl text-primary-foreground">
-              <RouteIcon className="size-5" />
-            </span>
-            <span className="font-display text-lg font-extrabold tracking-tight">Hodora</span>
-          </span>
+          <HodoraLogo textClassName="text-xl font-extrabold" />
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
               {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
@@ -80,11 +76,12 @@ function Landing() {
         </nav>
 
         <section className="pt-16 sm:pt-24">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-primary">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-rust">
             GPX in. Ride out.
           </p>
           <h1 className="mt-5 max-w-2xl text-4xl font-extrabold leading-[1.05] sm:text-6xl">
-            Your bike routes, navigated properly.
+            Your bike routes,{" "}
+            <span className="font-serif font-normal italic text-rust">navigated properly</span>.
           </h1>
           <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
             Hodora turns a GPX file into a ride you can actually follow — distance, climbing, and
