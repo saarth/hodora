@@ -125,10 +125,18 @@ that).
 
 ### Regenerating icons/splash screen
 
-`assets/icon.png` and `assets/splash.png` are the source images (derived from
-`public/icon-512.png`); the actual per-density Android resources under
-`android/app/src/main/res/` are generated from them, not hand-edited. After
-changing either source image:
+`assets/brand-mark.svg` (the app icon: the cursive-h mark on a racing-green
+square), `assets/brand-splash.svg` (the splash-screen lockup) and
+`assets/brand-og-image.svg` (the social share image) are the master vectors —
+`public/favicon.svg`, `public/favicon.png`, `public/icon-192.png`,
+`public/icon-512.png`, `public/og-image.png`, `assets/icon.png` and
+`assets/splash.png` are all rasterized from them with `sharp` (any SVG
+renderer that shells out to `librsvg`/Pango works; the wordmark text needs
+Space Grotesk, Fraunces and IBM Plex Mono installed as system fonts to render
+correctly rather than falling back to a generic font). The actual
+per-density Android resources under `android/app/src/main/res/` are
+generated from `assets/icon.png` and `assets/splash.png` in turn, not
+hand-edited. After changing a source SVG and re-rasterizing the PNGs:
 
 ```sh
 npx @capacitor/assets generate --android

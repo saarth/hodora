@@ -1,0 +1,24 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M 28 0 L 0 0 0 28" fill="none" stroke="rgba(26,24,21,0.10)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="#F2ECDC"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <g transform="translate(185 315) scale(1.597) translate(-90 -156)">
+    <path d="M30,260 C15,250 18,225 35,210 C55,190 60,150 58,100 C57,75 62,50 85,42 C100,37 112,48 106,68 C101,86 92,95 88,112 C84,135 84,160 88,180 C95,155 105,150 118,152 C132,154 140,165 145,190 C148,215 150,240 150,258 C150,268 155,275 165,272"
+        fill="none" stroke="#1F3A2E" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="118" cy="152" r="7" fill="#B5622F"/>
+  </g>
+
+  <text x="340" y="180" font-family="IBM Plex Mono Medium" font-size="22" letter-spacing="4" fill="#B5622F">GPX IN. RIDE OUT.</text>
+  <text x="336" y="290" font-family="Space Grotesk" font-weight="700" font-size="96" fill="#1F3A2E">hodora</text>
+  <text x="340" y="350" font-family="Fraunces" font-style="italic" font-size="34" fill="#B5622F">navigated properly.</text>
+
+  <line x1="340" y1="392" x2="860" y2="392" stroke="rgba(26,24,21,0.16)" stroke-width="1"/>
+  <text x="340" y="428" font-family="IBM Plex Mono Medium" font-size="17" letter-spacing="2" fill="#4A4F52">IMPORT GPX · CLIMB PROFILE · TURN-BY-TURN NAV</text>
+
+  <text x="1120" y="580" text-anchor="end" font-family="IBM Plex Mono Medium" font-size="16" letter-spacing="2" fill="#4A4F52">HODORA.APP</text>
+</svg>

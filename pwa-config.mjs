@@ -8,8 +8,8 @@ export const pwaManifest = {
   short_name: "Hodora",
   description:
     "Import GPX routes and ride them with live turn-by-turn navigation, offline maps and elevation profiles.",
-  theme_color: "#0b1220",
-  background_color: "#0b1220",
+  theme_color: "#1F3A2E",
+  background_color: "#152A21",
   display: "standalone",
   start_url: "/rides",
   icons: [
