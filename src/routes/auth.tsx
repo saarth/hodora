@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, Mountain, Route as RouteIcon } from "lucide-react";
+import { Loader2, Mountain } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HodoraLogo } from "@/components/HodoraLogo";
 
 const searchSchema = z.object({
   redirect: z.string().optional(),
@@ -142,11 +143,8 @@ function AuthPage() {
   return (
     <main className="hero-surface flex min-h-screen items-center justify-center px-5 py-12">
       <div className="w-full max-w-md">
-        <Link to="/" className="mb-8 flex items-center justify-center gap-2.5">
-          <span className="accent-gradient flex size-9 items-center justify-center rounded-xl text-primary-foreground">
-            <RouteIcon className="size-5" />
-          </span>
-          <span className="font-display text-lg font-extrabold tracking-tight">Hodora</span>
+        <Link to="/" className="mb-8 flex items-center justify-center">
+          <HodoraLogo textClassName="text-xl font-extrabold" />
         </Link>
 
         <div className="surface p-6 sm:p-8">
@@ -277,11 +275,8 @@ function AuthPending() {
   return (
     <main className="hero-surface flex min-h-screen items-center justify-center px-5 py-12">
       <div className="w-full max-w-md">
-        <div className="mb-8 flex items-center justify-center gap-2.5">
-          <span className="accent-gradient flex size-9 items-center justify-center rounded-xl text-primary-foreground">
-            <RouteIcon className="size-5" />
-          </span>
-          <span className="font-display text-lg font-extrabold tracking-tight">Hodora</span>
+        <div className="mb-8 flex items-center justify-center">
+          <HodoraLogo textClassName="text-xl font-extrabold" />
         </div>
         <div className="surface flex flex-col items-center justify-center p-8 text-center">
           <Loader2 className="size-8 animate-spin text-primary" />

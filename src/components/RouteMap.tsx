@@ -134,7 +134,7 @@ function oklchToRgbaString(oklch: string): string | null {
 // var() references substituted in — it is never re-serialized as a typed
 // <color>. Reading `--color-route` straight off <html> (where the "dark"
 // class is toggled) returns exactly what styles.css wrote, e.g.
-// "oklch(0.62 0.19 145)", regardless of browser or version.
+// "oklch(0.584 0.125 49.6)", regardless of browser or version.
 function resolveThemeColor(varName: string): string {
   if (typeof document === "undefined") return "#000000";
   const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
