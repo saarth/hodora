@@ -135,12 +135,33 @@ renderer that shells out to `librsvg`/Pango works; the wordmark text needs
 Space Grotesk, Fraunces and IBM Plex Mono installed as system fonts to render
 correctly rather than falling back to a generic font). The actual
 per-density Android resources under `android/app/src/main/res/` are
-generated from `assets/icon.png` and `assets/splash.png` in turn, not
-hand-edited. After changing a source SVG and re-rasterizing the PNGs:
+generated from these in turn, not hand-edited.
+
+Android's adaptive icon (the launcher/app-list icon on API 26+, i.e.
+virtually every device in use) needs the mark and its background as
+*separate* layers rather than one flattened square — `assets/icon.png` alone
+would get reused as both, doubling the background and, worse, leaving the
+default white square as the actual background since no color was specified.
+`assets/android-icon-foreground.svg` (the mark only, transparent) and
+`assets/android-icon-background.svg` (a flat racing-green fill, full bleed)
+are the dedicated sources for that; rasterize them to
+`assets/icon-foreground.png`/`assets/icon-background.png` alongside the
+others above. After changing a source SVG and re-rasterizing the PNGs:
 
 ```sh
-npx @capacitor/assets generate --android
+npx @capacitor/assets generate --android --iconBackgroundColor '#1F3A2E' --iconBackgroundColorDark '#1F3A2E'
+node scripts/fix-android-adaptive-icon.mjs
 ```
+
+The second command is required every time: `@capacitor/assets` always
+writes `mipmap-anydpi-v26/ic_launcher{,_round}.xml` with a 16.7% inset on
+*both* the foreground and background layers, but an inset background
+doesn't reach the edges of non-square masks (circle, squircle) — it leaves
+a visible transparent gap between the icon's rounded-square background and
+the mask boundary on the home screen/app list. The foreground should stay
+inset (that's the safe zone that keeps the mark from being clipped); only
+the background needs to be full-bleed. The script strips just that one
+inset back out after each regeneration.
 
 ### Native plugins
 
