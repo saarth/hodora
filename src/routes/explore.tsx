@@ -14,6 +14,7 @@ import {
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
+import { PlaceSearch } from "@/components/PlaceSearch";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -176,7 +177,19 @@ function ExplorePage() {
           </Button>
         </div>
 
-        <div className="surface mt-6 grid gap-5 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <PlaceSearch
+          className="mt-6"
+          placeholder="Search for a place to explore…"
+          onSelect={(result) => {
+            const at = { lat: result.lat, lon: result.lon };
+            setCenter(at);
+            nonceRef.current += 1;
+            setFlyTo({ ...at, nonce: nonceRef.current });
+            void search(at, radiusM, loopKm);
+          }}
+        />
+
+        <div className="surface mt-4 grid gap-5 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Search radius · {Math.round(radiusM / 1000)} km

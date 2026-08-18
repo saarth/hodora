@@ -7,6 +7,7 @@ import { Crosshair, Loader2, MapPin, Redo2, Route as RouteIcon, Save, Undo2 } fr
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
+import { PlaceSearch } from "@/components/PlaceSearch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -223,7 +224,17 @@ function PlanPage() {
           </p>
         )}
 
-        <div className="surface mt-6 grid gap-5 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
+        <PlaceSearch
+          className="mt-6"
+          placeholder="Search for a place to start planning…"
+          onSelect={(result) => {
+            const at = { lat: result.lat, lon: result.lon };
+            setCenter(at);
+            setFlyTo({ ...at, nonce: Date.now() });
+          }}
+        />
+
+        <div className="surface mt-4 grid gap-5 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Routing style
