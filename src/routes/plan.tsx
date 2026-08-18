@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 import { toast } from "sonner";
 import { Crosshair, Loader2, MapPin, Redo2, Route as RouteIcon, Save, Undo2 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
@@ -10,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { boundsOf, toRidePoints } from "@/lib/discover";
 import { formatDistance } from "@/lib/gpx";
-import { createRide } from "@/lib/rides";
+import { createRide, fetchRide, ridesKeys, updateRide } from "@/lib/rides";
 import {
   BIKE_PROFILES,
   fetchRoute,
@@ -23,8 +24,14 @@ const TITLE = "Bike Route Planner — Plan Cycle Routes on the Map | Hodora";
 const DESCRIPTION =
   "Free bike route planner. Tap the map to plan a cycle route, routed over real roads and paths with OpenStreetMap data, then save it for turn-by-turn navigation.";
 
+const searchSchema = z.object({
+  /** id of an existing planned route to reopen and re-save, instead of creating a new one */
+  edit: z.string().optional(),
+});
+
 export const Route = createFileRoute("/plan")({
   ssr: false,
+  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: TITLE },
@@ -43,6 +50,8 @@ const FALLBACK_CENTER: LatLon = { lat: 47.3769, lon: 8.5417 };
 
 function PlanPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { edit: editId } = Route.useSearch();
   const [center, setCenter] = useState<LatLon>(FALLBACK_CENTER);
   const [flyTo, setFlyTo] = useState<{ lat: number; lon: number; nonce: number } | null>(null);
   const [locating, setLocating] = useState(false);
@@ -51,6 +60,52 @@ function PlanPage() {
   const [routed, setRouted] = useState<RoutedPath | null>(null);
   const [routing, setRouting] = useState(false);
   const [name, setName] = useState("");
+
+  const {
+    data: editRide,
+    isLoading: editLoading,
+    error: editError,
+  } = useQuery({
+    queryKey: ridesKeys.detail(editId ?? ""),
+    queryFn: () => fetchRide(editId!),
+    enabled: Boolean(editId),
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (editError) toast.error("Could not load that route to edit.");
+  }, [editError]);
+
+  // Seeds the planner from the route being edited, once — a background
+  // refetch of the same query must not stomp on waypoints the rider is
+  // actively dragging around.
+  const [seededEditId, setSeededEditId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!editRide || seededEditId === editRide.id) return;
+    if (!editRide.plan_waypoints || editRide.plan_waypoints.length < 2) {
+      toast.error("This route wasn't created in the planner, so it can't be edited here.");
+      // Marks this ride as "handled" so the toast above doesn't refire on
+      // every render — not a value derived from props/state, so there's no
+      // callback to move this into.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSeededEditId(editRide.id);
+      return;
+    }
+    // Reflects the loaded ride into local editor state — not a value
+    // derived from props/state, so there's no callback to move it into.
+
+    setWaypoints(editRide.plan_waypoints);
+    setProfile(editRide.plan_profile ?? "trekking");
+    setName(editRide.name);
+    setSeededEditId(editRide.id);
+  }, [editRide, seededEditId]);
+
+  // The ride actually being edited — null (not just "not loaded yet") when
+  // `editRide` exists but has no usable planner waypoints, so the rest of
+  // the page falls back to the normal "plan a new route" behavior instead
+  // of half-showing an edit state for a route that can't be edited here.
+  const activeEditRide =
+    editRide && editRide.plan_waypoints && editRide.plan_waypoints.length >= 2 ? editRide : null;
 
   const locate = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
@@ -107,9 +162,8 @@ function PlanPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!routed || routed.path.length < 2) throw new Error("Add at least two points first");
-      return createRide({
+      const input = {
         name: name.trim() || "Planned route",
-        sourceFilename: null,
         distanceM: routed.distanceM,
         ascentM: 0,
         descentM: 0,
@@ -118,10 +172,17 @@ function PlanPage() {
         cues: routed.cues,
         planWaypoints: waypoints,
         planProfile: profile,
-      });
+      };
+      if (activeEditRide) {
+        await updateRide(activeEditRide.id, input);
+        return activeEditRide.id;
+      }
+      return createRide({ ...input, sourceFilename: null });
     },
     onSuccess: (id) => {
-      toast.success("Saved to your rides");
+      toast.success(activeEditRide ? "Route updated" : "Saved to your rides");
+      queryClient.invalidateQueries({ queryKey: ridesKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ridesKeys.all });
       navigate({ to: "/rides/$id", params: { id } });
     },
     onError: (error) =>
@@ -134,9 +195,13 @@ function PlanPage() {
       <main className="mx-auto w-full max-w-6xl px-4 pb-20 pt-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Plan a route</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight">
+              {activeEditRide ? `Edit ${activeEditRide.name}` : "Plan a route"}
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Tap the map to add points — Hodora routes between them over real roads and paths.
+              {activeEditRide
+                ? "Move, add or remove points, then save — notes and offline downloads on this route may need re-checking afterwards."
+                : "Tap the map to add points — Hodora routes between them over real roads and paths."}
             </p>
           </div>
           <Button asChild variant="ghost" size="sm">
@@ -146,6 +211,13 @@ function PlanPage() {
             </Link>
           </Button>
         </div>
+
+        {editId && editLoading && (
+          <p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Loading route to edit…
+          </p>
+        )}
 
         <div className="surface mt-6 grid gap-5 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
           <label className="block">
@@ -272,7 +344,7 @@ function PlanPage() {
                   ) : (
                     <Save className="size-4" />
                   )}
-                  Save to my rides
+                  {activeEditRide ? "Save changes" : "Save to my rides"}
                 </Button>
               </div>
             )}

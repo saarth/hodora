@@ -11,6 +11,7 @@ import {
   MapPin,
   MapPinPlus,
   Navigation,
+  Pencil,
   Share2,
   Signpost,
   StickyNote,
@@ -305,6 +306,14 @@ function RideDetail() {
                       <MapPin className="size-4" />
                       Directions to start
                     </a>
+                  </Button>
+                )}
+                {ride.plan_waypoints && ride.plan_waypoints.length >= 2 && (
+                  <Button asChild variant="secondary" size="lg">
+                    <Link to="/plan" search={{ edit: ride.id }}>
+                      <Pencil className="size-4" />
+                      Edit route
+                    </Link>
                   </Button>
                 )}
                 <Button
