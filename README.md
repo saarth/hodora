@@ -300,6 +300,21 @@ vector tiles, not a port.) Get a free API key at
 tier is generous enough for personal/small-group self-hosting. Leave it
 unset to keep the raster basemap.
 
+### SEO defaults
+
+Hodora ships with basic SEO built in: a JSON-LD `WebApplication` block on
+the homepage, canonical and `og:url` tags on the public routes (`/`,
+`/plan`, `/explore`, `/wind`), and `public/sitemap.xml`. All of these are
+hardcoded to `https://hodora.app`, the project's official deployment, since
+they're not derived from an env var. If you're self-hosting a public-facing
+instance under your own domain and want search engines to index *your*
+instance correctly, update the `TITLE`/`DESCRIPTION`/canonical constants in
+each route's `head()` (`src/routes/index.tsx`, `plan.tsx`, `explore.tsx`,
+`wind.tsx`), the `og:image`/`twitter:image` URLs and `og:site_name` in
+`src/routes/__root.tsx`, and the URLs in `public/sitemap.xml` and
+`public/robots.txt`. Account-only and per-user pages (`/auth`, `/rides`,
+`/share/$id`, etc.) are already marked `noindex` and don't need changes.
+
 ### Self-hosting with Docker (e.g. Unraid)
 
 The included `Dockerfile` builds a plain Node server image (Nitro's
