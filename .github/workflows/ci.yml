@@ -18,7 +18,13 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          # jsdom 30's bundled undici calls a Node webidl internal
+          # (markAsUncloneable) that Node 20 doesn't have, so `npm run test`
+          # fails immediately (every test file errors starting the jsdom
+          # environment) on Node 20 specifically. Node 22 has it. AGENTS.md
+          # already says "20 or newer recommended" for local dev, so this
+          # doesn't narrow the supported range, just the CI runner version.
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
