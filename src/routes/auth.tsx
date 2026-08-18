@@ -176,7 +176,7 @@ function AuthPage() {
               <p className="mt-1.5 text-sm text-muted-foreground">
                 {mode === "signup"
                   ? "Pick a rider name and start importing routes."
-                  : "Sign in to reach your route library."}
+                  : "Sign in to reach your rides."}
               </p>
 
               <Tabs

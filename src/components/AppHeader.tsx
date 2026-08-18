@@ -187,7 +187,7 @@ export function AppHeader() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleUnitToggle}>
                   <Ruler className="size-4" />
-                  Units: {profile?.unit === "imperial" ? "Miles / feet" : "Km / meters"}
+                  Units: {profile?.unit === "imperial" ? "Miles / feet" : "km / meters"}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
