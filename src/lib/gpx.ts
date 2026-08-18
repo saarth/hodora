@@ -46,36 +46,22 @@ export function toDeg(rad: number) {
 }
 
 /** Great-circle distance in meters between two coordinates. */
-export function haversine(
-  aLat: number,
-  aLon: number,
-  bLat: number,
-  bLon: number,
-): number {
+export function haversine(aLat: number, aLon: number, bLat: number, bLon: number): number {
   const dLat = toRad(bLat - aLat);
   const dLon = toRad(bLon - aLon);
   const lat1 = toRad(aLat);
   const lat2 = toRad(bLat);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
 /** Initial bearing in degrees (0-360) from a to b. */
-export function bearing(
-  aLat: number,
-  aLon: number,
-  bLat: number,
-  bLon: number,
-): number {
+export function bearing(aLat: number, aLon: number, bLat: number, bLon: number): number {
   const lat1 = toRad(aLat);
   const lat2 = toRad(bLat);
   const dLon = toRad(bLon - aLon);
   const y = Math.sin(dLon) * Math.cos(lat2);
-  const x =
-    Math.cos(lat1) * Math.sin(lat2) -
-    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
@@ -289,8 +275,7 @@ export function parseGpx(xml: string, fallbackName: string): ParsedRide {
     prevSeg = segIndex;
   }
 
-  const nameFromFile =
-    doc.getElementsByTagName("name")[0]?.textContent?.trim() || fallbackName;
+  const nameFromFile = doc.getElementsByTagName("name")[0]?.textContent?.trim() || fallbackName;
 
   return buildParsedRide(raw, nameFromFile);
 }
@@ -344,9 +329,7 @@ export function formatDistance(meters: number, metric = true): string {
 }
 
 export function formatElevation(meters: number, metric = true): string {
-  return metric
-    ? `${Math.round(meters)} m`
-    : `${Math.round(meters * 3.28084)} ft`;
+  return metric ? `${Math.round(meters)} m` : `${Math.round(meters * 3.28084)} ft`;
 }
 
 export function formatDuration(seconds: number): string {

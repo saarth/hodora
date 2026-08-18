@@ -46,6 +46,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     const initialMode: ThemeMode =
       stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+    // One-time hydration from localStorage on mount, not a value derived
+    // from props/state — there's no callback to move this into.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setModeState(initialMode);
     setThemeState(initialMode === "system" ? resolveSystemTheme() : initialMode);
     hydratedRef.current = true;

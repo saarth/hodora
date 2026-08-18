@@ -45,9 +45,7 @@ export function AppHeader() {
     queryFn: fetchProfile,
   });
 
-  const initials = (profile?.display_name || profile?.username || "R")
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = (profile?.display_name || profile?.username || "R").slice(0, 2).toUpperCase();
 
   const signedIn = Boolean(user);
 
@@ -147,51 +145,49 @@ export function AppHeader() {
               </Button>
             )
           ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="rounded-full outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Account menu"
-              >
-                <Avatar className="size-9 border border-border">
-                  {profile?.avatar_url ? (
-                    <AvatarImage src={profile.avatar_url} alt="" />
-                  ) : null}
-                  <AvatarFallback className="bg-secondary text-xs font-semibold">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="flex flex-col">
-                <span className="text-sm font-semibold">
-                  {profile?.display_name || profile?.username || "Rider"}
-                </span>
-                {profile?.username ? (
-                  <span className="text-xs font-normal text-muted-foreground">
-                    @{profile.username}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="rounded-full outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Account menu"
+                >
+                  <Avatar className="size-9 border border-border">
+                    {profile?.avatar_url ? <AvatarImage src={profile.avatar_url} alt="" /> : null}
+                    <AvatarFallback className="bg-secondary text-xs font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="flex flex-col">
+                  <span className="text-sm font-semibold">
+                    {profile?.display_name || profile?.username || "Rider"}
                   </span>
-                ) : null}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/settings">
-                  <Settings className="size-4" />
-                  Account settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleUnitToggle}>
-                <Ruler className="size-4" />
-                Units: {profile?.unit === "imperial" ? "Miles / feet" : "Km / meters"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut}>
-                <LogOut className="size-4" />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  {profile?.username ? (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      @{profile.username}
+                    </span>
+                  ) : null}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/settings">
+                    <Settings className="size-4" />
+                    Account settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleUnitToggle}>
+                  <Ruler className="size-4" />
+                  Units: {profile?.unit === "imperial" ? "Miles / feet" : "Km / meters"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="size-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>

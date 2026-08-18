@@ -149,8 +149,7 @@ out geom 40;`;
       name: tags["name"] ?? "Unnamed cycle route",
       kind: "osm",
       subtitle:
-        NETWORK_LABEL[network] ??
-        (tags["operator"] ? tags["operator"] : "Signposted cycle route"),
+        NETWORK_LABEL[network] ?? (tags["operator"] ? tags["operator"] : "Signposted cycle route"),
       path,
       distanceM,
     });
@@ -220,6 +219,15 @@ export async function generateLoops(
 }
 
 function compass(bearingDeg: number): string {
-  const names = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
-  return names[Math.round(((bearingDeg % 360) / 45)) % 8];
+  const names = [
+    "north",
+    "north-east",
+    "east",
+    "south-east",
+    "south",
+    "south-west",
+    "west",
+    "north-west",
+  ];
+  return names[Math.round((bearingDeg % 360) / 45) % 8];
 }

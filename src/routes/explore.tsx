@@ -71,42 +71,34 @@ function ExplorePage() {
     [routes, selectedId],
   );
 
-  const points = useMemo(
-    () => (selected ? toRidePoints(selected.path) : []),
-    [selected],
-  );
+  const points = useMemo(() => (selected ? toRidePoints(selected.path) : []), [selected]);
 
-  const search = useCallback(
-    async (at: LatLon, radius: number, targetKm: number) => {
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      setSearching(true);
-      setSearchedOnce(true);
-      try {
-        const [nearby, loops] = await Promise.all([
-          findNearbyRoutes(at, radius, controller.signal).catch(() => []),
-          generateLoops(at, targetKm * 1000, controller.signal).catch(() => []),
-        ]);
-        if (controller.signal.aborted) return;
-        const found = [...loops, ...nearby];
-        setRoutes(found);
-        setSelectedId(found[0]?.id ?? null);
-        if (found.length === 0) {
-          toast.error("Nothing found here — try a wider area or another spot.");
-        }
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          toast.error(
-            error instanceof Error ? error.message : "Could not search this area",
-          );
-        }
-      } finally {
-        if (!controller.signal.aborted) setSearching(false);
+  const search = useCallback(async (at: LatLon, radius: number, targetKm: number) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setSearching(true);
+    setSearchedOnce(true);
+    try {
+      const [nearby, loops] = await Promise.all([
+        findNearbyRoutes(at, radius, controller.signal).catch(() => []),
+        generateLoops(at, targetKm * 1000, controller.signal).catch(() => []),
+      ]);
+      if (controller.signal.aborted) return;
+      const found = [...loops, ...nearby];
+      setRoutes(found);
+      setSelectedId(found[0]?.id ?? null);
+      if (found.length === 0) {
+        toast.error("Nothing found here — try a wider area or another spot.");
       }
-    },
-    [],
-  );
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        toast.error(error instanceof Error ? error.message : "Could not search this area");
+      }
+    } finally {
+      if (!controller.signal.aborted) setSearching(false);
+    }
+  }, []);
 
   const locate = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -133,6 +125,10 @@ function ExplorePage() {
 
   // Start from the rider's position when the page opens.
   useEffect(() => {
+    // Kicks off geolocation on mount (locate() sets the loading flag
+    // synchronously before its async callback resolves) — not a value
+    // derived from props/state, so there's no callback to move it into.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     locate();
     return () => abortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -206,11 +202,7 @@ function ExplorePage() {
             />
           </label>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              onClick={locate}
-              disabled={locating || searching}
-            >
+            <Button variant="secondary" onClick={locate} disabled={locating || searching}>
               {locating ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
@@ -310,8 +302,8 @@ function ExplorePage() {
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground">
-          Route data © OpenStreetMap contributors. Generated loops follow bike-friendly
-          roads and paths; check them before you ride.
+          Route data © OpenStreetMap contributors. Generated loops follow bike-friendly roads and
+          paths; check them before you ride.
         </p>
       </main>
     </div>

@@ -545,7 +545,6 @@ export function RouteMap({
       new maplibre.LngLatBounds([coords[0].lon, coords[0].lat], [coords[0].lon, coords[0].lat]),
     );
     map.fitBounds(bounds, { padding: 80, maxZoom: 17, duration: 700 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitTo?.nonce]);
 
   const fitWholeRoute = () => {
@@ -736,7 +735,15 @@ function setupWaypointsLayer(map: any, waypoints: { lat: number; lon: number }[]
     source: "waypoints",
     paint: {
       "circle-radius": ["match", ["get", "role"], "via", 5, 7],
-      "circle-color": ["match", ["get", "role"], "start", colors.route, "end", colors.foreground, colors.warning],
+      "circle-color": [
+        "match",
+        ["get", "role"],
+        "start",
+        colors.route,
+        "end",
+        colors.foreground,
+        colors.warning,
+      ],
       "circle-stroke-width": 2.5,
       "circle-stroke-color": colors.background,
     },

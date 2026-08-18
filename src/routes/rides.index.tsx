@@ -37,7 +37,8 @@ export const Route = createFileRoute("/rides/")({
       { title: "My rides — Hodora" },
       {
         name: "description",
-        content: "Your imported GPX bike routes with distance, climbing and quick access to navigation.",
+        content:
+          "Your imported GPX bike routes with distance, climbing and quick access to navigation.",
       },
       { property: "og:title", content: "My rides — Hodora" },
       { property: "og:description", content: "Your imported GPX bike routes, ready to navigate." },
@@ -210,8 +211,7 @@ function RidesPage() {
         </div>
 
         <section className="mt-8 grid gap-3">
-          {isLoading &&
-            [0, 1, 2].map((key) => <Skeleton key={key} className="h-24 rounded-2xl" />)}
+          {isLoading && [0, 1, 2].map((key) => <Skeleton key={key} className="h-24 rounded-2xl" />)}
 
           {!isLoading && rides?.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">

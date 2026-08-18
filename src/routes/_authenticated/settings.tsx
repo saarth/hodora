@@ -291,11 +291,17 @@ function SettingsPage() {
 
   useEffect(() => {
     if (!profile) return;
+    // Seeds the editable form fields from the loaded profile — not a value
+    // derived from props/state during render, so there's no callback to
+    // move this into.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDisplayName(profile.display_name ?? "");
     setUsername(profile.username);
   }, [profile]);
 
   useEffect(() => {
+    // Same as above: seeds the editable email field from the loaded user.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (user?.email) setEmail(user.email);
   }, [user?.email]);
 

@@ -11,7 +11,6 @@ import {
   putRideList,
 } from "./offline-db";
 
-
 export type RideDifficulty = "easy" | "moderate" | "hard" | "extreme";
 export type RideSurface = "paved" | "gravel" | "mixed" | "unpaved";
 
@@ -87,9 +86,7 @@ function toSummary(ride: Ride): RideSummary {
 
 async function localRides(): Promise<RideSummary[]> {
   const rides = await listOfflineRides();
-  return rides
-    .map(toSummary)
-    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  return rides.map(toSummary).sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
 export async function fetchRides(): Promise<RideSummary[]> {
@@ -125,11 +122,7 @@ export async function fetchRide(id: string): Promise<Ride> {
     if (saved) return saved;
   }
   try {
-    const { data, error } = await supabase
-      .from("rides")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+    const { data, error } = await supabase.from("rides").select("*").eq("id", id).maybeSingle();
     if (error) throw error;
     if (!data) throw new Error("Ride not found");
     return data as unknown as Ride;
@@ -213,14 +206,10 @@ export async function fetchProfile(): Promise<Profile | null> {
   }
 }
 
-
 export async function updateUnit(unit: "metric" | "imperial"): Promise<void> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error("Not signed in");
-  const { error } = await supabase
-    .from("profiles")
-    .update({ unit })
-    .eq("id", auth.user.id);
+  const { error } = await supabase.from("profiles").update({ unit }).eq("id", auth.user.id);
   if (error) throw error;
 }
 

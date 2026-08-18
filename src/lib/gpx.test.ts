@@ -28,7 +28,10 @@ function gpxWithSegments(segments: { lat: number; lon: number; ele?: number }[][
     .map(
       (points) =>
         `<trkseg>${points
-          .map((p) => `<trkpt lat="${p.lat}" lon="${p.lon}">${p.ele != null ? `<ele>${p.ele}</ele>` : ""}</trkpt>`)
+          .map(
+            (p) =>
+              `<trkpt lat="${p.lat}" lon="${p.lon}">${p.ele != null ? `<ele>${p.ele}</ele>` : ""}</trkpt>`,
+          )
           .join("")}</trkseg>`,
     )
     .join("");

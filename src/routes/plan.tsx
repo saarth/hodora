@@ -68,6 +68,10 @@ function PlanPage() {
   }, []);
 
   useEffect(() => {
+    // Kicks off geolocation on mount (locate() sets the loading flag
+    // synchronously before its async callback resolves) — not a value
+    // derived from props/state, so there's no callback to move it into.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     locate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -75,6 +79,10 @@ function PlanPage() {
   // Re-route through every waypoint whenever the points or the chosen profile change.
   useEffect(() => {
     if (waypoints.length < 2) {
+      // Clears any previous route once there are too few waypoints to route
+      // between — not a value derived from props/state, so there's no
+      // callback to move this into.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRouted(null);
       return;
     }
