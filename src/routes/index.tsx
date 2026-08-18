@@ -71,7 +71,7 @@ const features = [
   },
   {
     icon: Mountain,
-    title: "Know the climbing",
+    title: "Know the climb",
     body: "Elevation profile, total ascent and descent, and the grade of what's coming next.",
   },
   {
