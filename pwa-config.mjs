@@ -58,5 +58,20 @@ export const workboxConfig = {
         cacheableResponse: { statuses: [0, 200] },
       },
     },
+    {
+      // MapTiler vector tiles, glyphs (fonts) and any sprite the cycling
+      // vector style (src/lib/cycling-style.ts) requests — only reached
+      // when VITE_MAPTILER_KEY is set. Vector tiles/pbfs are far smaller
+      // than the raster basemap's PNGs, so a much higher entry cap costs
+      // little; glyphs in particular are effectively static, hence the
+      // long max age.
+      urlPattern: /^https:\/\/api\.maptiler\.com\/.*/i,
+      handler: "CacheFirst",
+      options: {
+        cacheName: "maptiler-vector",
+        expiration: { maxEntries: 20000, maxAgeSeconds: 60 * 60 * 24 * 180 },
+        cacheableResponse: { statuses: [0, 200] },
+      },
+    },
   ],
 };
