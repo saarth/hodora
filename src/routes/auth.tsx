@@ -28,6 +28,7 @@ export const Route = createFileRoute("/auth")({
         property: "og:description",
         content: "Sign in to import and navigate your GPX bike routes.",
       },
+      { name: "robots", content: "noindex, follow" },
     ],
   }),
   pendingComponent: AuthPending,

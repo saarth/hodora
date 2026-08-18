@@ -17,6 +17,7 @@ export const Route = createFileRoute("/reset-password")({
       },
       { property: "og:title", content: "Reset password — Hodora" },
       { property: "og:description", content: "Choose a new password for your Hodora account." },
+      { name: "robots", content: "noindex, follow" },
     ],
   }),
   component: ResetPassword,

@@ -59,6 +59,7 @@ export const Route = createFileRoute("/share/$id")({
         name: "description",
         content: "A shared route with a wind analysis for a chosen ride time.",
       },
+      { name: "robots", content: "noindex, follow" },
     ],
   }),
   component: SharedRoutePage,

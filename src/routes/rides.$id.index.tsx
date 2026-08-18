@@ -75,6 +75,7 @@ export const Route = createFileRoute("/rides/$id/")({
         property: "og:description",
         content: "Map, elevation profile and climbing for your imported GPX route.",
       },
+      { name: "robots", content: "noindex, follow" },
     ],
   }),
   component: RideDetail,
