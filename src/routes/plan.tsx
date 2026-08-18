@@ -115,6 +115,9 @@ function PlanPage() {
         descentM: 0,
         bounds: boundsOf(routed.path),
         points: toRidePoints(routed.path),
+        cues: routed.cues,
+        planWaypoints: waypoints,
+        planProfile: profile,
       });
     },
     onSuccess: (id) => {

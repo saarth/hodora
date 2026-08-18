@@ -6,10 +6,13 @@ import {
   ArrowLeft,
   Gauge,
   Layers,
+  ListChecks,
+  Loader2,
   MapPin,
   MapPinPlus,
   Navigation,
   Share2,
+  Signpost,
   StickyNote,
   Trash2,
   TrendingDown,
@@ -20,6 +23,7 @@ import {
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
+import { CueSheet } from "@/components/CueSheet";
 import { OfflineSaveCard } from "@/components/OfflineSaveCard";
 import { DIFFICULTY_OPTIONS, SURFACE_OPTIONS } from "@/components/RideTags";
 import { DayTabs } from "@/components/DayTabs";
@@ -37,6 +41,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { buildCueSheet, hasRouterCues } from "@/lib/cues";
+import { recoverCuesForRide } from "@/lib/cue-recovery";
 import { directionsUrl, formatDistance, formatElevation } from "@/lib/gpx";
 import { snapToRoute } from "@/lib/nav";
 import {
@@ -44,6 +50,7 @@ import {
   fetchProfile,
   fetchRide,
   ridesKeys,
+  updateRideCues,
   updateRideNotes,
   updateRideTags,
   type Ride,
@@ -161,6 +168,33 @@ function RideDetail() {
     distanceM: number;
   } | null>(null);
   const [noteText, setNoteText] = useState("");
+  const [cueSheetOpen, setCueSheetOpen] = useState(false);
+
+  const cueSheet = useMemo(() => (ride ? buildCueSheet(ride.points, ride.cues) : []), [ride]);
+  const hasNamedCues = hasRouterCues(ride?.cues);
+
+  const recoverCuesMutation = useMutation({
+    mutationFn: async () => {
+      if (!ride) throw new Error("Route not loaded");
+      const controller = new AbortController();
+      const cues = await recoverCuesForRide(ride.points, controller.signal);
+      if (cues.length === 0) {
+        throw new Error("Couldn't match this route to the road network");
+      }
+      await updateRideCues(id, cues);
+      return cues;
+    },
+    onSuccess: (cues) => {
+      queryClient.setQueryData<Ride>(ridesKeys.detail(id), (prev) =>
+        prev ? { ...prev, cues } : prev,
+      );
+      toast.success("Recovered street names for this route");
+    },
+    onError: (recoverError) =>
+      toast.error(
+        recoverError instanceof Error ? recoverError.message : "Could not recover directions",
+      ),
+  });
 
   const tagsMutation = useMutation({
     mutationFn: (tags: { difficulty?: RideDifficulty | null; surface?: RideSurface | null }) =>
@@ -442,6 +476,45 @@ function RideDetail() {
             <div className="surface mt-4 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                  <ListChecks className="size-3.5" />
+                  Cue sheet
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {ride.source_filename && !hasNamedCues && cueSheet.length > 1 && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => recoverCuesMutation.mutate()}
+                      disabled={recoverCuesMutation.isPending}
+                    >
+                      {recoverCuesMutation.isPending ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Signpost className="size-4" />
+                      )}
+                      Recover street names
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCueSheetOpen(true)}
+                    disabled={cueSheet.length === 0}
+                  >
+                    View {cueSheet.length} step{cueSheet.length === 1 ? "" : "s"}
+                  </Button>
+                </div>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {hasNamedCues
+                  ? "Turn-by-turn directions with street names, kept from when this route was planned."
+                  : "Turn-by-turn directions detected from the route's shape — no street names available yet."}
+              </p>
+            </div>
+
+            <div className="surface mt-4 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                   <StickyNote className="size-3.5" />
                   Notes
                 </h2>
@@ -487,6 +560,15 @@ function RideDetail() {
           </>
         )}
       </main>
+
+      <Dialog open={cueSheetOpen} onOpenChange={setCueSheetOpen}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cue sheet</DialogTitle>
+          </DialogHeader>
+          <CueSheet entries={cueSheet} metric={metric} />
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={pendingNote !== null}
