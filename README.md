@@ -4,7 +4,7 @@
 
 > **Note:** I've never written code before this project — Hodora is a personal, learn-by-doing effort. It's not professionally reviewed, so please don't assume production-grade quality. I'd genuinely welcome feedback, corrections, and suggestions from anyone more experienced — issues and PRs pointing out mistakes or better approaches are very much appreciated.
 
-Hodora is a modern, open-source GPX bike navigation app built for club rides, sportives and cycling events — import the ride GPX and follow it with live turn-by-turn navigation, without buying a dedicated bike computer or paying for another app subscription.
+Hodora is a modern, open-source GPX bike navigation app built for club rides, sportives and cycling events. Import the ride GPX and follow it with live turn-by-turn navigation, without buying a dedicated bike computer or paying for another app subscription.
 
 - **No bike computer, no subscription** — free and open-source, runs in your phone's browser or as an installable PWA
 - **Import GPX routes** from your favorite route planners (Komoot, Strava, Ride with GPS, etc.) or whatever your club/event organiser sends

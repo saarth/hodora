@@ -87,13 +87,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Free GPX bike navigation for club rides and cycling events — no dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
+          "Free GPX bike navigation for club rides and cycling events. No dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
       },
       { property: "og:title", content: "Hodora — GPX navigation for club rides & bike events" },
       {
         property: "og:description",
         content:
-          "Free GPX bike navigation for club rides and cycling events — no dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
+          "Free GPX bike navigation for club rides and cycling events. No dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Hodora" },
@@ -102,7 +102,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "twitter:description",
         content:
-          "Free GPX bike navigation for club rides and cycling events — no dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
+          "Free GPX bike navigation for club rides and cycling events. No dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
       },
       { property: "og:image", content: "https://hodora.app/og-image.png" },
       { name: "twitter:image", content: "https://hodora.app/og-image.png" },
