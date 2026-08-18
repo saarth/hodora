@@ -289,7 +289,8 @@ function RideDetail() {
               <div>
                 <h1 className="text-3xl font-extrabold tracking-tight">{ride.name}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Imported {new Date(ride.created_at).toLocaleDateString()}
+                  {ride.is_recorded ? "Recorded" : ride.plan_waypoints ? "Planned" : "Imported"}{" "}
+                  {new Date(ride.created_at).toLocaleDateString()}
                   {ride.source_filename ? ` · ${ride.source_filename}` : ""}
                 </p>
               </div>

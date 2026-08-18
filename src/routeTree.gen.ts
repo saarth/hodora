@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as PlanRouteImport } from './routes/plan'
+import { Route as RecordRouteImport } from './routes/record'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as WindRouteImport } from './routes/wind'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -61,6 +62,11 @@ const ExploreRoute = ExploreRouteImport.update({
 const PlanRoute = PlanRouteImport.update({
   id: '/plan',
   path: '/plan',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecordRoute = RecordRouteImport.update({
+  id: '/record',
+  path: '/record',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -198,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
   '/plan': typeof PlanRoute
+  '/record': typeof RecordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/wind': typeof WindRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -228,6 +235,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
   '/plan': typeof PlanRoute
+  '/record': typeof RecordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/wind': typeof WindRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -260,6 +268,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/explore': typeof ExploreRoute
   '/plan': typeof PlanRoute
+  '/record': typeof RecordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/wind': typeof WindRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -292,6 +301,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/explore'
     | '/plan'
+    | '/record'
     | '/reset-password'
     | '/wind'
     | '/settings'
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/explore'
     | '/plan'
+    | '/record'
     | '/reset-password'
     | '/wind'
     | '/settings'
@@ -353,6 +364,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/explore'
     | '/plan'
+    | '/record'
     | '/reset-password'
     | '/wind'
     | '/_authenticated/settings'
@@ -385,6 +397,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ExploreRoute: typeof ExploreRoute
   PlanRoute: typeof PlanRoute
+  RecordRoute: typeof RecordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   WindRoute: typeof WindRoute
   ApiDeleteAccountRoute: typeof ApiDeleteAccountRoute
@@ -445,6 +458,13 @@ declare module '@tanstack/react-router' {
       path: '/plan'
       fullPath: '/plan'
       preLoaderRoute: typeof PlanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/record': {
+      id: '/record'
+      path: '/record'
+      fullPath: '/record'
+      preLoaderRoute: typeof RecordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -635,6 +655,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ExploreRoute: ExploreRoute,
   PlanRoute: PlanRoute,
+  RecordRoute: RecordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   WindRoute: WindRoute,
   ApiDeleteAccountRoute: ApiDeleteAccountRoute,

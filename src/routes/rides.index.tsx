@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ArrowUpRight,
+  Circle,
   CloudDownload,
   Loader2,
   MoreVertical,
@@ -159,18 +160,26 @@ function RidesPage() {
                 : "Import a GPX file to get started."}
             </p>
           </div>
-          <Button
-            onClick={() => inputRef.current?.click()}
-            disabled={importMutation.isPending}
-            className="glow-ring"
-          >
-            {importMutation.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Upload className="size-4" />
-            )}
-            Import GPX
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="secondary">
+              <Link to="/record">
+                <Circle className="size-4" />
+                Record a ride
+              </Link>
+            </Button>
+            <Button
+              onClick={() => inputRef.current?.click()}
+              disabled={importMutation.isPending}
+              className="glow-ring"
+            >
+              {importMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Upload className="size-4" />
+              )}
+              Import GPX
+            </Button>
+          </div>
         </div>
 
         <input
@@ -243,6 +252,15 @@ function RidesPage() {
                     >
                       <CloudDownload className="size-3" />
                       Offline
+                    </span>
+                  )}
+                  {ride.is_recorded && (
+                    <span
+                      className="flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                      title="Recorded with GPS"
+                    >
+                      <Circle className="size-2.5 fill-current" />
+                      Recorded
                     </span>
                   )}
                   {ride.difficulty && <DifficultyBadge value={ride.difficulty} />}

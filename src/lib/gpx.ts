@@ -176,7 +176,14 @@ function simplify(points: RidePoint[], maxPoints = 2500): RidePoint[] {
 }
 
 /** A raw, ungrouped track point straight off the wire — no distance/smoothing/simplification applied yet. */
-export type RawTrackPoint = { lat: number; lon: number; ele: number; gap: boolean };
+export type RawTrackPoint = {
+  lat: number;
+  lon: number;
+  ele: number;
+  gap: boolean;
+  /** elapsed seconds since recording start — only set for live-recorded points, see src/lib/record.ts */
+  t?: number;
+};
 
 /**
  * Shared numeric pipeline (elevation smoothing, distance/ascent/descent
@@ -220,6 +227,7 @@ export function buildParsedRide(raw: RawTrackPoint[], nameFromFile: string): Par
       ele: Math.round(smoothed[i] * 10) / 10,
       d: Math.round(distance),
       ...(p.gap ? { gap: true as const } : {}),
+      ...(p.t !== undefined ? { t: p.t } : {}),
     };
   });
 

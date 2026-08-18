@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Circle,
   Compass,
   LogIn,
   LogOut,
@@ -88,6 +89,13 @@ export function AppHeader() {
             <Link to="/wind">
               <Wind className="size-4" />
               Wind
+            </Link>
+          </Button>
+
+          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+            <Link to="/record">
+              <Circle className="size-4" />
+              Record
             </Link>
           </Button>
 
