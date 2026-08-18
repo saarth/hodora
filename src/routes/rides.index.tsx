@@ -4,17 +4,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ArrowUpRight,
+  Circle,
   CloudDownload,
   Loader2,
   MoreVertical,
   Mountain,
   Route as RouteIcon,
+  Search,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { listOfflineRideIds } from "@/lib/offline-db";
 import { offlineKeys } from "@/components/OfflineSaveCard";
-import { DifficultyBadge } from "@/components/RideTags";
+import { DifficultyBadge, DIFFICULTY_OPTIONS, SURFACE_OPTIONS } from "@/components/RideTags";
 
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -24,9 +27,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatDistance, formatElevation, parseGpx } from "@/lib/gpx";
-import { createRide, deleteRide, fetchProfile, fetchRides, ridesKeys } from "@/lib/rides";
+import {
+  createRide,
+  deleteRide,
+  fetchProfile,
+  fetchRides,
+  ridesKeys,
+  type RideDifficulty,
+  type RideSurface,
+} from "@/lib/rides";
 import { triggerCloudSyncIfConnected } from "@/lib/sync/connections";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +50,8 @@ export const Route = createFileRoute("/rides/")({
       { title: "My rides — Hodora" },
       {
         name: "description",
-        content: "Your imported GPX bike routes with distance, climbing and quick access to navigation.",
+        content:
+          "Your imported GPX bike routes with distance, climbing and quick access to navigation.",
       },
       { property: "og:title", content: "My rides — Hodora" },
       { property: "og:description", content: "Your imported GPX bike routes, ready to navigate." },
@@ -134,6 +148,40 @@ function RidesPage() {
     };
   }, [rides]);
 
+  const [query, setQuery] = useState("");
+  const [difficultyFilter, setDifficultyFilter] = useState<RideDifficulty | null>(null);
+  const [surfaceFilter, setSurfaceFilter] = useState<RideSurface | null>(null);
+  const [offlineOnly, setOfflineOnly] = useState(false);
+  const [recordedOnly, setRecordedOnly] = useState(false);
+
+  const hasActiveFilters =
+    query.trim() !== "" ||
+    difficultyFilter !== null ||
+    surfaceFilter !== null ||
+    offlineOnly ||
+    recordedOnly;
+
+  const clearFilters = () => {
+    setQuery("");
+    setDifficultyFilter(null);
+    setSurfaceFilter(null);
+    setOfflineOnly(false);
+    setRecordedOnly(false);
+  };
+
+  const filteredRides = useMemo(() => {
+    if (!rides) return rides;
+    const needle = query.trim().toLowerCase();
+    return rides.filter((ride) => {
+      if (needle && !ride.name.toLowerCase().includes(needle)) return false;
+      if (difficultyFilter && ride.difficulty !== difficultyFilter) return false;
+      if (surfaceFilter && ride.surface !== surfaceFilter) return false;
+      if (offlineOnly && !savedIds?.includes(ride.id)) return false;
+      if (recordedOnly && !ride.is_recorded) return false;
+      return true;
+    });
+  }, [rides, query, difficultyFilter, surfaceFilter, offlineOnly, recordedOnly, savedIds]);
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -158,18 +206,26 @@ function RidesPage() {
                 : "Import a GPX file to get started."}
             </p>
           </div>
-          <Button
-            onClick={() => inputRef.current?.click()}
-            disabled={importMutation.isPending}
-            className="glow-ring"
-          >
-            {importMutation.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Upload className="size-4" />
-            )}
-            Import GPX
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="secondary">
+              <Link to="/record">
+                <Circle className="size-4" />
+                Record a ride
+              </Link>
+            </Button>
+            <Button
+              onClick={() => inputRef.current?.click()}
+              disabled={importMutation.isPending}
+              className="glow-ring"
+            >
+              {importMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Upload className="size-4" />
+              )}
+              Import GPX
+            </Button>
+          </div>
         </div>
 
         <input
@@ -209,9 +265,84 @@ function RidesPage() {
           </p>
         </div>
 
+        {rides && rides.length > 0 && (
+          <div className="surface mt-6 grid gap-4 p-4">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search your rides by name…"
+                className="pl-9"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <ToggleGroup
+                type="single"
+                value={difficultyFilter ?? ""}
+                onValueChange={(value) => setDifficultyFilter((value as RideDifficulty) || null)}
+                className="flex-wrap justify-start"
+              >
+                {DIFFICULTY_OPTIONS.map((option) => (
+                  <ToggleGroupItem
+                    key={option.value}
+                    value={option.value}
+                    variant="outline"
+                    size="sm"
+                    className={cn("px-2.5", option.toggleClass)}
+                  >
+                    {option.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <ToggleGroup
+                type="single"
+                value={surfaceFilter ?? ""}
+                onValueChange={(value) => setSurfaceFilter((value as RideSurface) || null)}
+                className="flex-wrap justify-start"
+              >
+                {SURFACE_OPTIONS.map((option) => (
+                  <ToggleGroupItem
+                    key={option.value}
+                    value={option.value}
+                    variant="outline"
+                    size="sm"
+                    className="px-2.5"
+                  >
+                    {option.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <Button
+                variant={offlineOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setOfflineOnly((value) => !value)}
+                aria-pressed={offlineOnly}
+              >
+                <CloudDownload className="size-3.5" />
+                Offline
+              </Button>
+              <Button
+                variant={recordedOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRecordedOnly((value) => !value)}
+                aria-pressed={recordedOnly}
+              >
+                <Circle className="size-3 fill-current" />
+                Recorded
+              </Button>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="size-3.5" />
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
         <section className="mt-8 grid gap-3">
-          {isLoading &&
-            [0, 1, 2].map((key) => <Skeleton key={key} className="h-24 rounded-2xl" />)}
+          {isLoading && [0, 1, 2].map((key) => <Skeleton key={key} className="h-24 rounded-2xl" />)}
 
           {!isLoading && rides?.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">
@@ -219,7 +350,21 @@ function RidesPage() {
             </p>
           )}
 
-          {rides?.map((ride) => (
+          {!isLoading && rides && rides.length > 0 && filteredRides?.length === 0 && (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No routes match your search or filters.{" "}
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="font-semibold text-primary hover:underline"
+              >
+                Clear them
+              </button>
+              .
+            </p>
+          )}
+
+          {filteredRides?.map((ride) => (
             <article
               key={ride.id}
               className="surface flex min-w-0 items-center gap-4 p-4 transition-colors hover:border-primary/40"
@@ -243,6 +388,15 @@ function RidesPage() {
                     >
                       <CloudDownload className="size-3" />
                       Offline
+                    </span>
+                  )}
+                  {ride.is_recorded && (
+                    <span
+                      className="flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                      title="Recorded with GPS"
+                    >
+                      <Circle className="size-2.5 fill-current" />
+                      Recorded
                     </span>
                   )}
                   {ride.difficulty && <DifficultyBadge value={ride.difficulty} />}

@@ -13,10 +13,12 @@ import {
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
+import { ElevationChart } from "@/components/ElevationChart";
+import { PlaceSearch } from "@/components/PlaceSearch";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDistance } from "@/lib/gpx";
+import { computeAscentDescent, formatDistance, formatElevation } from "@/lib/gpx";
 import {
   boundsOf,
   findNearbyRoutes,
@@ -71,42 +73,34 @@ function ExplorePage() {
     [routes, selectedId],
   );
 
-  const points = useMemo(
-    () => (selected ? toRidePoints(selected.path) : []),
-    [selected],
-  );
+  const points = useMemo(() => (selected ? toRidePoints(selected.path) : []), [selected]);
 
-  const search = useCallback(
-    async (at: LatLon, radius: number, targetKm: number) => {
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      setSearching(true);
-      setSearchedOnce(true);
-      try {
-        const [nearby, loops] = await Promise.all([
-          findNearbyRoutes(at, radius, controller.signal).catch(() => []),
-          generateLoops(at, targetKm * 1000, controller.signal).catch(() => []),
-        ]);
-        if (controller.signal.aborted) return;
-        const found = [...loops, ...nearby];
-        setRoutes(found);
-        setSelectedId(found[0]?.id ?? null);
-        if (found.length === 0) {
-          toast.error("Nothing found here — try a wider area or another spot.");
-        }
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          toast.error(
-            error instanceof Error ? error.message : "Could not search this area",
-          );
-        }
-      } finally {
-        if (!controller.signal.aborted) setSearching(false);
+  const search = useCallback(async (at: LatLon, radius: number, targetKm: number) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setSearching(true);
+    setSearchedOnce(true);
+    try {
+      const [nearby, loops] = await Promise.all([
+        findNearbyRoutes(at, radius, controller.signal).catch(() => []),
+        generateLoops(at, targetKm * 1000, controller.signal).catch(() => []),
+      ]);
+      if (controller.signal.aborted) return;
+      const found = [...loops, ...nearby];
+      setRoutes(found);
+      setSelectedId(found[0]?.id ?? null);
+      if (found.length === 0) {
+        toast.error("Nothing found here — try a wider area or another spot.");
       }
-    },
-    [],
-  );
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        toast.error(error instanceof Error ? error.message : "Could not search this area");
+      }
+    } finally {
+      if (!controller.signal.aborted) setSearching(false);
+    }
+  }, []);
 
   const locate = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -133,6 +127,10 @@ function ExplorePage() {
 
   // Start from the rider's position when the page opens.
   useEffect(() => {
+    // Kicks off geolocation on mount (locate() sets the loading flag
+    // synchronously before its async callback resolves) — not a value
+    // derived from props/state, so there's no callback to move it into.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     locate();
     return () => abortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -141,12 +139,13 @@ function ExplorePage() {
   const saveMutation = useMutation({
     mutationFn: async (route: DiscoveredRoute) => {
       const ridePoints = toRidePoints(route.path);
+      const { ascentM, descentM } = computeAscentDescent(ridePoints);
       return createRide({
         name: route.name,
         sourceFilename: null,
         distanceM: route.distanceM,
-        ascentM: 0,
-        descentM: 0,
+        ascentM,
+        descentM,
         bounds: boundsOf(route.path),
         points: ridePoints,
       });
@@ -178,7 +177,19 @@ function ExplorePage() {
           </Button>
         </div>
 
-        <div className="surface mt-6 grid gap-5 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <PlaceSearch
+          className="mt-6"
+          placeholder="Search for a place to explore…"
+          onSelect={(result) => {
+            const at = { lat: result.lat, lon: result.lon };
+            setCenter(at);
+            nonceRef.current += 1;
+            setFlyTo({ ...at, nonce: nonceRef.current });
+            void search(at, radiusM, loopKm);
+          }}
+        />
+
+        <div className="surface mt-4 grid gap-5 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Search radius · {Math.round(radiusM / 1000)} km
@@ -206,11 +217,7 @@ function ExplorePage() {
             />
           </label>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              onClick={locate}
-              disabled={locating || searching}
-            >
+            <Button variant="secondary" onClick={locate} disabled={locating || searching}>
               {locating ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
@@ -283,12 +290,16 @@ function ExplorePage() {
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{route.name}</span>
                         <span className="mt-1 block font-mono text-xs text-muted-foreground">
-                          {formatDistance(route.distanceM)} · {route.subtitle}
+                          {formatDistance(route.distanceM)}
+                          {route.ascentM > 0
+                            ? ` · ${formatElevation(route.ascentM)} up`
+                            : ""} · {route.subtitle}
                         </span>
                       </span>
                     </button>
                     {active && (
-                      <div className="mt-3 flex gap-2">
+                      <div className="mt-3 space-y-3">
+                        {route.ascentM > 0 && <ElevationChart points={points} height={90} />}
                         <Button
                           size="sm"
                           onClick={() => saveMutation.mutate(route)}
@@ -310,8 +321,8 @@ function ExplorePage() {
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground">
-          Route data © OpenStreetMap contributors. Generated loops follow bike-friendly
-          roads and paths; check them before you ride.
+          Route data © OpenStreetMap contributors. Generated loops follow bike-friendly roads and
+          paths; check them before you ride.
         </p>
       </main>
     </div>

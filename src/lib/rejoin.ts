@@ -34,6 +34,10 @@ export function useRejoinRoute(
   useEffect(() => {
     if (!active || !from || !to) {
       lastRef.current = null;
+      // Resets to the "no rejoin needed" state when navigation stops being
+      // off-route — not deriving state from props/state during render, so
+      // there's no callback to move this into.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRoute(null);
       setLoading(false);
       return;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   bearing,
   bearingDelta,
+  computeAscentDescent,
   formatDistance,
   formatDuration,
   haversine,
@@ -28,7 +29,10 @@ function gpxWithSegments(segments: { lat: number; lon: number; ele?: number }[][
     .map(
       (points) =>
         `<trkseg>${points
-          .map((p) => `<trkpt lat="${p.lat}" lon="${p.lon}">${p.ele != null ? `<ele>${p.ele}</ele>` : ""}</trkpt>`)
+          .map(
+            (p) =>
+              `<trkpt lat="${p.lat}" lon="${p.lon}">${p.ele != null ? `<ele>${p.ele}</ele>` : ""}</trkpt>`,
+          )
           .join("")}</trkseg>`,
     )
     .join("");
@@ -222,5 +226,28 @@ describe("formatDistance / formatDuration", () => {
 
   it("formats durations over an hour as h/m", () => {
     expect(formatDuration(3660)).toBe("1h 01m");
+  });
+});
+
+describe("computeAscentDescent", () => {
+  const point = (ele: number): RidePoint => ({ lat: 45, lon: -122, ele, d: 0 });
+
+  it("sums climbs and drops above the 0.5m noise threshold", () => {
+    const points = [point(100), point(110), point(105), point(120)];
+    const result = computeAscentDescent(points);
+    expect(result.ascentM).toBeCloseTo(25, 5);
+    expect(result.descentM).toBeCloseTo(5, 5);
+  });
+
+  it("ignores jitter under the threshold", () => {
+    const points = [point(100), point(100.2), point(99.9), point(100.3)];
+    const result = computeAscentDescent(points);
+    expect(result.ascentM).toBe(0);
+    expect(result.descentM).toBe(0);
+  });
+
+  it("returns zero for fewer than two points", () => {
+    expect(computeAscentDescent([point(100)])).toEqual({ ascentM: 0, descentM: 0 });
+    expect(computeAscentDescent([])).toEqual({ ascentM: 0, descentM: 0 });
   });
 });

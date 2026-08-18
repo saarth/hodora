@@ -4,12 +4,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  Coffee,
   Gauge,
   Layers,
+  ListChecks,
+  Loader2,
   MapPin,
   MapPinPlus,
   Navigation,
+  Pencil,
   Share2,
+  Signpost,
   StickyNote,
   Trash2,
   TrendingDown,
@@ -20,6 +25,7 @@ import {
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
+import { CueSheet } from "@/components/CueSheet";
 import { OfflineSaveCard } from "@/components/OfflineSaveCard";
 import { DIFFICULTY_OPTIONS, SURFACE_OPTIONS } from "@/components/RideTags";
 import { DayTabs } from "@/components/DayTabs";
@@ -37,13 +43,17 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { buildCueSheet, hasRouterCues } from "@/lib/cues";
+import { recoverCuesForRide } from "@/lib/cue-recovery";
 import { directionsUrl, formatDistance, formatElevation } from "@/lib/gpx";
 import { snapToRoute } from "@/lib/nav";
+import { fetchPois, poiBounds, POI_CATEGORIES, type PoiCategory } from "@/lib/poi";
 import {
   createSharedLink,
   fetchProfile,
   fetchRide,
   ridesKeys,
+  updateRideCues,
   updateRideNotes,
   updateRideTags,
   type Ride,
@@ -80,6 +90,14 @@ export const Route = createFileRoute("/rides/$id/")({
   }),
   component: RideDetail,
 });
+
+/** Matches the category -> color mapping RouteMap's POI layer uses, so the legend swatches agree with the pins on the map. */
+const POI_LEGEND_COLOR_VAR: Record<PoiCategory, string> = {
+  cafe: "--color-chart-3",
+  water: "--color-chart-4",
+  bike_shop: "--color-chart-5",
+  toilets: "--color-chart-2",
+};
 
 function RideDetail() {
   const { id } = Route.useParams();
@@ -161,6 +179,42 @@ function RideDetail() {
     distanceM: number;
   } | null>(null);
   const [noteText, setNoteText] = useState("");
+  const [cueSheetOpen, setCueSheetOpen] = useState(false);
+  const [showPois, setShowPois] = useState(false);
+
+  const POI_ALL_CATEGORIES: PoiCategory[] = useMemo(() => POI_CATEGORIES.map((c) => c.value), []);
+  const { data: pois, isFetching: poisLoading } = useQuery({
+    queryKey: ["pois", ride?.id],
+    queryFn: ({ signal }) => fetchPois(poiBounds(ride!.points), POI_ALL_CATEGORIES, signal),
+    enabled: showPois && Boolean(ride),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const cueSheet = useMemo(() => (ride ? buildCueSheet(ride.points, ride.cues) : []), [ride]);
+  const hasNamedCues = hasRouterCues(ride?.cues);
+
+  const recoverCuesMutation = useMutation({
+    mutationFn: async () => {
+      if (!ride) throw new Error("Route not loaded");
+      const controller = new AbortController();
+      const cues = await recoverCuesForRide(ride.points, controller.signal);
+      if (cues.length === 0) {
+        throw new Error("Couldn't match this route to the road network");
+      }
+      await updateRideCues(id, cues);
+      return cues;
+    },
+    onSuccess: (cues) => {
+      queryClient.setQueryData<Ride>(ridesKeys.detail(id), (prev) =>
+        prev ? { ...prev, cues } : prev,
+      );
+      toast.success("Recovered street names for this route");
+    },
+    onError: (recoverError) =>
+      toast.error(
+        recoverError instanceof Error ? recoverError.message : "Could not recover directions",
+      ),
+  });
 
   const tagsMutation = useMutation({
     mutationFn: (tags: { difficulty?: RideDifficulty | null; surface?: RideSurface | null }) =>
@@ -255,7 +309,8 @@ function RideDetail() {
               <div>
                 <h1 className="text-3xl font-extrabold tracking-tight">{ride.name}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Imported {new Date(ride.created_at).toLocaleDateString()}
+                  {ride.is_recorded ? "Recorded" : ride.plan_waypoints ? "Planned" : "Imported"}{" "}
+                  {new Date(ride.created_at).toLocaleDateString()}
                   {ride.source_filename ? ` · ${ride.source_filename}` : ""}
                 </p>
               </div>
@@ -270,6 +325,14 @@ function RideDetail() {
                       <MapPin className="size-4" />
                       Directions to start
                     </a>
+                  </Button>
+                )}
+                {ride.plan_waypoints && ride.plan_waypoints.length >= 2 && (
+                  <Button asChild variant="secondary" size="lg">
+                    <Link to="/plan" search={{ edit: ride.id }}>
+                      <Pencil className="size-4" />
+                      Edit route
+                    </Link>
                   </Button>
                 )}
                 <Button
@@ -339,7 +402,36 @@ function RideDetail() {
               </div>
             )}
 
-            <div className="surface relative mt-4 overflow-hidden">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button
+                size="sm"
+                variant={showPois ? "default" : "outline"}
+                onClick={() => setShowPois((value) => !value)}
+              >
+                {poisLoading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Coffee className="size-4" />
+                )}
+                {showPois ? "Hide amenities" : "Show amenities"}
+              </Button>
+              {showPois && (
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                  {POI_CATEGORIES.map((category) => (
+                    <span key={category.value} className="flex items-center gap-1.5">
+                      <span
+                        className="size-2 rounded-full"
+                        style={{ background: `var(${POI_LEGEND_COLOR_VAR[category.value]})` }}
+                        aria-hidden
+                      />
+                      {category.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="surface relative mt-2 overflow-hidden">
               <RouteMap
                 points={ride.points}
                 className="h-[380px] w-full"
@@ -351,6 +443,7 @@ function RideDetail() {
                 onMapClick={handleMapClick}
                 showFitControl={!addingNote}
                 windSegments={windSegments}
+                pois={showPois ? (pois ?? []) : null}
               />
               {addingNote && (
                 <div className="glass-faint pointer-events-none absolute inset-x-3 top-3 z-10 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs">
@@ -442,6 +535,45 @@ function RideDetail() {
             <div className="surface mt-4 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                  <ListChecks className="size-3.5" />
+                  Cue sheet
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {ride.source_filename && !hasNamedCues && cueSheet.length > 1 && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => recoverCuesMutation.mutate()}
+                      disabled={recoverCuesMutation.isPending}
+                    >
+                      {recoverCuesMutation.isPending ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Signpost className="size-4" />
+                      )}
+                      Recover street names
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCueSheetOpen(true)}
+                    disabled={cueSheet.length === 0}
+                  >
+                    View {cueSheet.length} step{cueSheet.length === 1 ? "" : "s"}
+                  </Button>
+                </div>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {hasNamedCues
+                  ? "Turn-by-turn directions with street names, kept from when this route was planned."
+                  : "Turn-by-turn directions detected from the route's shape — no street names available yet."}
+              </p>
+            </div>
+
+            <div className="surface mt-4 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                   <StickyNote className="size-3.5" />
                   Notes
                 </h2>
@@ -487,6 +619,15 @@ function RideDetail() {
           </>
         )}
       </main>
+
+      <Dialog open={cueSheetOpen} onOpenChange={setCueSheetOpen}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cue sheet</DialogTitle>
+          </DialogHeader>
+          <CueSheet entries={cueSheet} metric={metric} />
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={pendingNote !== null}

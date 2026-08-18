@@ -26,9 +26,7 @@ const globDirectory = resolve(rootDir, ".output/public");
 const swDest = resolve(globDirectory, "sw.js");
 
 if (!existsSync(globDirectory)) {
-  console.error(
-    `[generate-sw] ${globDirectory} doesn't exist yet — run "vite build" first.`,
-  );
+  console.error(`[generate-sw] ${globDirectory} doesn't exist yet — run "vite build" first.`);
   process.exit(1);
 }
 

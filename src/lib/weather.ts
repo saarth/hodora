@@ -58,9 +58,13 @@ export type HourlyForecast = {
   /** degrees the wind is blowing FROM, meteorological convention */
   windDirectionDeg: number;
   weatherCode: number;
+  precipitationMm: number;
+  /** chance of precipitation, 0-100 */
+  precipitationProbability: number;
 };
 
-const HOURLY_FIELDS = "temperature_2m,wind_speed_10m,wind_direction_10m,weather_code";
+const HOURLY_FIELDS =
+  "temperature_2m,wind_speed_10m,wind_direction_10m,weather_code,precipitation,precipitation_probability";
 const DEFAULT_FORECAST_DAYS = 8;
 
 // Keyed by rounded coordinate + day count so paging the day/hour pickers for
@@ -96,12 +100,65 @@ export function fetchHourlyWind(
       windSpeedMs: Number(hourly.wind_speed_10m?.[i]) || 0,
       windDirectionDeg: Number(hourly.wind_direction_10m?.[i]) || 0,
       weatherCode: Number(hourly.weather_code?.[i]) || 0,
+      precipitationMm: Number(hourly.precipitation?.[i]) || 0,
+      precipitationProbability: Number(hourly.precipitation_probability?.[i]) || 0,
     }));
   })();
 
   hourlyCache.set(key, promise);
   promise.catch(() => hourlyCache.delete(key));
   return promise;
+}
+
+export type RainAlert = {
+  /** unique per forecast slot, so the same hour is never alerted twice */
+  key: string;
+  atIso: string;
+  minutesAway: number;
+  precipitationMm: number;
+  /** chance of precipitation, 0-100 */
+  probability: number;
+};
+
+/**
+ * Finds the nearest upcoming hourly forecast slot (within `withinMinutes`,
+ * a small negative slack included so "now" isn't missed by a few minutes of
+ * clock drift) that crosses the rain thresholds and hasn't been alerted yet
+ * — same pure-picker-plus-`alerted`-set pattern as findProximityAlert in
+ * nav.ts and nextTurnAnnouncement in voice.ts, so it's testable without a
+ * live clock. `hourly` must already be in chronological order (as
+ * fetchHourlyWind returns it) since this returns the first match.
+ *
+ * Comparing `hour.atIso` (a timezone-less local timestamp) against `nowMs`
+ * via Date.parse is safe here specifically because this is only ever
+ * called with the rider's *current* position mid-ride — unlike the
+ * multi-day forecast picker elsewhere, there's no "planning a route on the
+ * other side of the world" case to worry about; the rider's device
+ * timezone already matches the route's.
+ */
+export function findRainAlert(
+  hourly: HourlyForecast[],
+  nowMs: number,
+  alerted: ReadonlySet<string>,
+  { withinMinutes = 60, minProbability = 50, minPrecipMm = 0.2 } = {},
+): RainAlert | null {
+  for (const hour of hourly) {
+    const atMs = Date.parse(hour.atIso);
+    if (!Number.isFinite(atMs)) continue;
+    const minutesAway = (atMs - nowMs) / 60_000;
+    if (minutesAway < -10 || minutesAway > withinMinutes) continue;
+    const rains =
+      hour.precipitationMm >= minPrecipMm || hour.precipitationProbability >= minProbability;
+    if (!rains || alerted.has(hour.atIso)) continue;
+    return {
+      key: hour.atIso,
+      atIso: hour.atIso,
+      minutesAway: Math.max(0, Math.round(minutesAway)),
+      precipitationMm: hour.precipitationMm,
+      probability: hour.precipitationProbability,
+    };
+  }
+  return null;
 }
 
 export type ForecastDay = {

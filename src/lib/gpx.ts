@@ -9,6 +9,8 @@ export type RidePoint = {
   d: number;
   /** true if this point starts a new `<trkseg>` — a real gap precedes it (e.g. a ferry crossing removed from the recording) */
   gap?: boolean;
+  /** elapsed seconds since the start of the recording — only set for rides captured live via /record */
+  t?: number;
 };
 
 /** Splits points into contiguous runs, breaking wherever a point has `gap: true`. */
@@ -46,36 +48,22 @@ export function toDeg(rad: number) {
 }
 
 /** Great-circle distance in meters between two coordinates. */
-export function haversine(
-  aLat: number,
-  aLon: number,
-  bLat: number,
-  bLon: number,
-): number {
+export function haversine(aLat: number, aLon: number, bLat: number, bLon: number): number {
   const dLat = toRad(bLat - aLat);
   const dLon = toRad(bLon - aLon);
   const lat1 = toRad(aLat);
   const lat2 = toRad(bLat);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
 /** Initial bearing in degrees (0-360) from a to b. */
-export function bearing(
-  aLat: number,
-  aLon: number,
-  bLat: number,
-  bLon: number,
-): number {
+export function bearing(aLat: number, aLon: number, bLat: number, bLon: number): number {
   const lat1 = toRad(aLat);
   const lat2 = toRad(bLat);
   const dLon = toRad(bLon - aLon);
   const y = Math.sin(dLon) * Math.cos(lat2);
-  const x =
-    Math.cos(lat1) * Math.sin(lat2) -
-    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
@@ -188,7 +176,14 @@ function simplify(points: RidePoint[], maxPoints = 2500): RidePoint[] {
 }
 
 /** A raw, ungrouped track point straight off the wire — no distance/smoothing/simplification applied yet. */
-export type RawTrackPoint = { lat: number; lon: number; ele: number; gap: boolean };
+export type RawTrackPoint = {
+  lat: number;
+  lon: number;
+  ele: number;
+  gap: boolean;
+  /** elapsed seconds since recording start — only set for live-recorded points, see src/lib/record.ts */
+  t?: number;
+};
 
 /**
  * Shared numeric pipeline (elevation smoothing, distance/ascent/descent
@@ -232,6 +227,7 @@ export function buildParsedRide(raw: RawTrackPoint[], nameFromFile: string): Par
       ele: Math.round(smoothed[i] * 10) / 10,
       d: Math.round(distance),
       ...(p.gap ? { gap: true as const } : {}),
+      ...(p.t !== undefined ? { t: p.t } : {}),
     };
   });
 
@@ -243,6 +239,23 @@ export function buildParsedRide(raw: RawTrackPoint[], nameFromFile: string): Par
     descentM: descent,
     bounds: { minLat, minLon, maxLat, maxLon },
   };
+}
+
+/**
+ * Total ascent/descent for a list of points that already have real elevation
+ * (a routed path with elevation from BRouter, a recorded ride) — same 0.5m
+ * noise threshold `buildParsedRide` uses, but without the smoothing/RDP
+ * pipeline that's only meaningful for raw, unrouted GPS elevation.
+ */
+export function computeAscentDescent(points: RidePoint[]): { ascentM: number; descentM: number } {
+  let ascentM = 0;
+  let descentM = 0;
+  for (let i = 1; i < points.length; i++) {
+    const delta = points[i].ele - points[i - 1].ele;
+    if (delta > 0.5) ascentM += delta;
+    else if (delta < -0.5) descentM += -delta;
+  }
+  return { ascentM, descentM };
 }
 
 /** Extracts raw track points and the `<name>` from GPX XML via the browser's `DOMParser`. Client-side only. */
@@ -289,8 +302,7 @@ export function parseGpx(xml: string, fallbackName: string): ParsedRide {
     prevSeg = segIndex;
   }
 
-  const nameFromFile =
-    doc.getElementsByTagName("name")[0]?.textContent?.trim() || fallbackName;
+  const nameFromFile = doc.getElementsByTagName("name")[0]?.textContent?.trim() || fallbackName;
 
   return buildParsedRide(raw, nameFromFile);
 }
@@ -344,9 +356,7 @@ export function formatDistance(meters: number, metric = true): string {
 }
 
 export function formatElevation(meters: number, metric = true): string {
-  return metric
-    ? `${Math.round(meters)} m`
-    : `${Math.round(meters * 3.28084)} ft`;
+  return metric ? `${Math.round(meters)} m` : `${Math.round(meters * 3.28084)} ft`;
 }
 
 export function formatDuration(seconds: number): string {

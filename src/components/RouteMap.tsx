@@ -3,6 +3,7 @@ import { Maximize2 } from "lucide-react";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { buildCyclingStyle, setVectorBasemapTheme } from "@/lib/cycling-style";
 import { haversine, splitBySegments, type RidePoint } from "@/lib/gpx";
+import { poiCategoryLabel, type Poi } from "@/lib/poi";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { windSegmentsToGeoJSON, type WindSegment } from "@/lib/windScore";
@@ -55,6 +56,8 @@ type RouteMapProps = {
   notes?: { id: string; lat: number; lon: number }[] | null;
   /** per-segment wind classification; when present, the route is colored tailwind/headwind/crosswind instead of the theme's single route color */
   windSegments?: WindSegment[] | null;
+  /** nearby points of interest (cafes, water, bike shops, toilets) — tap a marker for its name */
+  pois?: Poi[] | null;
 };
 
 const basemap = (theme: "light" | "dark") =>
@@ -156,6 +159,9 @@ function mapThemeColors() {
     warning: resolveThemeColor("--color-warning"),
     foreground: resolveThemeColor("--color-foreground"),
     chart2: resolveThemeColor("--color-chart-2"),
+    chart3: resolveThemeColor("--color-chart-3"),
+    chart4: resolveThemeColor("--color-chart-4"),
+    chart5: resolveThemeColor("--color-chart-5"),
     primary: resolveThemeColor("--color-primary"),
     destructive: resolveThemeColor("--color-destructive"),
   };
@@ -169,6 +175,20 @@ const WIND_LINE_COLOR_EXPRESSION = (colors: ReturnType<typeof mapThemeColors>) =
   "headwind",
   colors.destructive,
   colors.warning,
+];
+
+const POI_COLOR_EXPRESSION = (colors: ReturnType<typeof mapThemeColors>) => [
+  "match",
+  ["get", "category"],
+  "cafe",
+  colors.chart3,
+  "water",
+  colors.chart4,
+  "bike_shop",
+  colors.chart5,
+  "toilets",
+  colors.chart2,
+  colors.mutedForeground,
 ];
 
 function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
@@ -217,6 +237,10 @@ function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
     map.setPaintProperty("notes-layer", "circle-color", colors.chart2);
     map.setPaintProperty("notes-layer", "circle-stroke-color", colors.background);
   }
+  if (map.getLayer("pois-layer")) {
+    map.setPaintProperty("pois-layer", "circle-color", POI_COLOR_EXPRESSION(colors));
+    map.setPaintProperty("pois-layer", "circle-stroke-color", colors.background);
+  }
 }
 
 export function RouteMap({
@@ -240,6 +264,7 @@ export function RouteMap({
   onMapClick,
   notes = null,
   windSegments = null,
+  pois = null,
 }: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -261,6 +286,8 @@ export function RouteMap({
   waypointsRef.current = waypoints;
   const notesRef = useRef(notes);
   notesRef.current = notes;
+  const poisRef = useRef(pois);
+  poisRef.current = pois;
   const { theme } = useTheme();
 
   // Boot the map once, client side only.
@@ -334,6 +361,7 @@ export function RouteMap({
         applyWindSegments(map, current, windSegmentsRef.current);
         setupWaypointsLayer(map, waypointsRef.current ?? []);
         setupNotesLayer(map, notesRef.current ?? []);
+        setupPoisLayer(map, maplibre, poisRef.current ?? []);
         // Show the complete route until the first live GPS fix takes over.
         if (current.length > 1) fitRoute(map, current, 48);
         // Some browsers can report their final size after MapLibre's initial
@@ -532,6 +560,14 @@ export function RouteMap({
     if (source) source.setData(notesFeatureCollection(notes ?? []));
   }, [notes]);
 
+  // Nearby points of interest (cafes, water, bike shops, toilets).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+    const source = map.getSource("pois");
+    if (source) source.setData(poisFeatureCollection(pois ?? []));
+  }, [pois]);
+
   // Fit the camera around an explicit set of coordinates on demand.
   const fitCoordsRef = useRef(fitTo?.coords ?? []);
   fitCoordsRef.current = fitTo?.coords ?? [];
@@ -545,7 +581,6 @@ export function RouteMap({
       new maplibre.LngLatBounds([coords[0].lon, coords[0].lat], [coords[0].lon, coords[0].lat]),
     );
     map.fitBounds(bounds, { padding: 80, maxZoom: 17, duration: 700 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitTo?.nonce]);
 
   const fitWholeRoute = () => {
@@ -736,7 +771,15 @@ function setupWaypointsLayer(map: any, waypoints: { lat: number; lon: number }[]
     source: "waypoints",
     paint: {
       "circle-radius": ["match", ["get", "role"], "via", 5, 7],
-      "circle-color": ["match", ["get", "role"], "start", colors.route, "end", colors.foreground, colors.warning],
+      "circle-color": [
+        "match",
+        ["get", "role"],
+        "start",
+        colors.route,
+        "end",
+        colors.foreground,
+        colors.warning,
+      ],
       "circle-stroke-width": 2.5,
       "circle-stroke-color": colors.background,
     },
@@ -769,6 +812,54 @@ function setupNotesLayer(map: any, notes: { id: string; lat: number; lon: number
       "circle-stroke-width": 2.5,
       "circle-stroke-color": colors.background,
     },
+  });
+}
+
+function poisFeatureCollection(pois: Poi[]) {
+  return {
+    type: "FeatureCollection" as const,
+    features: pois.map((poi) => ({
+      type: "Feature" as const,
+      properties: { id: poi.id, category: poi.category, name: poi.name ?? "" },
+      geometry: { type: "Point" as const, coordinates: [poi.lon, poi.lat] },
+    })),
+  };
+}
+
+/** Nearby amenities (cafes, water, bike shops, toilets), color-coded by category, with a name popup on tap. */
+function setupPoisLayer(map: any, maplibre: any, pois: Poi[]) {
+  if (map.getSource("pois")) return;
+  const colors = mapThemeColors();
+  map.addSource("pois", { type: "geojson", data: poisFeatureCollection(pois) });
+  map.addLayer({
+    id: "pois-layer",
+    type: "circle",
+    source: "pois",
+    paint: {
+      "circle-radius": 5.5,
+      "circle-color": POI_COLOR_EXPRESSION(colors),
+      "circle-stroke-width": 2,
+      "circle-stroke-color": colors.background,
+    },
+  });
+
+  map.on("mouseenter", "pois-layer", () => {
+    map.getCanvas().style.cursor = "pointer";
+  });
+  map.on("mouseleave", "pois-layer", () => {
+    map.getCanvas().style.cursor = "";
+  });
+  map.on("click", "pois-layer", (event: any) => {
+    const feature = event.features?.[0];
+    if (!feature) return;
+    const name = feature.properties?.name || poiCategoryLabel(feature.properties?.category);
+    const label = feature.properties?.name
+      ? `${name} · ${poiCategoryLabel(feature.properties.category)}`
+      : name;
+    new maplibre.Popup({ closeButton: false, offset: 10 })
+      .setLngLat(feature.geometry.coordinates)
+      .setText(label)
+      .addTo(map);
   });
 }
 

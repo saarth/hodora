@@ -1,16 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 import { toast } from "sonner";
 import { Crosshair, Loader2, MapPin, Redo2, Route as RouteIcon, Save, Undo2 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
+import { ElevationChart } from "@/components/ElevationChart";
+import { PlaceSearch } from "@/components/PlaceSearch";
+import { DayTabs } from "@/components/DayTabs";
+import { HourPicker } from "@/components/HourPicker";
+import { WeatherGlyph } from "@/components/WeatherGlyph";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { boundsOf, toRidePoints } from "@/lib/discover";
-import { formatDistance } from "@/lib/gpx";
-import { createRide } from "@/lib/rides";
+import { computeAscentDescent, formatDistance, formatElevation } from "@/lib/gpx";
+import { compassAbbrev } from "@/lib/nav";
+import { createRide, fetchRide, ridesKeys, updateRide } from "@/lib/rides";
 import {
   BIKE_PROFILES,
   fetchRoute,
@@ -18,13 +25,28 @@ import {
   type LatLon,
   type RoutedPath,
 } from "@/lib/routing";
+import {
+  closestHourIndex,
+  fetchHourlyWind,
+  formatTemperature,
+  formatWindSpeed,
+  groupForecastByDay,
+  isDaytimeHour,
+  weatherInfo,
+} from "@/lib/weather";
 
 const TITLE = "Bike Route Planner — Plan Cycle Routes on the Map | Hodora";
 const DESCRIPTION =
   "Free bike route planner. Tap the map to plan a cycle route, routed over real roads and paths with OpenStreetMap data, then save it for turn-by-turn navigation.";
 
+const searchSchema = z.object({
+  /** id of an existing planned route to reopen and re-save, instead of creating a new one */
+  edit: z.string().optional(),
+});
+
 export const Route = createFileRoute("/plan")({
   ssr: false,
+  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: TITLE },
@@ -43,6 +65,8 @@ const FALLBACK_CENTER: LatLon = { lat: 47.3769, lon: 8.5417 };
 
 function PlanPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { edit: editId } = Route.useSearch();
   const [center, setCenter] = useState<LatLon>(FALLBACK_CENTER);
   const [flyTo, setFlyTo] = useState<{ lat: number; lon: number; nonce: number } | null>(null);
   const [locating, setLocating] = useState(false);
@@ -51,6 +75,52 @@ function PlanPage() {
   const [routed, setRouted] = useState<RoutedPath | null>(null);
   const [routing, setRouting] = useState(false);
   const [name, setName] = useState("");
+
+  const {
+    data: editRide,
+    isLoading: editLoading,
+    error: editError,
+  } = useQuery({
+    queryKey: ridesKeys.detail(editId ?? ""),
+    queryFn: () => fetchRide(editId!),
+    enabled: Boolean(editId),
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (editError) toast.error("Could not load that route to edit.");
+  }, [editError]);
+
+  // Seeds the planner from the route being edited, once — a background
+  // refetch of the same query must not stomp on waypoints the rider is
+  // actively dragging around.
+  const [seededEditId, setSeededEditId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!editRide || seededEditId === editRide.id) return;
+    if (!editRide.plan_waypoints || editRide.plan_waypoints.length < 2) {
+      toast.error("This route wasn't created in the planner, so it can't be edited here.");
+      // Marks this ride as "handled" so the toast above doesn't refire on
+      // every render — not a value derived from props/state, so there's no
+      // callback to move this into.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSeededEditId(editRide.id);
+      return;
+    }
+    // Reflects the loaded ride into local editor state — not a value
+    // derived from props/state, so there's no callback to move it into.
+
+    setWaypoints(editRide.plan_waypoints);
+    setProfile(editRide.plan_profile ?? "trekking");
+    setName(editRide.name);
+    setSeededEditId(editRide.id);
+  }, [editRide, seededEditId]);
+
+  // The ride actually being edited — null (not just "not loaded yet") when
+  // `editRide` exists but has no usable planner waypoints, so the rest of
+  // the page falls back to the normal "plan a new route" behavior instead
+  // of half-showing an edit state for a route that can't be edited here.
+  const activeEditRide =
+    editRide && editRide.plan_waypoints && editRide.plan_waypoints.length >= 2 ? editRide : null;
 
   const locate = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
@@ -68,6 +138,10 @@ function PlanPage() {
   }, []);
 
   useEffect(() => {
+    // Kicks off geolocation on mount (locate() sets the loading flag
+    // synchronously before its async callback resolves) — not a value
+    // derived from props/state, so there's no callback to move it into.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     locate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -75,6 +149,10 @@ function PlanPage() {
   // Re-route through every waypoint whenever the points or the chosen profile change.
   useEffect(() => {
     if (waypoints.length < 2) {
+      // Clears any previous route once there are too few waypoints to route
+      // between — not a value derived from props/state, so there's no
+      // callback to move this into.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRouted(null);
       return;
     }
@@ -95,22 +173,50 @@ function PlanPage() {
     () => (routed && routed.path.length > 1 ? toRidePoints(routed.path) : []),
     [routed],
   );
+  const elevation = useMemo(() => computeAscentDescent(points), [points]);
+
+  const routeStart = points[0];
+  const { data: hourly } = useQuery({
+    queryKey: ["plan-weather-forecast", routeStart?.lat, routeStart?.lon],
+    queryFn: () => fetchHourlyWind(routeStart!.lat, routeStart!.lon),
+    enabled: Boolean(routeStart),
+    staleTime: 10 * 60 * 1000,
+  });
+  const forecastDays = useMemo(() => groupForecastByDay(hourly ?? []), [hourly]);
+  const [departureDayKey, setDepartureDayKey] = useState<string | null>(null);
+  const [departureHourIso, setDepartureHourIso] = useState<string | null>(null);
+  const departureDay =
+    forecastDays.find((day) => day.dateKey === departureDayKey) ?? forecastDays[0] ?? null;
+  const departureHour =
+    departureDay?.hours.find((hour) => hour.atIso === departureHourIso) ??
+    (departureDay ? departureDay.hours[closestHourIndex(departureDay.hours)] : null);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!routed || routed.path.length < 2) throw new Error("Add at least two points first");
-      return createRide({
+      const ridePoints = toRidePoints(routed.path);
+      const { ascentM, descentM } = computeAscentDescent(ridePoints);
+      const input = {
         name: name.trim() || "Planned route",
-        sourceFilename: null,
         distanceM: routed.distanceM,
-        ascentM: 0,
-        descentM: 0,
+        ascentM,
+        descentM,
         bounds: boundsOf(routed.path),
-        points: toRidePoints(routed.path),
-      });
+        points: ridePoints,
+        cues: routed.cues,
+        planWaypoints: waypoints,
+        planProfile: profile,
+      };
+      if (activeEditRide) {
+        await updateRide(activeEditRide.id, input);
+        return activeEditRide.id;
+      }
+      return createRide({ ...input, sourceFilename: null });
     },
     onSuccess: (id) => {
-      toast.success("Saved to your rides");
+      toast.success(activeEditRide ? "Route updated" : "Saved to your rides");
+      queryClient.invalidateQueries({ queryKey: ridesKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ridesKeys.all });
       navigate({ to: "/rides/$id", params: { id } });
     },
     onError: (error) =>
@@ -123,9 +229,13 @@ function PlanPage() {
       <main className="mx-auto w-full max-w-6xl px-4 pb-20 pt-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Plan a route</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight">
+              {activeEditRide ? `Edit ${activeEditRide.name}` : "Plan a route"}
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Tap the map to add points — Hodora routes between them over real roads and paths.
+              {activeEditRide
+                ? "Move, add or remove points, then save — notes and offline downloads on this route may need re-checking afterwards."
+                : "Tap the map to add points — Hodora routes between them over real roads and paths."}
             </p>
           </div>
           <Button asChild variant="ghost" size="sm">
@@ -136,7 +246,24 @@ function PlanPage() {
           </Button>
         </div>
 
-        <div className="surface mt-6 grid gap-5 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
+        {editId && editLoading && (
+          <p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Loading route to edit…
+          </p>
+        )}
+
+        <PlaceSearch
+          className="mt-6"
+          placeholder="Search for a place to start planning…"
+          onSelect={(result) => {
+            const at = { lat: result.lat, lon: result.lon };
+            setCenter(at);
+            setFlyTo({ ...at, nonce: Date.now() });
+          }}
+        />
+
+        <div className="surface mt-4 grid gap-5 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Routing style
@@ -220,6 +347,7 @@ function PlanPage() {
                       <>
                         {" "}
                         · {formatDistance(routed.distanceM)}
+                        {elevation.ascentM > 0 ? ` · ${formatElevation(elevation.ascentM)} up` : ""}
                         {routing && <Loader2 className="ml-2 inline size-3.5 animate-spin" />}
                       </>
                     ) : null}
@@ -237,6 +365,62 @@ function PlanPage() {
                 </>
               )}
             </div>
+
+            {elevation.ascentM > 0 && (
+              <div className="surface p-4">
+                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Elevation
+                </span>
+                <div className="mt-3">
+                  <ElevationChart points={points} height={110} />
+                </div>
+              </div>
+            )}
+
+            {departureHour && departureDay && (
+              <div className="surface p-4">
+                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Weather at departure
+                </span>
+                <div className="mt-3 flex items-center gap-3">
+                  <WeatherGlyph
+                    icon={
+                      weatherInfo(departureHour.weatherCode, isDaytimeHour(departureHour.atIso))
+                        .icon
+                    }
+                    className="size-8 text-primary"
+                  />
+                  <div className="min-w-0">
+                    <p className="font-mono text-lg font-bold leading-none">
+                      {formatTemperature(departureHour.temperatureC, true)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {
+                        weatherInfo(departureHour.weatherCode, isDaytimeHour(departureHour.atIso))
+                          .label
+                      }{" "}
+                      · {formatWindSpeed(departureHour.windSpeedMs, true)}{" "}
+                      {compassAbbrev(departureHour.windDirectionDeg)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-2">
+                  <DayTabs
+                    days={forecastDays}
+                    value={departureDay.dateKey}
+                    onChange={(dateKey) => {
+                      setDepartureDayKey(dateKey);
+                      setDepartureHourIso(null);
+                    }}
+                  />
+                  <HourPicker
+                    hours={departureDay.hours}
+                    value={departureHour.atIso}
+                    onChange={setDepartureHourIso}
+                  />
+                </div>
+              </div>
+            )}
 
             {points.length > 1 && (
               <div className="surface grid gap-3 p-4">
@@ -261,7 +445,7 @@ function PlanPage() {
                   ) : (
                     <Save className="size-4" />
                   )}
-                  Save to my rides
+                  {activeEditRide ? "Save changes" : "Save to my rides"}
                 </Button>
               </div>
             )}

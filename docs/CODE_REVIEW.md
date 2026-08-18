@@ -5,6 +5,84 @@ correctness (GPX parsing, navigation math, offline storage), build/deploy
 correctness, and maintainability. Verified with `tsc --noEmit`, `eslint`, and
 real production builds — not just a read-through.
 
+## 2026-08-18 — Missing-features pass: CI, cue sheets, recording, editing,
+## search/filter, elevation, place search, POI overlay, weather/rain,
+## low-power mode, vector tile caching
+
+Large feature pass working through a list of gaps against the app as it
+stood on 2026-08-16. Each item below was implemented, type-checked, linted,
+unit-tested where the logic was pure, and where practical verified live
+against a real dev server with Playwright (network egress to brouter.de,
+basemaps.cartocdn.com, overpass-api.de and nominatim.openstreetmap.org is
+blocked in this sandbox, so BRouter/OSRM/Overpass/Nominatim responses were
+mocked for those runs — the request shape and the app's handling of the
+response were verified, not the live third-party services themselves).
+
+**No CI existed at all**, and `npm run lint` was actually failing on `main`
+— dependency bumps (`eslint-plugin-react-hooks` v7 in particular) added
+rules the existing code had never been checked against. Added
+`.github/workflows/ci.yml` (lint, `tsc --noEmit`, test, build) and fixed the
+pre-existing lint failures: `eslint --fix` for formatting, scoped
+`eslint.config.js` overrides for the two files that deliberately use `any`
+for untyped third-party APIs and the pervasive "keep a ref in sync every
+render" idiom, and per-line `react-hooks/set-state-in-effect` disables
+(with rationale comments, matching the existing convention in
+`rides.$id.nav.tsx`) for legitimate synchronous-setState-on-mount effects.
+
+**Cue sheets**: `routing.ts`'s `fetchOsrmRoute` now requests `steps=true`
+and keeps the turn-by-turn step data instead of discarding it; a ride
+without router-provided cues (GPX imports, BRouter-routed plans) falls back
+to `detectTurns()`-derived turns via `buildCueSheet()` in the new
+`src/lib/cues.ts`. Imported GPX routes get a "Recover street names" action
+(`src/lib/cue-recovery.ts`) that downsamples the track and re-routes it
+through OSRM to recover named directions, rescaled onto the original
+track's length — a best-effort approximation, not a real map-match.
+
+**Ride recording** (`/record`): live GPS capture independent of any
+pre-existing route, with elapsed time/distance/speed/elevation, pause/
+resume/finish, and a save-with-name step. `acceptRecordingFix()` filters
+GPS jitter while stationary (a real bug class this specifically guards
+against — without it, idling at a traffic light inflates distance and
+elevation gain).
+
+**Route editing after save**: `/plan?edit=<id>` reopens a route's stored
+waypoints/profile and re-saves in place (`updateRide`) instead of creating
+a duplicate; falls back cleanly (with a toast) for a ride that has no
+planner waypoints to edit.
+
+**Nav additions**: elapsed time/avg speed/ETA/speed-history sparkline;
+voice turn announcements (`src/lib/voice.ts`, Web Speech API, distance
+thresholds tested as a pure picker); rain alerts (`findRainAlert()` in
+`weather.ts`, same pure-picker-plus-alerted-set pattern, polls the hourly
+forecast for the rider's live position).
+
+**Elevation for planned/explored routes**: `routing.ts` was silently
+discarding BRouter's 3rd (elevation) coordinate on every path — `toPath()`
+now keeps it. `/plan` and `/explore`'s generated loops (switched to prefer
+BRouter, same OSRM fallback as elsewhere) now show a real elevation chart
+and ascent instead of a hardcoded 0.
+
+**Other additions**: place search (`src/lib/geocode.ts`, Nominatim) on
+`/plan` and `/explore`; a POI overlay (`src/lib/poi.ts`, Overpass, fetched
+once per toggle rather than on every pan/zoom) for cafes/water/bike shops/
+toilets; search and filter on the ride list; low-power mode
+(`src/lib/low-power.ts` — lower-accuracy geolocation, slower weather
+polling); MapTiler vector tile/glyph caching in the service worker
+(`pwa-config.mjs`, verified present in the actual generated `sw.js`).
+
+**Background navigation** (turn-by-turn/alerts continuing once the app is
+backgrounded or the screen locks) was assessed and deliberately not
+attempted — see the new AGENTS.md note next to the existing proximity-alerts
+one. It needs the same native foreground-service work already called out
+there, plus on-device Android testing this environment can't do.
+
+**One real bug found and fixed by live testing, not by inspection:** the
+ride detail page always said "Imported <date>" regardless of how a route
+was actually created. Caught running the record → save → view-detail flow
+in Playwright and seeing "Imported" on a route that had just been recorded
+live. Fixed to say Recorded/Planned/Imported based on `is_recorded`/
+`plan_waypoints`.
+
 ## 2026-08-16 — Added proximity alerts (resolved the background-geolocation
 ## plugin question by deliberately not needing one)
 
