@@ -8,11 +8,15 @@ import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
 import { PlaceSearch } from "@/components/PlaceSearch";
+import { DayTabs } from "@/components/DayTabs";
+import { HourPicker } from "@/components/HourPicker";
+import { WeatherGlyph } from "@/components/WeatherGlyph";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { boundsOf, toRidePoints } from "@/lib/discover";
 import { computeAscentDescent, formatDistance, formatElevation } from "@/lib/gpx";
+import { compassAbbrev } from "@/lib/nav";
 import { createRide, fetchRide, ridesKeys, updateRide } from "@/lib/rides";
 import {
   BIKE_PROFILES,
@@ -21,6 +25,15 @@ import {
   type LatLon,
   type RoutedPath,
 } from "@/lib/routing";
+import {
+  closestHourIndex,
+  fetchHourlyWind,
+  formatTemperature,
+  formatWindSpeed,
+  groupForecastByDay,
+  isDaytimeHour,
+  weatherInfo,
+} from "@/lib/weather";
 
 const TITLE = "Bike Route Planner — Plan Cycle Routes on the Map | Hodora";
 const DESCRIPTION =
@@ -161,6 +174,22 @@ function PlanPage() {
     [routed],
   );
   const elevation = useMemo(() => computeAscentDescent(points), [points]);
+
+  const routeStart = points[0];
+  const { data: hourly } = useQuery({
+    queryKey: ["plan-weather-forecast", routeStart?.lat, routeStart?.lon],
+    queryFn: () => fetchHourlyWind(routeStart!.lat, routeStart!.lon),
+    enabled: Boolean(routeStart),
+    staleTime: 10 * 60 * 1000,
+  });
+  const forecastDays = useMemo(() => groupForecastByDay(hourly ?? []), [hourly]);
+  const [departureDayKey, setDepartureDayKey] = useState<string | null>(null);
+  const [departureHourIso, setDepartureHourIso] = useState<string | null>(null);
+  const departureDay =
+    forecastDays.find((day) => day.dateKey === departureDayKey) ?? forecastDays[0] ?? null;
+  const departureHour =
+    departureDay?.hours.find((hour) => hour.atIso === departureHourIso) ??
+    (departureDay ? departureDay.hours[closestHourIndex(departureDay.hours)] : null);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -344,6 +373,51 @@ function PlanPage() {
                 </span>
                 <div className="mt-3">
                   <ElevationChart points={points} height={110} />
+                </div>
+              </div>
+            )}
+
+            {departureHour && departureDay && (
+              <div className="surface p-4">
+                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Weather at departure
+                </span>
+                <div className="mt-3 flex items-center gap-3">
+                  <WeatherGlyph
+                    icon={
+                      weatherInfo(departureHour.weatherCode, isDaytimeHour(departureHour.atIso))
+                        .icon
+                    }
+                    className="size-8 text-primary"
+                  />
+                  <div className="min-w-0">
+                    <p className="font-mono text-lg font-bold leading-none">
+                      {formatTemperature(departureHour.temperatureC, true)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {
+                        weatherInfo(departureHour.weatherCode, isDaytimeHour(departureHour.atIso))
+                          .label
+                      }{" "}
+                      · {formatWindSpeed(departureHour.windSpeedMs, true)}{" "}
+                      {compassAbbrev(departureHour.windDirectionDeg)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-2">
+                  <DayTabs
+                    days={forecastDays}
+                    value={departureDay.dateKey}
+                    onChange={(dateKey) => {
+                      setDepartureDayKey(dateKey);
+                      setDepartureHourIso(null);
+                    }}
+                  />
+                  <HourPicker
+                    hours={departureDay.hours}
+                    value={departureHour.atIso}
+                    onChange={setDepartureHourIso}
+                  />
                 </div>
               </div>
             )}
