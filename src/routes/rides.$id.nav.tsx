@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CheckCircle2,
+  CloudRain,
   Contrast,
   CornerDownLeft,
   CornerDownRight,
@@ -55,7 +56,14 @@ import {
   speak,
   speakableDistance,
 } from "@/lib/voice";
-import { formatTemperature, formatWindSpeed, useWeather, weatherInfo } from "@/lib/weather";
+import {
+  fetchHourlyWind,
+  findRainAlert,
+  formatTemperature,
+  formatWindSpeed,
+  useWeather,
+  weatherInfo,
+} from "@/lib/weather";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { useTheme } from "@/lib/theme";
 
@@ -198,6 +206,37 @@ function NavigatePage() {
     return start ? { lat: start.lat, lon: start.lon } : null;
   }, [fix, ride]);
   const { weather } = useWeather(weatherPosition);
+
+  // Rounded to ~1km so GPS jitter doesn't churn the query key — matches
+  // fetchHourlyWind's own internal cache granularity.
+  const rainForecastKey = weatherPosition
+    ? `${weatherPosition.lat.toFixed(2)},${weatherPosition.lon.toFixed(2)}`
+    : null;
+  const { data: hourlyRain } = useQuery({
+    queryKey: ["nav-rain-forecast", rainForecastKey],
+    queryFn: () => fetchHourlyWind(weatherPosition!.lat, weatherPosition!.lon, 1),
+    enabled: Boolean(weatherPosition),
+    staleTime: 15 * 60 * 1000,
+    refetchInterval: 15 * 60 * 1000,
+  });
+
+  const rainAlertedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    rainAlertedRef.current = new Set();
+  }, [ride?.id]);
+
+  useEffect(() => {
+    if (finished || !hourlyRain) return;
+    const alert = findRainAlert(hourlyRain, Date.now(), rainAlertedRef.current);
+    if (!alert) return;
+    rainAlertedRef.current = new Set(rainAlertedRef.current).add(alert.key);
+    const message =
+      alert.minutesAway <= 5
+        ? "Rain is starting"
+        : `Rain expected in about ${alert.minutesAway} min`;
+    toast(message, { icon: <CloudRain className="size-4" /> });
+    if (voiceEnabled) speak(message);
+  }, [hourlyRain, finished, voiceEnabled]);
 
   // Direction of travel: the route itself is steadier than live GPS heading,
   // which is often null or noisy at cycling speeds.
