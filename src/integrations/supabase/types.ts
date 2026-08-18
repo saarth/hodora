@@ -144,17 +144,21 @@ export type Database = {
         Row: {
           ascent_m: number;
           created_at: string;
+          cues: Json;
           descent_m: number;
           description: string | null;
           difficulty: string | null;
           distance_m: number;
           id: string;
+          is_recorded: boolean;
           max_lat: number | null;
           max_lon: number | null;
           min_lat: number | null;
           min_lon: number | null;
           name: string;
           notes: Json;
+          plan_profile: string | null;
+          plan_waypoints: Json | null;
           points: Json;
           source_filename: string | null;
           surface: string | null;
@@ -164,17 +168,21 @@ export type Database = {
         Insert: {
           ascent_m?: number;
           created_at?: string;
+          cues?: Json;
           descent_m?: number;
           description?: string | null;
           difficulty?: string | null;
           distance_m?: number;
           id?: string;
+          is_recorded?: boolean;
           max_lat?: number | null;
           max_lon?: number | null;
           min_lat?: number | null;
           min_lon?: number | null;
           name: string;
           notes?: Json;
+          plan_profile?: string | null;
+          plan_waypoints?: Json | null;
           points?: Json;
           source_filename?: string | null;
           surface?: string | null;
@@ -184,17 +192,21 @@ export type Database = {
         Update: {
           ascent_m?: number;
           created_at?: string;
+          cues?: Json;
           descent_m?: number;
           description?: string | null;
           difficulty?: string | null;
           distance_m?: number;
           id?: string;
+          is_recorded?: boolean;
           max_lat?: number | null;
           max_lon?: number | null;
           min_lat?: number | null;
           min_lon?: number | null;
           name?: string;
           notes?: Json;
+          plan_profile?: string | null;
+          plan_waypoints?: Json | null;
           points?: Json;
           source_filename?: string | null;
           surface?: string | null;

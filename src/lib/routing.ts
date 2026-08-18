@@ -5,6 +5,7 @@
  * (two points, speed matters more than profile choice).
  */
 import { haversine } from "./gpx";
+import { osrmDirection, type RideCue } from "./cues";
 
 export type LatLon = { lat: number; lon: number };
 
@@ -42,28 +43,71 @@ function toPath(coords: [number, number][]): LatLon[] {
   return coords.map(([lon, lat]) => ({ lat, lon }));
 }
 
-/** Routes through every waypoint in order via the public OSRM bike server. */
+/**
+ * Walks an OSRM route's legs/steps into a flat cue list with cumulative
+ * distance offsets, so multi-waypoint routes get one continuous instruction
+ * list instead of restarting at zero for every leg. A step's `maneuver`
+ * happens at the start of that step, so the running offset *before* adding
+ * the step's own distance is exactly where the instruction applies.
+ */
+function parseOsrmSteps(route: {
+  legs?: {
+    steps?: { distance?: number; name?: string; maneuver?: { type?: string; modifier?: string } }[];
+  }[];
+}): RideCue[] {
+  const cues: RideCue[] = [];
+  let offsetM = 0;
+  for (const leg of route.legs ?? []) {
+    for (const step of leg.steps ?? []) {
+      if (step.maneuver) {
+        cues.push({
+          atM: offsetM,
+          direction: osrmDirection(step.maneuver.type ?? "", step.maneuver.modifier ?? null),
+          name: step.name?.trim() || null,
+        });
+      }
+      offsetM += Number(step.distance) || 0;
+    }
+  }
+  return cues;
+}
+
+/** Routes through every waypoint in order via the public OSRM bike server, capturing turn-by-turn step instructions along the way. */
 export async function fetchOsrmRoute(
   points: LatLon[],
   signal: AbortSignal,
-): Promise<{ path: LatLon[]; distanceM: number }> {
+): Promise<{ path: LatLon[]; distanceM: number; cues: RideCue[] }> {
   const coords = points.map((p) => `${p.lon},${p.lat}`).join(";");
-  const response = await fetch(`${OSRM_BIKE}/${coords}?overview=full&geometries=geojson`, {
-    signal,
-  });
+  const response = await fetch(
+    `${OSRM_BIKE}/${coords}?overview=full&geometries=geojson&steps=true`,
+    { signal },
+  );
   if (!response.ok) throw new Error(`OSRM ${response.status}`);
   const data = await response.json();
-  const coordinates = data?.routes?.[0]?.geometry?.coordinates;
+  const route = data?.routes?.[0];
+  const coordinates = route?.geometry?.coordinates;
   if (!Array.isArray(coordinates) || coordinates.length < 2) throw new Error("OSRM: no geometry");
-  return { path: toPath(coordinates), distanceM: Number(data.routes[0].distance) || 0 };
+  return {
+    path: toPath(coordinates),
+    distanceM: Number(route.distance) || 0,
+    cues: parseOsrmSteps(route),
+  };
 }
 
-/** Routes through every waypoint in order via BRouter, respecting the chosen cycling profile. */
+/**
+ * Routes through every waypoint in order via BRouter, respecting the chosen
+ * cycling profile. Doesn't return `cues`: BRouter's public server has no
+ * documented, stable step-instruction format to parse (unlike OSRM's
+ * `steps=true`), so a route that comes back from here falls back to
+ * geometry-detected turns for its cue sheet (see `buildCueSheet` in
+ * cues.ts) instead of risking a silently-wrong parse of an undocumented
+ * field.
+ */
 export async function fetchBrouterRoute(
   points: LatLon[],
   profile: BikeProfile,
   signal: AbortSignal,
-): Promise<{ path: LatLon[]; distanceM: number }> {
+): Promise<{ path: LatLon[]; distanceM: number; cues: RideCue[] }> {
   const lonlats = points.map((p) => `${p.lon},${p.lat}`).join("|");
   const url = `${brouterBaseUrl()}?lonlats=${lonlats}&profile=${profile}&alternativeidx=0&format=geojson`;
   const response = await fetch(url, { signal });
@@ -74,7 +118,7 @@ export async function fetchBrouterRoute(
     throw new Error("BRouter: no geometry");
   const path = toPath(coordinates.map((c: number[]) => [c[0], c[1]] as [number, number]));
   const declared = Number(data.features[0]?.properties?.["track-length"]);
-  return { path, distanceM: Number.isFinite(declared) ? declared : pathLengthM(path) };
+  return { path, distanceM: Number.isFinite(declared) ? declared : pathLengthM(path), cues: [] };
 }
 
 export type RoutedPath = {
@@ -84,10 +128,12 @@ export type RoutedPath = {
   distanceM: number;
   /** true when the geometry comes from a cycling router, false for the straight-line fallback */
   routed: boolean;
+  /** turn-by-turn step instructions the router provided, if any — see fetchOsrmRoute/fetchBrouterRoute */
+  cues: RideCue[];
 };
 
 function straightLineFallback(points: LatLon[]): RoutedPath {
-  return { path: points, distanceM: pathLengthM(points), routed: false };
+  return { path: points, distanceM: pathLengthM(points), routed: false, cues: [] };
 }
 
 /**

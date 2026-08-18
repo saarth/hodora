@@ -9,6 +9,8 @@ export type RidePoint = {
   d: number;
   /** true if this point starts a new `<trkseg>` — a real gap precedes it (e.g. a ferry crossing removed from the recording) */
   gap?: boolean;
+  /** elapsed seconds since the start of the recording — only set for rides captured live via /record */
+  t?: number;
 };
 
 /** Splits points into contiguous runs, breaking wherever a point has `gap: true`. */
