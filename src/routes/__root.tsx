@@ -83,22 +83,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "Hodora — Ride your GPX routes" },
+      { title: "Hodora — GPX navigation for club rides & bike events" },
       {
         name: "description",
         content:
-          "Import GPX files, see distance and climbing at a glance, then ride with live turn-by-turn navigation and off-route alerts.",
+          "Free GPX bike navigation for club rides and cycling events — no dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
       },
-      { property: "og:title", content: "Hodora — Ride your GPX routes" },
+      { property: "og:title", content: "Hodora — GPX navigation for club rides & bike events" },
       {
         property: "og:description",
-        content: "Import GPX files, see distance and climbing at a glance, then ride with live turn-by-turn navigation and off-route alerts.",
+        content:
+          "Free GPX bike navigation for club rides and cycling events — no dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Hodora" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Hodora — Ride your GPX routes" },
-      { name: "twitter:description", content: "Import GPX files, see distance and climbing at a glance, then ride with live turn-by-turn navigation and off-route alerts." },
+      { name: "twitter:title", content: "Hodora — GPX navigation for club rides & bike events" },
+      {
+        name: "twitter:description",
+        content:
+          "Free GPX bike navigation for club rides and cycling events — no dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
+      },
       { property: "og:image", content: "https://hodora.app/og-image.png" },
       { name: "twitter:image", content: "https://hodora.app/og-image.png" },
     ],
@@ -115,7 +120,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/icon-192.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
     ],
-
   }),
   shellComponent: RootShell,
   component: RootComponent,

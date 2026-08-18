@@ -7,7 +7,7 @@ export const pwaManifest = {
   name: "Hodora — GPX bike navigation",
   short_name: "Hodora",
   description:
-    "Import GPX routes and ride them with live turn-by-turn navigation, offline maps and elevation profiles.",
+    "Free GPX turn-by-turn navigation for club rides and cycling events — no dedicated bike computer, no subscription.",
   theme_color: "#1F3A2E",
   background_color: "#152A21",
   display: "standalone",
