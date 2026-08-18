@@ -17,14 +17,18 @@ import {
   Navigation,
   StickyNote,
   TriangleAlert,
+  Volume2,
+  VolumeX,
   Wind,
 } from "lucide-react";
 import { toast } from "sonner";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
+import { SpeedHistoryChart, type SpeedSample } from "@/components/SpeedHistoryChart";
 import { WeatherGlyph } from "@/components/WeatherGlyph";
 import { Button } from "@/components/ui/button";
-import { bearing, formatDistance, formatElevation, formatSpeed } from "@/lib/gpx";
+import { buildCueSheet, cueText, nearestCueName } from "@/lib/cues";
+import { bearing, formatDistance, formatDuration, formatElevation, formatSpeed } from "@/lib/gpx";
 import {
   compassAbbrev,
   compassLabel,
@@ -43,6 +47,14 @@ import {
 } from "@/lib/nav";
 import { useRejoinRoute } from "@/lib/rejoin";
 import { fetchProfile, fetchRide, ridesKeys } from "@/lib/rides";
+import {
+  getVoicePreference,
+  isVoiceSupported,
+  nextTurnAnnouncement,
+  setVoicePreference,
+  speak,
+  speakableDistance,
+} from "@/lib/voice";
 import { formatTemperature, formatWindSpeed, useWeather, weatherInfo } from "@/lib/weather";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { useTheme } from "@/lib/theme";
@@ -96,6 +108,11 @@ function NavigatePage() {
   const [highContrast, setHighContrast] = useState(
     () => window.localStorage.getItem(HC_STORAGE_KEY) === "1",
   );
+  const [voiceEnabled, setVoiceEnabled] = useState(() => getVoicePreference());
+  const [speedHistory, setSpeedHistory] = useState<SpeedSample[]>([]);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [avgSpeedMps, setAvgSpeedMps] = useState<number | null>(null);
+  const [etaLabel, setEtaLabel] = useState("—");
   const { theme } = useTheme();
   const [fitTo, setFitTo] = useState<{
     coords: { lat: number; lon: number }[];
@@ -166,6 +183,12 @@ function NavigatePage() {
   );
 
   const turn = useMemo(() => (snap ? nextTurn(turns, snap.progressM) : null), [snap, turns]);
+  const turnDistanceM = turn && snap ? Math.max(0, turn.at - snap.progressM) : null;
+
+  // Full cue sheet (falls back to detectTurns-derived turns when the ride
+  // has no router-provided cues) — used only to enrich a voice announcement
+  // with a street name when one is close enough to the turn being detected.
+  const cueSheet = useMemo(() => (ride ? buildCueSheet(ride.points, ride.cues) : []), [ride]);
 
   // Live position when we have a GPS fix, otherwise the route's start — so
   // conditions are visible even before location is granted or locked in.
@@ -222,6 +245,87 @@ function NavigatePage() {
       navigator.vibrate([120, 60, 120]);
   }, [ride, snap, finished]);
 
+  // Elapsed time / speed history: started from the first GPS fix (not page
+  // load), so a rider who takes a minute to get moving doesn't see average
+  // speed/ETA skewed by dead time before the ride actually started.
+  const startTimeRef = useRef<number | null>(null);
+  const lastSampleAtSecRef = useRef(-Infinity);
+  useEffect(() => {
+    startTimeRef.current = null;
+    lastSampleAtSecRef.current = -Infinity;
+    // Resets the ride-clock state for a fresh ride id — not a value derived
+    // from props/state, so there's no callback to move this into.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSpeedHistory([]);
+    setElapsedSec(0);
+    setAvgSpeedMps(null);
+    setEtaLabel("—");
+  }, [ride?.id]);
+
+  // Elapsed time / average speed / ETA all read Date.now() and a ref, which
+  // aren't allowed during render (they'd make the render impure) — computed
+  // here instead and pushed into state for the JSX below to read.
+  useEffect(() => {
+    if (!fix) return;
+    if (startTimeRef.current === null) startTimeRef.current = Date.now();
+    const nowMs = Date.now();
+    const elapsed = (nowMs - startTimeRef.current) / 1000;
+    setElapsedSec(elapsed);
+
+    const avg = snap && elapsed > 10 ? snap.progressM / elapsed : null;
+    setAvgSpeedMps(avg);
+
+    const remaining = ride ? Math.max(0, ride.distance_m - (snap?.progressM ?? 0)) : 0;
+    const eta = avg && avg > 0.3 ? remaining / avg : null;
+    setEtaLabel(
+      eta != null
+        ? new Date(nowMs + eta * 1000).toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          })
+        : "—",
+    );
+
+    if (fix.speed == null) return;
+    if (elapsed - lastSampleAtSecRef.current < 5) return;
+    lastSampleAtSecRef.current = elapsed;
+    setSpeedHistory((prev) => {
+      const next = [...prev, { tSec: elapsed, speedMps: fix.speed ?? 0 }];
+      // Halve resolution once the buffer gets long, so an hours-long ride
+      // doesn't grow the sample array (and the chart's render cost)
+      // unbounded — still covers the whole ride, just at coarser detail.
+      return next.length > 240 ? next.filter((_, i) => i % 2 === 0) : next;
+    });
+  }, [fix, snap, ride]);
+
+  // Voice turn announcements: fires once per distance threshold per turn
+  // (see nextTurnAnnouncement's doc comment), enriched with a street name
+  // from the cue sheet when the router provided one close enough to this
+  // turn to plausibly be the same one.
+  const announcedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    announcedRef.current = new Set();
+  }, [ride?.id]);
+
+  useEffect(() => {
+    if (!voiceEnabled || finished || !turn || turnDistanceM === null) return;
+    const next = nextTurnAnnouncement(turn.index, turnDistanceM, announcedRef.current);
+    if (!next) return;
+    announcedRef.current = new Set(announcedRef.current).add(next.key);
+    const name = nearestCueName(cueSheet, turn.at);
+    speak(`In ${speakableDistance(next.thresholdM, metric)}, ${cueText(turn.direction, name)}`);
+  }, [voiceEnabled, finished, turn, turnDistanceM, cueSheet, metric]);
+
+  const announcedFinishRef = useRef(false);
+  useEffect(() => {
+    announcedFinishRef.current = false;
+  }, [ride?.id]);
+  useEffect(() => {
+    if (!voiceEnabled || !finished || announcedFinishRef.current) return;
+    announcedFinishRef.current = true;
+    speak("You've arrived at your destination");
+  }, [voiceEnabled, finished]);
+
   useWakeLock(Boolean(ride) && !finished);
 
   // Apply the nav-only high-contrast palette directly to <html>, alongside
@@ -249,7 +353,8 @@ function NavigatePage() {
   const remainingM = Math.max(0, ride.distance_m - (snap?.progressM ?? 0));
   const grade = snap ? upcomingGrade(ride.points, snap.index) : 0;
   const climbLeft = snap ? remainingAscent(ride.points, snap.index) : ride.ascent_m;
-  const turnDistance = turn && snap ? Math.max(0, turn.at - snap.progressM) : null;
+  const turnDistance = turnDistanceM;
+
   // Direction to start riding: along the cycling path when we have one.
   const rejoinStep = rejoinRoute?.path?.[1] ?? (snap ? { lat: snap.lat, lon: snap.lon } : null);
   const rejoinBearing =
@@ -368,6 +473,27 @@ function NavigatePage() {
 
         <div className="flex min-h-0 flex-col gap-3">
           <div className="pointer-events-auto flex shrink-0 justify-end gap-2">
+            {isVoiceSupported() && (
+              <Button
+                variant={voiceEnabled ? "default" : "secondary"}
+                size="sm"
+                className={voiceEnabled ? "" : "glass"}
+                onClick={() => {
+                  setVoiceEnabled((value) => {
+                    const next = !value;
+                    setVoicePreference(next);
+                    return next;
+                  });
+                }}
+                aria-label={
+                  voiceEnabled ? "Turn off voice announcements" : "Turn on voice announcements"
+                }
+                aria-pressed={voiceEnabled}
+              >
+                {voiceEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+                Voice
+              </Button>
+            )}
             <Button
               variant={highContrast ? "default" : "secondary"}
               size="sm"
@@ -536,6 +662,15 @@ function NavigatePage() {
                       />
                     </div>
 
+                    <div className="mt-2 grid grid-cols-3 gap-2 border-t border-border pt-3">
+                      <Metric label="Elapsed" value={formatDuration(elapsedSec)} />
+                      <Metric
+                        label="Avg speed"
+                        value={avgSpeedMps != null ? formatSpeed(avgSpeedMps, metric) : "—"}
+                      />
+                      <Metric label="ETA" value={etaLabel} />
+                    </div>
+
                     <div className="mt-3">
                       <ElevationChart
                         points={ride.points}
@@ -544,6 +679,15 @@ function NavigatePage() {
                         height={70}
                       />
                     </div>
+
+                    {speedHistory.length > 1 && (
+                      <div className="mt-2">
+                        <p className="mb-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+                          Speed
+                        </p>
+                        <SpeedHistoryChart samples={speedHistory} metric={metric} height={56} />
+                      </div>
+                    )}
                   </div>
                 </>
               )}

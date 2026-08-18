@@ -153,3 +153,27 @@ export function buildCueSheet(points: RidePoint[], storedCues: RideCue[] = []): 
 export function hasRouterCues(cues: RideCue[] | null | undefined): boolean {
   return Boolean(cues && cues.length > 0);
 }
+
+/**
+ * The name of the cue sheet entry closest to `atM`, within `toleranceM` —
+ * used to enrich a live turn-by-turn detection (which only knows geometry,
+ * not street names) with a name from the router-provided cue sheet when one
+ * is close enough to plausibly be the same turn. Returns null both when
+ * nothing is close enough and when the closest entry has no name.
+ */
+export function nearestCueName(
+  entries: CueSheetEntry[],
+  atM: number,
+  toleranceM = 25,
+): string | null {
+  let best: CueSheetEntry | null = null;
+  let bestDist = Infinity;
+  for (const entry of entries) {
+    const dist = Math.abs(entry.atM - atM);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = entry;
+    }
+  }
+  return best && bestDist <= toleranceM ? best.name : null;
+}
