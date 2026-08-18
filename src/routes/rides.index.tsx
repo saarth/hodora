@@ -41,6 +41,7 @@ export const Route = createFileRoute("/rides/")({
       },
       { property: "og:title", content: "My rides — Hodora" },
       { property: "og:description", content: "Your imported GPX bike routes, ready to navigate." },
+      { name: "robots", content: "noindex, follow" },
     ],
   }),
   component: RidesPage,

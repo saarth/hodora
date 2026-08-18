@@ -19,23 +19,22 @@ import {
   type RoutedPath,
 } from "@/lib/routing";
 
+const TITLE = "Bike Route Planner — Plan Cycle Routes on the Map | Hodora";
+const DESCRIPTION =
+  "Free bike route planner. Tap the map to plan a cycle route, routed over real roads and paths with OpenStreetMap data, then save it for turn-by-turn navigation.";
+
 export const Route = createFileRoute("/plan")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Plan a route — Hodora" },
-      {
-        name: "description",
-        content:
-          "Tap the map to build a bike route, routed over real roads and paths with OpenStreetMap data, then save it to your rides.",
-      },
-      { property: "og:title", content: "Plan a route — Hodora" },
-      {
-        property: "og:description",
-        content: "Build a cycling route point by point and save it for turn-by-turn navigation.",
-      },
+      { title: TITLE },
+      { name: "description", content: DESCRIPTION },
+      { property: "og:title", content: TITLE },
+      { property: "og:description", content: DESCRIPTION },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://hodora.app/plan" },
     ],
+    links: [{ rel: "canonical", href: "https://hodora.app/plan" }],
   }),
   component: PlanPage,
 });

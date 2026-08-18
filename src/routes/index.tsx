@@ -25,22 +25,39 @@ function AndroidIcon({ className }: { className?: string }) {
   );
 }
 
+const TITLE = "Hodora — Free GPX Viewer & Bike Route Planner";
+const DESCRIPTION =
+  "Free GPX viewer and bike route planner. Import GPX routes, plan cycle routes on the map, and ride with live turn-by-turn navigation — online or offline.";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Hodora — Ride your GPX routes" },
+      { title: TITLE },
+      { name: "description", content: DESCRIPTION },
+      { property: "og:title", content: TITLE },
+      { property: "og:description", content: DESCRIPTION },
+      { property: "og:url", content: "https://hodora.app/" },
       {
-        name: "description",
-        content:
-          "Import GPX files, see distance and climbing at a glance, then ride with live turn-by-turn navigation and off-route alerts.",
-      },
-      { property: "og:title", content: "Hodora — Ride your GPX routes" },
-      {
-        property: "og:description",
-        content:
-          "Import GPX files, see distance and climbing at a glance, then ride with live turn-by-turn navigation and off-route alerts.",
+        "script:ld+json": {
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          name: "Hodora",
+          url: "https://hodora.app/",
+          description: DESCRIPTION,
+          applicationCategory: "TravelApplication",
+          operatingSystem: "Web, Android",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          featureList: [
+            "GPX viewer",
+            "Bike route planner",
+            "Cycle route planner",
+            "Turn-by-turn navigation",
+            "Offline maps and routes",
+          ],
+        },
       },
     ],
+    links: [{ rel: "canonical", href: "https://hodora.app/" }],
   }),
   component: Landing,
 });
@@ -131,6 +148,44 @@ function Landing() {
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{feature.body}</p>
             </article>
           ))}
+        </section>
+
+        <section className="mt-20 grid gap-8 sm:grid-cols-3">
+          <div>
+            <h2 className="text-lg font-bold">A free GPX viewer, built for riding</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Import a GPX file from Komoot, Strava or Ride with GPS and Hodora shows the route on
+              an interactive map with distance, elevation and total climbing at a glance.
+            </p>
+          </div>
+          <div>
+            <h2 className="text-lg font-bold">
+              <Link to="/plan" className="hover:text-primary">
+                Bike route planner
+              </Link>
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Tap the map to{" "}
+              <Link to="/plan" className="underline underline-offset-2 hover:text-primary">
+                plan a cycle route
+              </Link>{" "}
+              routed over real roads and paths with OpenStreetMap data, then save it and ride it
+              turn by turn.
+            </p>
+          </div>
+          <div>
+            <h2 className="text-lg font-bold">
+              <Link to="/explore" className="hover:text-primary">
+                Cycle routes near you
+              </Link>
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              <Link to="/explore" className="underline underline-offset-2 hover:text-primary">
+                Explore bike trails and mountain bike routes near me
+              </Link>{" "}
+              from OpenStreetMap, or generate a loop ride of any distance to discover new roads.
+            </p>
+          </div>
         </section>
 
         <footer className="mt-24 border-t border-border pt-8">

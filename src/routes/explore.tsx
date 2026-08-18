@@ -27,25 +27,23 @@ import {
 import { createRide } from "@/lib/rides";
 import { cn } from "@/lib/utils";
 
+const TITLE = "Bike Trails Near Me — Explore Cycle Routes | Hodora";
+const DESCRIPTION =
+  "Find bike trails and cycle routes near you from OpenStreetMap, or generate a loop ride of any distance. Discover mountain bike trails and cycling routes nearby, then save and navigate them.";
+
 export const Route = createFileRoute("/explore")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Explore routes near you — Hodora" },
-      {
-        name: "description",
-        content:
-          "Discover signposted cycle routes around you from OpenStreetMap, or generate a loop ride of any length, then save it to your rides.",
-      },
-      { property: "og:title", content: "Explore routes near you — Hodora" },
-      {
-        property: "og:description",
-        content:
-          "Find nearby cycle networks and generated loop rides, then save them and navigate turn by turn.",
-      },
+      { title: TITLE },
+      { name: "description", content: DESCRIPTION },
+      { property: "og:title", content: TITLE },
+      { property: "og:description", content: DESCRIPTION },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://hodora.app/explore" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://hodora.app/explore" }],
   }),
   component: ExplorePage,
 });

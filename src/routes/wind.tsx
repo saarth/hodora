@@ -25,13 +25,15 @@ export const Route = createFileRoute("/wind")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Wind planner — Hodora" },
+      { title: "Wind Planner — Best Time to Ride | Hodora" },
       {
         name: "description",
         content:
-          "Browse your saved routes with a wind-aware forecast: tailwind/headwind mix and a wind score for any hour ahead.",
+          "Browse your saved bike routes with a wind-aware forecast: tailwind/headwind mix and a wind score for any hour ahead, so you can pick the best time to ride.",
       },
+      { property: "og:url", content: "https://hodora.app/wind" },
     ],
+    links: [{ rel: "canonical", href: "https://hodora.app/wind" }],
   }),
   component: WindPlannerPage,
 });
