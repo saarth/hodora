@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
   AlertTriangle,
+  BatteryLow,
   Cloud,
   Loader2,
   Mail,
@@ -45,6 +46,7 @@ import {
   updatePassword,
   updateProfile,
 } from "@/lib/account";
+import { getLowPowerMode, setLowPowerMode } from "@/lib/low-power";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import {
@@ -275,6 +277,9 @@ function SettingsPage() {
   const queryClient = useQueryClient();
   const { user } = useUser();
   const { mode, setMode } = useTheme();
+  // Lazy initializer, not an effect: this route's parent layout is
+  // ssr:false (client-only), so localStorage is always available here.
+  const [lowPower, setLowPower] = useState(() => getLowPowerMode());
 
   const { data: profile } = useQuery({ queryKey: ridesKeys.profile, queryFn: fetchProfile });
 
@@ -577,6 +582,39 @@ function SettingsPage() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="mt-4 flex items-start justify-between gap-4 border-t border-border pt-4">
+              <div>
+                <p className="flex items-center gap-1.5 text-sm font-semibold">
+                  <BatteryLow className="size-4 text-muted-foreground" />
+                  Low-power mode
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Reduces GPS and weather-refresh frequency during navigation and recording to save
+                  battery on long rides — location and recorded tracks may be a little less precise.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={lowPower}
+                onClick={() => {
+                  const next = !lowPower;
+                  setLowPower(next);
+                  setLowPowerMode(next);
+                }}
+                className={cn(
+                  "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+                  lowPower ? "bg-primary" : "bg-secondary",
+                )}
+              >
+                <span
+                  className={cn(
+                    "absolute top-0.5 size-5 rounded-full bg-background shadow transition-transform",
+                    lowPower ? "translate-x-[22px]" : "translate-x-0.5",
+                  )}
+                />
+              </button>
             </div>
           </Section>
 

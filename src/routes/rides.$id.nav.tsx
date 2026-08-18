@@ -46,6 +46,7 @@ import {
   windRelativeAngle,
   type Snap,
 } from "@/lib/nav";
+import { geolocationOptions, getLowPowerMode, weatherPollOptions } from "@/lib/low-power";
 import { useRejoinRoute } from "@/lib/rejoin";
 import { fetchProfile, fetchRide, ridesKeys } from "@/lib/rides";
 import {
@@ -117,6 +118,7 @@ function NavigatePage() {
     () => window.localStorage.getItem(HC_STORAGE_KEY) === "1",
   );
   const [voiceEnabled, setVoiceEnabled] = useState(() => getVoicePreference());
+  const [lowPower] = useState(() => getLowPowerMode());
   const [speedHistory, setSpeedHistory] = useState<SpeedSample[]>([]);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [avgSpeedMps, setAvgSpeedMps] = useState<number | null>(null);
@@ -147,12 +149,12 @@ function NavigatePage() {
         });
       },
       (error) => setGeoError(error.message || "Location unavailable."),
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 },
+      geolocationOptions(lowPower),
     );
     return () => {
       if (watchRef.current !== null) navigator.geolocation.clearWatch(watchRef.current);
     };
-  }, []);
+  }, [lowPower]);
 
   const turns = useMemo(() => (ride ? detectTurns(ride.points) : []), [ride]);
 
@@ -205,7 +207,7 @@ function NavigatePage() {
     const start = ride?.points[0];
     return start ? { lat: start.lat, lon: start.lon } : null;
   }, [fix, ride]);
-  const { weather } = useWeather(weatherPosition);
+  const { weather } = useWeather(weatherPosition, weatherPollOptions(lowPower));
 
   // Rounded to ~1km so GPS jitter doesn't churn the query key — matches
   // fetchHourlyWind's own internal cache granularity.

@@ -28,6 +28,7 @@ import {
   type RawTrackPoint,
   type RidePoint,
 } from "@/lib/gpx";
+import { geolocationOptions, getLowPowerMode } from "@/lib/low-power";
 import { acceptRecordingFix } from "@/lib/record";
 import { createRide, fetchProfile, ridesKeys } from "@/lib/rides";
 import { useWakeLock } from "@/hooks/use-wake-lock";
@@ -65,6 +66,7 @@ function RecordPage() {
   const [rawPoints, setRawPoints] = useState<RawTrackPoint[]>([]);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [name, setName] = useState("");
+  const [lowPower] = useState(() => getLowPowerMode());
 
   const watchRef = useRef<number | null>(null);
   const startMsRef = useRef<number | null>(null);
@@ -113,12 +115,12 @@ function RecordPage() {
         );
       },
       (error) => setGeoError(error.message || "Location unavailable."),
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 },
+      geolocationOptions(lowPower),
     );
     return () => {
       if (watchRef.current !== null) navigator.geolocation.clearWatch(watchRef.current);
     };
-  }, [isTracking]);
+  }, [isTracking, lowPower]);
 
   const live = useMemo(() => {
     let distanceM = 0;
