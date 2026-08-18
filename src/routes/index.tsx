@@ -107,7 +107,7 @@ function Landing() {
             For club rides &amp; bike events
           </p>
           <h1 className="mt-5 max-w-2xl text-4xl font-extrabold leading-[1.05] sm:text-6xl">
-            Your club run,{" "}
+            Your club ride,{" "}
             <span className="font-serif font-normal italic text-rust">navigated properly</span>.
           </h1>
           <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
