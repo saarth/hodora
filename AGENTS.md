@@ -144,3 +144,22 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   needs that (e.g. alerts with the app closed), that's a much bigger addition
   — a foreground Android service, a persistent notification, battery-exemption
   UX — and deserves its own design pass rather than retrofitting this one.
+- **Background navigation** (turn-by-turn guidance, rain alerts, voice
+  announcements, etc. continuing once the rider backgrounds the app or locks
+  the screen) is out of scope for the same reason as proximity alerts above,
+  and was deliberately not attempted as part of adding voice
+  announcements/rain alerts/ride recording — all of those still only run on
+  the foreground `watchPosition` stream. Every location-driven feature in
+  this app stops when the tab is backgrounded (mobile browsers throttle or
+  fully suspend JS timers/geolocation callbacks once hidden), which
+  `useWakeLock` only papers over by trying to keep the screen itself on.
+  Implementing real background navigation means the same native
+  foreground-service/persistent-notification/battery-exemption work called
+  out above, this time for a screen the rider actively expects to keep
+  guiding them with the phone in a pocket or the screen off — a native
+  Capacitor plugin (custom or e.g. `@capacitor-community/background-geolocation`),
+  new Android manifest permissions (`ACCESS_BACKGROUND_LOCATION`, a
+  foreground service type), and on-device testing this repo's automated
+  tooling can't do. Don't bolt a partial version of this onto the existing
+  web-only nav flow; it needs its own design pass and a real Android device
+  to validate against.
