@@ -4,13 +4,14 @@
 
 > **Note:** I've never written code before this project — Hodora is a personal, learn-by-doing effort. It's not professionally reviewed, so please don't assume production-grade quality. I'd genuinely welcome feedback, corrections, and suggestions from anyone more experienced — issues and PRs pointing out mistakes or better approaches are very much appreciated.
 
-Hodora is a modern, open-source GPX bike navigation app. Import your GPX routes, view them on an interactive map with elevation profiles, and ride them with live turn-by-turn navigation — even offline.
+Hodora is a modern, open-source GPX bike navigation app built for club rides, sportives and cycling events. Import the ride GPX and follow it with live turn-by-turn navigation, without buying a dedicated bike computer or paying for another app subscription.
 
-- **Import GPX routes** from your favorite route planners (Komoot, Strava, Ride with GPS, etc.)
+- **No bike computer, no subscription** — free and open-source, runs in your phone's browser or as an installable PWA
+- **Import GPX routes** from your favorite route planners (Komoot, Strava, Ride with GPS, etc.) or whatever your club/event organiser sends
 - **Plan a route** by tapping the map — routed over real roads and paths with OpenStreetMap data (BRouter/OSRM)
 - **Turn-by-turn navigation** with distance, grade, and turn prompts
 - **Live weather and wind** during navigation — temperature, conditions, and a headwind/tailwind call-out relative to your direction of travel
-- **Offline maps and routes** — save map tiles and GPX data to your device
+- **Offline maps and routes** — save map tiles and GPX data to your device, so a patchy signal on the club run doesn't lose your route
 - **Light and dark themes** inspired by Sleep for Android
 - **Cross-platform** — web app and installable PWA on any modern device
 
@@ -40,6 +41,7 @@ Hodora is a modern, open-source GPX bike navigation app. Import your GPX routes,
 > ```powershell
 > powershell -c "irm bun.sh/install.ps1 | iex"
 > ```
+>
 > Then close and reopen PowerShell. If you prefer npm, use the `npm` commands shown below instead of `bun`.
 
 ### 1. Clone the repo
@@ -139,7 +141,7 @@ generated from these in turn, not hand-edited.
 
 Android's adaptive icon (the launcher/app-list icon on API 26+, i.e.
 virtually every device in use) needs the mark and its background as
-*separate* layers rather than one flattened square — `assets/icon.png` alone
+_separate_ layers rather than one flattened square — `assets/icon.png` alone
 would get reused as both, doubling the background and, worse, leaving the
 default white square as the actual background since no color was specified.
 `assets/android-icon-foreground.svg` (the mark only, transparent) and
@@ -155,7 +157,7 @@ node scripts/fix-android-adaptive-icon.mjs
 
 The second command is required every time: `@capacitor/assets` always
 writes `mipmap-anydpi-v26/ic_launcher{,_round}.xml` with a 16.7% inset on
-*both* the foreground and background layers, but an inset background
+_both_ the foreground and background layers, but an inset background
 doesn't reach the edges of non-square masks (circle, squircle) — it leaves
 a visible transparent gap between the icon's rounded-square background and
 the mask boundary on the home screen/app list. The foreground should stay
@@ -225,7 +227,7 @@ OneDrive connections need their own OAuth credentials on top of that — see
 Settings → Connections lets a rider sync their routes to a cloud storage
 account as GPX files. Nextcloud works out of the box (it just needs a
 server URL, username, and app password from the rider). Google Drive and
-OneDrive are OAuth-based, so *you* (the person running this Hodora
+OneDrive are OAuth-based, so _you_ (the person running this Hodora
 instance) need to register an app with each provider once and put its
 credentials in your environment — riders never see or provide these, they
 just click "Connect".
@@ -299,6 +301,21 @@ vector tiles, not a port.) Get a free API key at
 [cloud.maptiler.com](https://cloud.maptiler.com/account/keys/) — the free
 tier is generous enough for personal/small-group self-hosting. Leave it
 unset to keep the raster basemap.
+
+### SEO defaults
+
+Hodora ships with basic SEO built in: a JSON-LD `WebApplication` block on
+the homepage, canonical and `og:url` tags on the public routes (`/`,
+`/plan`, `/explore`, `/wind`), and `public/sitemap.xml`. All of these are
+hardcoded to `https://hodora.app`, the project's official deployment, since
+they're not derived from an env var. If you're self-hosting a public-facing
+instance under your own domain and want search engines to index _your_
+instance correctly, update the `TITLE`/`DESCRIPTION`/canonical constants in
+each route's `head()` (`src/routes/index.tsx`, `plan.tsx`, `explore.tsx`,
+`wind.tsx`), the `og:image`/`twitter:image` URLs and `og:site_name` in
+`src/routes/__root.tsx`, and the URLs in `public/sitemap.xml` and
+`public/robots.txt`. Account-only and per-user pages (`/auth`, `/rides`,
+`/share/$id`, etc.) are already marked `noindex` and don't need changes.
 
 ### Self-hosting with Docker (e.g. Unraid)
 

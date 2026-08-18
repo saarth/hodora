@@ -65,6 +65,18 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   The production service worker is generated *after* `vite build` — see the
   comment in `vite.config.ts`'s `VitePWA(...)` call for why, and
   `docs/CODE_REVIEW.md` for the full story if it regresses.
+- **SEO metadata is hardcoded to `hodora.app`.** Each public route's
+  `head()` (`src/routes/index.tsx`, `plan.tsx`, `explore.tsx`, `wind.tsx`)
+  sets a `TITLE`/`DESCRIPTION` pair plus a canonical `link` and `og:url`
+  pointing at `https://hodora.app/...`; the `og:image`/`twitter:image` URLs
+  and `og:site_name` in `src/routes/__root.tsx`, and every entry in
+  `public/sitemap.xml`, are hardcoded the same way rather than derived from
+  an env var — see "SEO defaults" in README.md if self-hosting under a
+  different domain. Private/per-user routes (`/auth`, `/reset-password`,
+  `/rides`, `/rides/$id`, `/share/$id`) set
+  `{ name: "robots", content: "noindex, follow" }` in their `head()` meta
+  instead of a canonical — follow that pattern for any new account-gated or
+  user-generated-content route rather than adding it to the sitemap.
 - **Row Level Security.** `rides` and `profiles` are both scoped to
   `auth.uid()` in `supabase/migrations/`. Any new table needs its own RLS
   policy before shipping — don't assume the client can be trusted to filter

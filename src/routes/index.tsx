@@ -25,9 +25,9 @@ function AndroidIcon({ className }: { className?: string }) {
   );
 }
 
-const TITLE = "Hodora — Free GPX Viewer & Bike Route Planner";
+const TITLE = "Hodora — Free GPX Navigation for Club Rides & Bike Events";
 const DESCRIPTION =
-  "Free GPX viewer and bike route planner. Import GPX routes, plan cycle routes on the map, and ride with live turn-by-turn navigation — online or offline.";
+  "Free GPX bike navigation for club rides and cycling events. No dedicated bike computer, no subscription. Import routes, plan them on the map, and ride turn-by-turn, even offline.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -53,6 +53,7 @@ export const Route = createFileRoute("/")({
             "Cycle route planner",
             "Turn-by-turn navigation",
             "Offline maps and routes",
+            "No dedicated bike computer or subscription required",
           ],
         },
       },
@@ -66,7 +67,7 @@ const features = [
   {
     icon: Upload,
     title: "Drop in a GPX",
-    body: "Import any route export — Komoot, Strava, RideWithGPS. Parsed on device in a second.",
+    body: "Import the route your club or event organiser sent, whether it's from Komoot, Strava or RideWithGPS. It parses on your phone in a second.",
   },
   {
     icon: Mountain,
@@ -76,7 +77,7 @@ const features = [
   {
     icon: Compass,
     title: "Turn-by-turn",
-    body: "Live GPS following with turn prompts, distance to go and an alert the moment you drift off route.",
+    body: "Live GPS following with turn prompts, distance to go, and an alert the moment you drift off route. It does everything a bike computer does, for free.",
   },
 ];
 
@@ -103,15 +104,16 @@ function Landing() {
 
         <section className="pt-16 sm:pt-24">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-rust">
-            GPX in. Ride out.
+            For club rides &amp; bike events
           </p>
           <h1 className="mt-5 max-w-2xl text-4xl font-extrabold leading-[1.05] sm:text-6xl">
-            Your bike routes,{" "}
+            Your club run,{" "}
             <span className="font-serif font-normal italic text-rust">navigated properly</span>.
           </h1>
           <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
-            Hodora turns a GPX file into a ride you can actually follow — distance, climbing, and
-            calm turn-by-turn guidance that keeps working when the road gets quiet.
+            Drop in the GPX for your club ride or next event and follow it with turn-by-turn
+            directions on your phone. No bike computer to buy, no subscription to pay for, and it's
+            free and open source.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button asChild size="lg" className="glow-ring">
@@ -152,10 +154,11 @@ function Landing() {
 
         <section className="mt-20 grid gap-8 sm:grid-cols-3">
           <div>
-            <h2 className="text-lg font-bold">A free GPX viewer, built for riding</h2>
+            <h2 className="text-lg font-bold">A free GPX viewer, built for club rides</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Import a GPX file from Komoot, Strava or Ride with GPS and Hodora shows the route on
-              an interactive map with distance, elevation and total climbing at a glance.
+              Import the organiser's GPX for your next club ride, sportive or event and Hodora shows
+              you the route on an interactive map, with distance, elevation and total climbing at a
+              glance. No bike computer required.
             </p>
           </div>
           <div>
@@ -191,8 +194,9 @@ function Landing() {
         <footer className="mt-24 border-t border-border pt-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <p className="max-w-md text-sm text-muted-foreground">
-              Hodora is a free, open-source GPX bike navigation app — no ads, no tracking. Built as
-              a learn-by-doing project, so feedback and contributions are very welcome.
+              Hodora is a free, open-source GPX bike navigation app for club rides and cycling
+              events. No ads, no tracking, no subscription. It's a learn-by-doing project, so
+              feedback and contributions are very welcome.
             </p>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <a
