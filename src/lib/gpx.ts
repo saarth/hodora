@@ -241,6 +241,23 @@ export function buildParsedRide(raw: RawTrackPoint[], nameFromFile: string): Par
   };
 }
 
+/**
+ * Total ascent/descent for a list of points that already have real elevation
+ * (a routed path with elevation from BRouter, a recorded ride) — same 0.5m
+ * noise threshold `buildParsedRide` uses, but without the smoothing/RDP
+ * pipeline that's only meaningful for raw, unrouted GPS elevation.
+ */
+export function computeAscentDescent(points: RidePoint[]): { ascentM: number; descentM: number } {
+  let ascentM = 0;
+  let descentM = 0;
+  for (let i = 1; i < points.length; i++) {
+    const delta = points[i].ele - points[i - 1].ele;
+    if (delta > 0.5) ascentM += delta;
+    else if (delta < -0.5) descentM += -delta;
+  }
+  return { ascentM, descentM };
+}
+
 /** Extracts raw track points and the `<name>` from GPX XML via the browser's `DOMParser`. Client-side only. */
 export function parseGpx(xml: string, fallbackName: string): ParsedRide {
   const doc = new DOMParser().parseFromString(xml, "application/xml");

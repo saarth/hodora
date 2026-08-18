@@ -7,7 +7,12 @@
 import { haversine } from "./gpx";
 import { osrmDirection, type RideCue } from "./cues";
 
-export type LatLon = { lat: number; lon: number };
+export type LatLon = {
+  lat: number;
+  lon: number;
+  /** elevation in meters, when the router's geometry included one (BRouter only — OSRM doesn't) */
+  ele?: number;
+};
 
 /** BRouter profile names, as accepted by the public/self-hosted BRouter server. */
 export type BikeProfile = "trekking" | "fastbike" | "safety";
@@ -39,8 +44,18 @@ export function pathLengthM(path: LatLon[]): number {
   return total;
 }
 
-function toPath(coords: [number, number][]): LatLon[] {
-  return coords.map(([lon, lat]) => ({ lat, lon }));
+/**
+ * Converts GeoJSON `[lon, lat]`/`[lon, lat, ele]` coordinate tuples to our
+ * point shape, keeping a 3rd (elevation) value when the router included one
+ * — BRouter's geojson track coordinates carry elevation this way; OSRM's
+ * don't, so its paths just come out with `ele` unset, same as before.
+ */
+function toPath(coords: number[][]): LatLon[] {
+  return coords.map(([lon, lat, ele]) => ({
+    lat,
+    lon,
+    ...(Number.isFinite(ele) ? { ele } : {}),
+  }));
 }
 
 /**
@@ -116,7 +131,7 @@ export async function fetchBrouterRoute(
   const coordinates = data?.features?.[0]?.geometry?.coordinates;
   if (!Array.isArray(coordinates) || coordinates.length < 2)
     throw new Error("BRouter: no geometry");
-  const path = toPath(coordinates.map((c: number[]) => [c[0], c[1]] as [number, number]));
+  const path = toPath(coordinates);
   const declared = Number(data.features[0]?.properties?.["track-length"]);
   return { path, distanceM: Number.isFinite(declared) ? declared : pathLengthM(path), cues: [] };
 }

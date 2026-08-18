@@ -2,8 +2,8 @@
  * Route discovery: finds signposted cycle routes from OpenStreetMap (Overpass)
  * and generates loop rides with a cycling router. All client side — no keys.
  */
-import { haversine, type RidePoint } from "./gpx";
-import { fetchOsrmRoute, pathLengthM, type LatLon } from "./routing";
+import { computeAscentDescent, haversine, type RidePoint } from "./gpx";
+import { fetchRoute, pathLengthM, type LatLon } from "./routing";
 
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
@@ -18,18 +18,25 @@ export type DiscoveredRoute = {
   subtitle: string;
   path: LatLon[];
   distanceM: number;
+  /** total climbing in meters, when the source had real elevation (generated loops via BRouter) — 0 for signposted OSM routes, which have none */
+  ascentM: number;
 };
 
 export { pathLengthM };
 
-/** Convert a discovered path into ride points (flat elevation — OSM has none). */
+/**
+ * Convert a discovered path into ride points. Elevation comes from the path
+ * itself when the router provided one (BRouter-routed loops); signposted
+ * OSM routes from Overpass have no elevation data at all, so they come out
+ * flat, same as before.
+ */
 export function toRidePoints(path: LatLon[]): RidePoint[] {
   let d = 0;
   return path.map((point, index) => {
     if (index > 0) {
       d += haversine(path[index - 1].lat, path[index - 1].lon, point.lat, point.lon);
     }
-    return { lat: point.lat, lon: point.lon, ele: 0, d };
+    return { lat: point.lat, lon: point.lon, ele: point.ele ?? 0, d };
   });
 }
 
@@ -152,6 +159,7 @@ out geom 40;`;
         NETWORK_LABEL[network] ?? (tags["operator"] ? tags["operator"] : "Signposted cycle route"),
       path,
       distanceM,
+      ascentM: 0,
     });
   }
   return routes.sort((a, b) => b.distanceM - a.distanceM).slice(0, 12);
@@ -199,7 +207,16 @@ export async function generateLoops(
         offset(start, bearing + 240, radius),
         start,
       ];
-      const routed = await fetchOsrmRoute(waypoints, signal);
+      // BRouter first (its geometry carries elevation, unlike OSRM's) with
+      // OSRM as the automatic fallback fetchRoute already provides — same
+      // resilience as /plan, just without a profile choice to honor here.
+      // If both routers are down, fetchRoute would otherwise return a
+      // straight-line polygon instead of throwing — reject that explicitly
+      // so this bearing is dropped (via Promise.allSettled below) exactly
+      // like before, rather than showing a fake "loop" that ignores roads.
+      const routed = await fetchRoute(waypoints, { preferBrouter: true, signal });
+      if (!routed.routed) throw new Error("No route found for this bearing");
+      const { ascentM } = computeAscentDescent(toRidePoints(routed.path));
       return {
         id: `loop-${index}`,
         name: `${Math.round(routed.distanceM / 1000)} km loop · ${compass(bearing)}`,
@@ -207,6 +224,7 @@ export async function generateLoops(
         subtitle: "Generated loop from your start point",
         path: routed.path,
         distanceM: routed.distanceM,
+        ascentM,
       };
     }),
   );

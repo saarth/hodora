@@ -13,10 +13,11 @@ import {
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
+import { ElevationChart } from "@/components/ElevationChart";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDistance } from "@/lib/gpx";
+import { computeAscentDescent, formatDistance, formatElevation } from "@/lib/gpx";
 import {
   boundsOf,
   findNearbyRoutes,
@@ -137,12 +138,13 @@ function ExplorePage() {
   const saveMutation = useMutation({
     mutationFn: async (route: DiscoveredRoute) => {
       const ridePoints = toRidePoints(route.path);
+      const { ascentM, descentM } = computeAscentDescent(ridePoints);
       return createRide({
         name: route.name,
         sourceFilename: null,
         distanceM: route.distanceM,
-        ascentM: 0,
-        descentM: 0,
+        ascentM,
+        descentM,
         bounds: boundsOf(route.path),
         points: ridePoints,
       });
@@ -275,12 +277,16 @@ function ExplorePage() {
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{route.name}</span>
                         <span className="mt-1 block font-mono text-xs text-muted-foreground">
-                          {formatDistance(route.distanceM)} · {route.subtitle}
+                          {formatDistance(route.distanceM)}
+                          {route.ascentM > 0
+                            ? ` · ${formatElevation(route.ascentM)} up`
+                            : ""} · {route.subtitle}
                         </span>
                       </span>
                     </button>
                     {active && (
-                      <div className="mt-3 flex gap-2">
+                      <div className="mt-3 space-y-3">
+                        {route.ascentM > 0 && <ElevationChart points={points} height={90} />}
                         <Button
                           size="sm"
                           onClick={() => saveMutation.mutate(route)}

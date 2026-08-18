@@ -6,11 +6,12 @@ import { toast } from "sonner";
 import { Crosshair, Loader2, MapPin, Redo2, Route as RouteIcon, Save, Undo2 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
+import { ElevationChart } from "@/components/ElevationChart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { boundsOf, toRidePoints } from "@/lib/discover";
-import { formatDistance } from "@/lib/gpx";
+import { computeAscentDescent, formatDistance, formatElevation } from "@/lib/gpx";
 import { createRide, fetchRide, ridesKeys, updateRide } from "@/lib/rides";
 import {
   BIKE_PROFILES,
@@ -158,17 +159,20 @@ function PlanPage() {
     () => (routed && routed.path.length > 1 ? toRidePoints(routed.path) : []),
     [routed],
   );
+  const elevation = useMemo(() => computeAscentDescent(points), [points]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!routed || routed.path.length < 2) throw new Error("Add at least two points first");
+      const ridePoints = toRidePoints(routed.path);
+      const { ascentM, descentM } = computeAscentDescent(ridePoints);
       const input = {
         name: name.trim() || "Planned route",
         distanceM: routed.distanceM,
-        ascentM: 0,
-        descentM: 0,
+        ascentM,
+        descentM,
         bounds: boundsOf(routed.path),
-        points: toRidePoints(routed.path),
+        points: ridePoints,
         cues: routed.cues,
         planWaypoints: waypoints,
         planProfile: profile,
@@ -303,6 +307,7 @@ function PlanPage() {
                       <>
                         {" "}
                         · {formatDistance(routed.distanceM)}
+                        {elevation.ascentM > 0 ? ` · ${formatElevation(elevation.ascentM)} up` : ""}
                         {routing && <Loader2 className="ml-2 inline size-3.5 animate-spin" />}
                       </>
                     ) : null}
@@ -320,6 +325,17 @@ function PlanPage() {
                 </>
               )}
             </div>
+
+            {elevation.ascentM > 0 && (
+              <div className="surface p-4">
+                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Elevation
+                </span>
+                <div className="mt-3">
+                  <ElevationChart points={points} height={110} />
+                </div>
+              </div>
+            )}
 
             {points.length > 1 && (
               <div className="surface grid gap-3 p-4">
