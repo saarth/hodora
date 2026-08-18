@@ -551,10 +551,10 @@ function NavigatePage() {
               size="sm"
               className="glass"
               onClick={() => setAngled((value) => !value)}
-              aria-label={angled ? "Switch to birds-eye view" : "Switch to angled view"}
+              aria-label={angled ? "Switch to bird's-eye view" : "Switch to angled view"}
             >
               {angled ? <MapIcon className="size-4" /> : <Box className="size-4" />}
-              {angled ? "Birds-eye" : "Angled"}
+              {angled ? "Bird's-eye" : "Angled"}
             </Button>
             <Button
               size="icon"
@@ -607,7 +607,7 @@ function NavigatePage() {
                   {geoError && (
                     <div className="glass-faint flex items-center gap-2 rounded-xl p-2.5 text-xs text-destructive">
                       <TriangleAlert className="size-3.5 shrink-0" />
-                      {geoError} Allow location access to navigate.
+                      {geoError} — allow location access to navigate.
                     </div>
                   )}
 

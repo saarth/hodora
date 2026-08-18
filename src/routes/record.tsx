@@ -218,7 +218,7 @@ function RecordPage() {
         {geoError && (
           <div className="surface mt-6 flex items-center gap-2 border-destructive/30 p-3 text-sm text-destructive">
             <TriangleAlert className="size-4 shrink-0" />
-            {geoError} Allow location access to record a ride.
+            {geoError} — allow location access to record a ride.
           </div>
         )}
 

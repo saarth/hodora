@@ -131,7 +131,7 @@ function Landing() {
             <Button asChild size="lg" variant="outline">
               <a href={ANDROID_RELEASES_URL} target="_blank" rel="noreferrer">
                 <AndroidIcon className="size-4" />
-                Get Android app
+                Get the Android app
               </a>
             </Button>
             <span className="text-sm text-muted-foreground">
@@ -156,9 +156,9 @@ function Landing() {
           <div>
             <h2 className="text-lg font-bold">A free GPX viewer, built for club rides</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Import the organiser's GPX for your next club ride, sportive or event and Hodora shows
-              you the route on an interactive map, with distance, elevation and total climbing at a
-              glance. No bike computer required.
+              Import the organiser's GPX for your next club ride, sportive or event, and Hodora
+              shows you the route on an interactive map, with distance, elevation and total climbing
+              at a glance. No bike computer required.
             </p>
           </div>
           <div>
@@ -171,8 +171,8 @@ function Landing() {
               Tap the map to{" "}
               <Link to="/plan" className="underline underline-offset-2 hover:text-primary">
                 plan a cycle route
-              </Link>{" "}
-              routed over real roads and paths with OpenStreetMap data, then save it and ride it
+              </Link>
+              , routed over real roads and paths with OpenStreetMap data, then save it and ride it
               turn by turn.
             </p>
           </div>

@@ -141,7 +141,7 @@ function syncSummaryMessage(
   // sync run keeps calling the endpoint until the server reports nothing
   // left, so this means there's still unusually more work than that cap
   // covers, not a routine "come back later."
-  return hasMore ? `${base} — more still to sync, run "Sync now" again` : base;
+  return hasMore ? `${base} — there's more to sync, run "Sync now" again` : base;
 }
 
 const OAUTH_PROVIDER_LABEL: Record<OAuthProvider, string> = {
@@ -560,7 +560,7 @@ function SettingsPage() {
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    {unit === "metric" ? "Km / meters" : "Miles / feet"}
+                    {unit === "metric" ? "km / meters" : "Miles / feet"}
                   </button>
                 ))}
               </div>
