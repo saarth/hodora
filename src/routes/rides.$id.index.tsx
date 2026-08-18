@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  Coffee,
   Gauge,
   Layers,
   ListChecks,
@@ -46,6 +47,7 @@ import { buildCueSheet, hasRouterCues } from "@/lib/cues";
 import { recoverCuesForRide } from "@/lib/cue-recovery";
 import { directionsUrl, formatDistance, formatElevation } from "@/lib/gpx";
 import { snapToRoute } from "@/lib/nav";
+import { fetchPois, poiBounds, POI_CATEGORIES, type PoiCategory } from "@/lib/poi";
 import {
   createSharedLink,
   fetchProfile,
@@ -88,6 +90,14 @@ export const Route = createFileRoute("/rides/$id/")({
   }),
   component: RideDetail,
 });
+
+/** Matches the category -> color mapping RouteMap's POI layer uses, so the legend swatches agree with the pins on the map. */
+const POI_LEGEND_COLOR_VAR: Record<PoiCategory, string> = {
+  cafe: "--color-chart-3",
+  water: "--color-chart-4",
+  bike_shop: "--color-chart-5",
+  toilets: "--color-chart-2",
+};
 
 function RideDetail() {
   const { id } = Route.useParams();
@@ -170,6 +180,15 @@ function RideDetail() {
   } | null>(null);
   const [noteText, setNoteText] = useState("");
   const [cueSheetOpen, setCueSheetOpen] = useState(false);
+  const [showPois, setShowPois] = useState(false);
+
+  const POI_ALL_CATEGORIES: PoiCategory[] = useMemo(() => POI_CATEGORIES.map((c) => c.value), []);
+  const { data: pois, isFetching: poisLoading } = useQuery({
+    queryKey: ["pois", ride?.id],
+    queryFn: ({ signal }) => fetchPois(poiBounds(ride!.points), POI_ALL_CATEGORIES, signal),
+    enabled: showPois && Boolean(ride),
+    staleTime: 10 * 60 * 1000,
+  });
 
   const cueSheet = useMemo(() => (ride ? buildCueSheet(ride.points, ride.cues) : []), [ride]);
   const hasNamedCues = hasRouterCues(ride?.cues);
@@ -383,7 +402,36 @@ function RideDetail() {
               </div>
             )}
 
-            <div className="surface relative mt-4 overflow-hidden">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button
+                size="sm"
+                variant={showPois ? "default" : "outline"}
+                onClick={() => setShowPois((value) => !value)}
+              >
+                {poisLoading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Coffee className="size-4" />
+                )}
+                {showPois ? "Hide amenities" : "Show amenities"}
+              </Button>
+              {showPois && (
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                  {POI_CATEGORIES.map((category) => (
+                    <span key={category.value} className="flex items-center gap-1.5">
+                      <span
+                        className="size-2 rounded-full"
+                        style={{ background: `var(${POI_LEGEND_COLOR_VAR[category.value]})` }}
+                        aria-hidden
+                      />
+                      {category.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="surface relative mt-2 overflow-hidden">
               <RouteMap
                 points={ride.points}
                 className="h-[380px] w-full"
@@ -395,6 +443,7 @@ function RideDetail() {
                 onMapClick={handleMapClick}
                 showFitControl={!addingNote}
                 windSegments={windSegments}
+                pois={showPois ? (pois ?? []) : null}
               />
               {addingNote && (
                 <div className="glass-faint pointer-events-none absolute inset-x-3 top-3 z-10 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs">
