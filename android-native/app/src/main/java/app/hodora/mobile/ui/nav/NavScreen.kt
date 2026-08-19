@@ -11,6 +11,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -306,20 +308,33 @@ private fun NavRunningContent(
         // style once (styleReady) and mutates the existing GeoJsonSources
         // on every later call, so those recompositions no longer reload
         // basemap tiles or touch the camera.
-        RouteMapView(
-            points = navState.routePoints,
-            bounds = routeBounds(navState.routePoints),
-            rejoinPath = navState.rejoinPath,
-            rejoinPoint = if (navState.offRoute) navState.snap?.let { LatLon(it.lat, it.lon) } else null,
-            rejoinRouted = navState.rejoinRouted,
-            livePosition = navState.position?.let { LatLon(it.lat, it.lon) },
-            headingDeg = navState.position?.headingDeg,
-            followPosition = true,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(220.dp),
-        )
+        var followSuspended by remember { mutableStateOf(false) }
+        var recenterRequests by remember { mutableStateOf(0) }
+        Box(modifier = Modifier.fillMaxWidth().height(220.dp)) {
+            RouteMapView(
+                points = navState.routePoints,
+                bounds = routeBounds(navState.routePoints),
+                rejoinPath = navState.rejoinPath,
+                rejoinPoint = if (navState.offRoute) navState.snap?.let { LatLon(it.lat, it.lon) } else null,
+                rejoinRouted = navState.rejoinRouted,
+                livePosition = navState.position?.let { LatLon(it.lat, it.lon) },
+                headingDeg = navState.position?.headingDeg,
+                followPosition = true,
+                onFollowSuspendedChanged = { followSuspended = it },
+                recenterRequests = recenterRequests,
+                modifier = Modifier.fillMaxSize(),
+            )
+            if (followSuspended) {
+                // Filled, not outlined — an outlined button's transparent
+                // container would be hard to read floating over map tiles.
+                Button(
+                    onClick = { recenterRequests++ },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
+                ) {
+                    Text("Recenter")
+                }
+            }
+        }
 
         Column(modifier = Modifier.padding(16.dp)) {
             if (navState.isFinished) {

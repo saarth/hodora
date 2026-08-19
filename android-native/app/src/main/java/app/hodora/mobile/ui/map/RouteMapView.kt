@@ -9,6 +9,7 @@ import android.view.View
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -81,6 +82,14 @@ fun RouteMapView(
     // waiting on the first GPS fix, then switches to follow mode for good
     // once livePosition starts arriving.
     followPosition: Boolean = false,
+    // Fires when the rider manually pans/pinches the map during follow mode
+    // (true — auto-recenter pauses so the gesture isn't immediately undone)
+    // and again once follow mode resumes (false). NavScreen uses this to
+    // show/hide a "Recenter" button; a no-op for callers that don't care.
+    onFollowSuspendedChanged: (Boolean) -> Unit = {},
+    // Bump this (e.g. a counter incremented on button tap) to force an
+    // immediate recenter and resume follow mode after the rider panned away.
+    recenterRequests: Int = 0,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -93,6 +102,39 @@ fun RouteMapView(
                 onCreate(null)
             }
         }
+
+    // The MapLibreMap instance, once available — needed outside the
+    // AndroidView `update` lambda so the recenter-button handling below can
+    // move the camera immediately on tap, rather than waiting for the next
+    // ~2s location-driven recomposition.
+    val mapRef = remember { arrayOfNulls<MapLibreMap>(1) }
+    val followSuspended = remember { booleanArrayOf(false) }
+
+    if (followPosition) {
+        DisposableEffect(Unit) {
+            mapView.getMapAsync { map ->
+                mapRef[0] = map
+                map.addOnCameraMoveStartedListener { reason ->
+                    if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE &&
+                        !followSuspended[0]
+                    ) {
+                        followSuspended[0] = true
+                        onFollowSuspendedChanged(true)
+                    }
+                }
+            }
+            onDispose {}
+        }
+
+        LaunchedEffect(recenterRequests) {
+            if (recenterRequests == 0) return@LaunchedEffect
+            followSuspended[0] = false
+            onFollowSuspendedChanged(false)
+            val map = mapRef[0] ?: return@LaunchedEffect
+            val position = livePosition ?: return@LaunchedEffect
+            centerCameraOn(map, position)
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val lifecycle = lifecycleOwner.lifecycle
@@ -212,19 +254,15 @@ fun RouteMapView(
                     )
                 }
 
-                if (followPosition && livePosition != null) {
+                if (followPosition && livePosition != null && !followSuspended[0]) {
                     // Recenter on every tick — this is meant to fight manual
                     // pan/zoom, unlike the bounds-fit below, because a
                     // turn-by-turn view that drifts off the rider's position
-                    // isn't helping them navigate. (A "recenter" button to
-                    // let the rider deliberately look ahead is a reasonable
-                    // follow-up, not done here.)
-                    map.moveCamera(
-                        CameraUpdateFactory.newLatLngZoom(
-                            LatLng(livePosition.lat, livePosition.lon),
-                            NAV_FOLLOW_ZOOM,
-                        ),
-                    )
+                    // isn't helping them navigate. Paused while
+                    // followSuspended (the rider is deliberately panning
+                    // around) until they tap the "Recenter" button — see the
+                    // OnCameraMoveStartedListener/LaunchedEffect above.
+                    centerCameraOn(map, livePosition)
                 } else if (!boundsFitted[0]) {
                     // Fit once, whenever real bounds first become available,
                     // rather than on every update — re-fitting to the full
@@ -239,6 +277,13 @@ fun RouteMapView(
             }
         },
     )
+}
+
+private fun centerCameraOn(
+    map: MapLibreMap,
+    position: LatLon,
+) {
+    map.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(position.lat, position.lon), NAV_FOLLOW_ZOOM))
 }
 
 /**
