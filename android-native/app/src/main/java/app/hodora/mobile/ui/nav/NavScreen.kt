@@ -314,6 +314,7 @@ private fun NavRunningContent(
             rejoinRouted = navState.rejoinRouted,
             livePosition = navState.position?.let { LatLon(it.lat, it.lon) },
             headingDeg = navState.position?.headingDeg,
+            followPosition = true,
             modifier =
                 Modifier
                     .fillMaxWidth()

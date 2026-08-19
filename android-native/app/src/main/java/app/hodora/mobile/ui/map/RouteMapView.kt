@@ -43,6 +43,11 @@ private const val LIVE_POSITION_SOURCE_ID = "live-position"
 private const val LIVE_POSITION_LAYER_ID = "live-position-arrow"
 private const val LIVE_POSITION_ICON_ID = "live-position-icon"
 private const val ROUTE_BOUNDS_PADDING_PX = 64
+// Roughly Google Maps' default turn-by-turn zoom — close enough to read
+// street names and see the next turn coming, without needing map rotation
+// (which would also require re-deriving the live-position icon's rotation
+// math below, currently anchored to a north-up map).
+private const val NAV_FOLLOW_ZOOM = 16.5
 
 // Approximates the web app's --warning token (src/styles.css, an OKLCH
 // value not easily hand-converted to sRGB hex) — close enough for a status
@@ -68,6 +73,14 @@ fun RouteMapView(
     rejoinRouted: Boolean = false,
     livePosition: LatLon? = null,
     headingDeg: Double? = null,
+    // Ride detail wants the classic overview (whole route fit once, static
+    // from then on). The nav screen wants a real turn-by-turn camera —
+    // centered close on the rider, following them tick to tick — since a
+    // rider mid-ride cares about what's right in front of them, not the
+    // whole route zoomed out. Falls back to the overview-style fit while
+    // waiting on the first GPS fix, then switches to follow mode for good
+    // once livePosition starts arriving.
+    followPosition: Boolean = false,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -199,11 +212,25 @@ fun RouteMapView(
                     )
                 }
 
-                // Fit once, whenever real bounds first become available,
-                // rather than on every update — re-fitting to the full
-                // route's bounds every ~2s during navigation would fight
-                // any manual pan/zoom the rider does mid-ride.
-                if (!boundsFitted[0]) {
+                if (followPosition && livePosition != null) {
+                    // Recenter on every tick — this is meant to fight manual
+                    // pan/zoom, unlike the bounds-fit below, because a
+                    // turn-by-turn view that drifts off the rider's position
+                    // isn't helping them navigate. (A "recenter" button to
+                    // let the rider deliberately look ahead is a reasonable
+                    // follow-up, not done here.)
+                    map.moveCamera(
+                        CameraUpdateFactory.newLatLngZoom(
+                            LatLng(livePosition.lat, livePosition.lon),
+                            NAV_FOLLOW_ZOOM,
+                        ),
+                    )
+                } else if (!boundsFitted[0]) {
+                    // Fit once, whenever real bounds first become available,
+                    // rather than on every update — re-fitting to the full
+                    // route's bounds every ~2s would fight any manual
+                    // pan/zoom on the static ride-detail overview. Also
+                    // covers the nav screen before its first GPS fix lands.
                     latLngBoundsFor(points, bounds)?.let { latLngBounds ->
                         boundsFitted[0] = true
                         fitBounds(view, map, latLngBounds)
