@@ -41,6 +41,7 @@ fun RidesListScreen(
     onSignOut: () -> Unit,
     onOpenRide: (rideId: String) -> Unit,
     onPlanRoute: () -> Unit,
+    onRecordRide: () -> Unit,
     viewModel: RidesViewModel = viewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -78,6 +79,7 @@ fun RidesListScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Your rides") },
                 actions = {
+                    TextButton(onClick = onRecordRide) { Text("Record") }
                     TextButton(onClick = onPlanRoute) { Text("Plan") }
                     TextButton(onClick = onSignOut) { Text("Sign out") }
                 },

@@ -15,6 +15,7 @@ import app.hodora.mobile.ui.auth.AuthScreen
 import app.hodora.mobile.ui.auth.AuthViewModel
 import app.hodora.mobile.ui.nav.NavScreen
 import app.hodora.mobile.ui.plan.PlanScreen
+import app.hodora.mobile.ui.record.RecordScreen
 import app.hodora.mobile.ui.ridedetail.RideDetailScreen
 import app.hodora.mobile.ui.rides.RidesListScreen
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -23,6 +24,7 @@ object HodoraDestination {
     const val AUTH = "auth"
     const val RIDES = "rides"
     const val PLAN = "plan"
+    const val RECORD = "record"
     const val RIDE_ID_ARG = "rideId"
     const val RIDE_DETAIL = "rides/{$RIDE_ID_ARG}"
     const val NAV = "nav/{$RIDE_ID_ARG}"
@@ -64,6 +66,7 @@ fun HodoraNavHost(navController: NavHostController = rememberNavController()) {
                 onSignOut = { authViewModel.signOut() },
                 onOpenRide = { rideId -> navController.navigate(HodoraDestination.rideDetail(rideId)) },
                 onPlanRoute = { navController.navigate(HodoraDestination.PLAN) },
+                onRecordRide = { navController.navigate(HodoraDestination.RECORD) },
             )
         }
         composable(
@@ -92,6 +95,16 @@ fun HodoraNavHost(navController: NavHostController = rememberNavController()) {
                         popUpTo(HodoraDestination.RIDES)
                     }
                 },
+            )
+        }
+        composable(HodoraDestination.RECORD) {
+            RecordScreen(
+                onSaved = { rideId ->
+                    navController.navigate(HodoraDestination.rideDetail(rideId)) {
+                        popUpTo(HodoraDestination.RIDES)
+                    }
+                },
+                onExit = { navController.popBackStack() },
             )
         }
     }

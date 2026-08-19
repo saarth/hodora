@@ -27,6 +27,8 @@ data class NewRide(
     @SerialName("plan_waypoints") val planWaypoints: List<LatLon>? = null,
     /** BRouter profile used when this route was planned — null unless planWaypoints is set. */
     @SerialName("plan_profile") val planProfile: BikeProfile? = null,
+    /** true for a ride captured live via RecordingService — a GPS track with no pre-existing route, mirrors rides.ts's isRecorded. */
+    @SerialName("is_recorded") val isRecorded: Boolean = false,
 )
 
 @Serializable

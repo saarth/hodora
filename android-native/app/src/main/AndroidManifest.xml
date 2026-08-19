@@ -7,20 +7,22 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Phase 3: lets NavigationService keep reporting position, updating
-         the ongoing notification, and speaking turn cues once the rider
-         backgrounds the app or locks the screen — the whole reason a native
-         app exists instead of the Capacitor WebView shell, which mobile
-         browsers throttle into uselessness the moment the tab is hidden.
-         ACCESS_BACKGROUND_LOCATION must be requested at runtime as a
-         separate step *after* foreground location is already granted
-         (Android 10+); see ui/permissions/NavPermissionsScreen.kt. -->
+    <!-- Phase 3/4: lets NavigationService/RecordingService keep reporting
+         position, updating their ongoing notification, and (nav only)
+         speaking turn cues once the rider backgrounds the app or locks the
+         screen — the whole reason a native app exists instead of the
+         Capacitor WebView shell, which mobile browsers throttle into
+         uselessness the moment the tab is hidden. ACCESS_BACKGROUND_LOCATION
+         must be requested at runtime as a separate step *after* foreground
+         location is already granted (Android 10+); see
+         ui/permissions/BackgroundLocationChecklist.kt. -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <!-- Lets the rider exempt Hodora from OEM battery managers that would
-         otherwise kill NavigationService mid-ride — requested optionally,
-         with an explanation, never silently. See NavPermissionsScreen.kt. -->
+         otherwise kill NavigationService/RecordingService mid-ride —
+         requested optionally, with an explanation, never silently. See
+         ui/permissions/BackgroundLocationChecklist.kt. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
@@ -46,6 +48,11 @@
 
         <service
             android:name=".nav.NavigationService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <service
+            android:name=".record.RecordingService"
             android:exported="false"
             android:foregroundServiceType="location" />
     </application>

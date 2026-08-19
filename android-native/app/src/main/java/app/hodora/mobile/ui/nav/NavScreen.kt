@@ -3,10 +3,8 @@ package app.hodora.mobile.ui.nav
 import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,8 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +56,10 @@ import app.hodora.mobile.nav.getVoicePreference
 import app.hodora.mobile.nav.setVoicePreference
 import app.hodora.mobile.routing.LatLon
 import app.hodora.mobile.ui.map.RouteMapView
+import app.hodora.mobile.ui.permissions.BackgroundLocationChecklist
+import app.hodora.mobile.ui.permissions.hasBackgroundLocation
+import app.hodora.mobile.ui.permissions.hasFineLocation
+import app.hodora.mobile.ui.permissions.isIgnoringBatteryOptimizations
 import app.hodora.mobile.weather.formatWindSpeed
 
 /**
@@ -135,12 +135,13 @@ fun NavScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         if (!isThisRideRunning) {
-            PreNavChecklist(
+            BackgroundLocationChecklist(
                 modifier = Modifier.padding(padding),
                 fineGranted = fineGranted,
                 backgroundGranted = backgroundGranted,
                 batteryExempt = batteryExempt,
                 error = navState.error,
+                startLabel = "Start navigation",
                 onRequestForeground = {
                     val permissions =
                         buildList {
@@ -185,95 +186,6 @@ fun NavScreen(
                 },
                 onStop = { stopServiceAndExit(context, onExit) },
             )
-        }
-    }
-}
-
-@Composable
-private fun PreNavChecklist(
-    modifier: Modifier = Modifier,
-    fineGranted: Boolean,
-    backgroundGranted: Boolean,
-    batteryExempt: Boolean,
-    error: String?,
-    onRequestForeground: () -> Unit,
-    onRequestBackground: () -> Unit,
-    onRequestBatteryExemption: () -> Unit,
-    onStart: () -> Unit,
-) {
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-    ) {
-        Text("Before you start", style = MaterialTheme.typography.titleMedium)
-
-        ChecklistRow(
-            title = "Location access",
-            done = fineGranted,
-            description = "Required — used to track your position on the route.",
-            actionLabel = "Grant",
-            onAction = onRequestForeground,
-        )
-        ChecklistRow(
-            title = "Background location",
-            done = backgroundGranted,
-            description = "Recommended — keeps turn cues and voice announcements working with your phone locked or the app in your pocket. Choose \"Allow all the time\" when prompted.",
-            actionLabel = "Grant",
-            onAction = onRequestBackground,
-            enabled = fineGranted,
-        )
-        ChecklistRow(
-            title = "Battery optimization",
-            done = batteryExempt,
-            description = "Recommended — some phones aggressively kill background apps; exempting Hodora stops that from cutting off navigation mid-ride.",
-            actionLabel = "Exempt",
-            onAction = onRequestBatteryExemption,
-        )
-
-        error?.let {
-            Text(
-                text = it,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 16.dp),
-            )
-        }
-
-        Button(
-            onClick = onStart,
-            enabled = fineGranted,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 24.dp),
-        ) {
-            Text("Start navigation")
-        }
-    }
-}
-
-@Composable
-private fun ChecklistRow(
-    title: String,
-    done: Boolean,
-    description: String,
-    actionLabel: String,
-    onAction: () -> Unit,
-    enabled: Boolean = true,
-) {
-    Column(modifier = Modifier.padding(top = 16.dp)) {
-        Text(
-            text = if (done) "✓ $title" else title,
-            style = MaterialTheme.typography.titleSmall,
-            color = if (done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-        )
-        Text(text = description, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-        if (!done) {
-            OutlinedButton(onClick = onAction, enabled = enabled, modifier = Modifier.padding(top = 8.dp)) {
-                Text(actionLabel)
-            }
         }
     }
 }
@@ -388,21 +300,6 @@ private fun stopServiceAndExit(
     context.startService(Intent(context, NavigationService::class.java).apply { action = NavigationService.ACTION_STOP })
     NavState.reset()
     onExit()
-}
-
-private fun hasFineLocation(context: Context): Boolean =
-    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
-        PackageManager.PERMISSION_GRANTED
-
-private fun hasBackgroundLocation(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return true
-    return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) ==
-        PackageManager.PERMISSION_GRANTED
-}
-
-private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
-    val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-    return powerManager.isIgnoringBatteryOptimizations(context.packageName)
 }
 
 private fun routeBounds(points: List<RidePoint>): Bounds? {

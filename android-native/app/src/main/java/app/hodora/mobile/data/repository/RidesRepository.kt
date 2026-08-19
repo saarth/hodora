@@ -78,6 +78,7 @@ class RidesRepository {
         cues: List<RideCue> = emptyList(),
         planWaypoints: List<LatLon>? = null,
         planProfile: BikeProfile? = null,
+        isRecorded: Boolean = false,
     ): String {
         val userId = auth.currentUserOrNull()?.id ?: error("Not signed in")
         val row =
@@ -96,6 +97,7 @@ class RidesRepository {
                 cues = cues,
                 planWaypoints = planWaypoints,
                 planProfile = planProfile,
+                isRecorded = isRecorded,
             )
         val inserted =
             postgrest
