@@ -15,8 +15,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * Cloud sync (Google Drive/OneDrive/Nextcloud) against the same
- * src/routes/api/cloud/** server routes the web app uses — see
+ * Cloud sync (Google Drive/OneDrive/Nextcloud) against the same server
+ * routes under src/routes/api/cloud/ that the web app uses — see
  * docs/NATIVE_ANDROID_PLAN.md's "Cloud sync OAuth" section for why these
  * can't be reimplemented client-side (the OAuth client secrets must stay
  * server-side). Unlike that section's original assumption, these routes
