@@ -2,6 +2,7 @@ package app.hodora.mobile.nav
 
 import app.hodora.mobile.cues.CueSheetEntry
 import app.hodora.mobile.gpx.RidePoint
+import app.hodora.mobile.routing.LatLon
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +22,12 @@ data class NavUiState(
     val nextCue: CueSheetEntry? = null,
     val nextCueDistanceM: Double = 0.0,
     val offRoute: Boolean = false,
+    /** Bike-friendly path back to the track while off-route — port of rejoin.ts's useRejoinRoute, run inside NavigationService instead of a Compose hook. Empty when on-route. */
+    val rejoinPath: List<LatLon> = emptyList(),
+    /** true when rejoinPath came from a real router; false for the straight-line fallback (or before the first fetch resolves). */
+    val rejoinRouted: Boolean = false,
+    val rejoinLoading: Boolean = false,
+    val rejoinDistanceM: Double = 0.0,
     val voiceEnabled: Boolean = false,
     val error: String? = null,
 )

@@ -185,16 +185,20 @@ geometry-detected-turns fallback) so navigation has instructions whether or
 not the route came with router-provided ones. `ui/nav/NavScreen.kt` walks
 through the background-location permission flow (a separate, later step
 from foreground location, per Android 10+'s requirement) and an optional
-battery-optimization exemption prompt before starting.
+battery-optimization exemption prompt before starting. `rejoin.ts` is now
+ported too (`NavigationService.maybeRejoin`, throttled the same way
+`useRejoinRoute` is on web) — going off-route fetches a bike-friendly path
+back to the track via BRouter/OSRM, falling back to a straight line, and
+`RouteMapView`/`NavScreen` draw it the same way `RouteMap.tsx` does (solid
+when routed, dashed for the straight-line fallback).
 
 **Still needed before this is ride-worthy** (validating any of this needs a
 real device — screen off, app backgrounded, ideally on an OEM with
 aggressive battery management like Samsung/Xiaomi in addition to stock/Pixel,
-since none of this can be verified by automated tooling): off-route
-re-routing (currently only flags `offRoute`, doesn't draw a path back —
-`rejoin.ts` isn't ported); rain/wind alerts and proximity alerts on ride
-notes (both need modules/columns not ported yet — `weather.ts`, ride
-`notes`); a live position marker on the nav map (it currently shows the
+since none of this can be verified by automated tooling): rain/wind alerts
+and proximity alerts on ride notes (both need modules/columns not ported
+yet — `weather.ts`, ride `notes`); a live position marker on the nav map
+(it currently shows the
 route only, for orientation); and the map-reload performance issue flagged
 in a comment on `NavRunningContent` (it currently reloads the whole MapLibre
 style on every ~2s location tick — fine for proving the pipeline works, not

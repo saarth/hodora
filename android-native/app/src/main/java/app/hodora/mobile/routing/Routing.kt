@@ -241,3 +241,15 @@ suspend fun fetchRoute(
     }
     return RoutedPath(points, pathLengthM(points), routed = false, cues = emptyList())
 }
+
+/**
+ * Bike-friendly path from the rider back to the track — port of
+ * fetchCyclingRoute in src/lib/rejoin.ts. Deliberately doesn't pass
+ * preferBrouter: unlike the planner, speed matters more than profile choice
+ * once the rider is already off track, so this takes fetchRoute's default
+ * OSRM-first order.
+ */
+suspend fun fetchCyclingRoute(
+    from: LatLon,
+    to: LatLon,
+): RoutedPath = fetchRoute(listOf(from, to))

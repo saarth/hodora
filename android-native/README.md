@@ -45,9 +45,13 @@ What's here so far:
   `voice.ts` used, which mobile browsers suspend the instant the tab is
   hidden). `cues.ts` is now fully ported (`cues/Cues.kt`) — a route without
   router-provided instructions falls back to geometry-detected turns, same
-  as web. `ui/nav/NavScreen.kt` (reached via "Start navigation" on ride
-  detail) walks through the background-location permission flow (a separate
-  step from foreground location on Android 10+) and an optional
+  as web. Going off-route re-routes back to the track (`maybeRejoin` in
+  `NavigationService.kt`, a full port of `rejoin.ts`'s throttled
+  `useRejoinRoute`) via BRouter/OSRM, falling back to a straight line, drawn
+  on the map the same solid-when-routed/dashed-when-fallback way
+  `RouteMap.tsx` does. `ui/nav/NavScreen.kt` (reached via "Start navigation"
+  on ride detail) walks through the background-location permission flow (a
+  separate step from foreground location on Android 10+) and an optional
   battery-optimization exemption prompt before handing off to the service.
 - Nav host (`ui/navigation/HodoraNavHost.kt`) that switches between the auth
   screen, rides list, ride detail, the planner, and navigation based on
@@ -91,10 +95,6 @@ Samsung/Xiaomi are the usual troublemakers — in addition to stock/Pixel),
 which this environment can't do. Before treating background navigation as
 ride-ready:
 
-- **Off-route handling is detection-only.** `NavigationService` flags
-  `offRoute` when the snap distance crosses a threshold, but doesn't draw a
-  path back — `rejoin.ts` (BRouter/OSRM re-routing to the track) isn't
-  ported yet.
 - **No rain/wind alerts or proximity alerts on ride notes** — both need
   modules/columns not ported yet (`weather.ts`; `notes` isn't modeled on
   `Ride`).

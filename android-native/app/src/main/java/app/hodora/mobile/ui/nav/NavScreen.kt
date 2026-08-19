@@ -43,12 +43,15 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import app.hodora.mobile.gpx.Bounds
 import app.hodora.mobile.gpx.RidePoint
+import app.hodora.mobile.gpx.bearing
 import app.hodora.mobile.gpx.formatDistance
 import app.hodora.mobile.nav.NavState
 import app.hodora.mobile.nav.NavUiState
 import app.hodora.mobile.nav.NavigationService
+import app.hodora.mobile.nav.compassLabel
 import app.hodora.mobile.nav.getVoicePreference
 import app.hodora.mobile.nav.setVoicePreference
+import app.hodora.mobile.routing.LatLon
 import app.hodora.mobile.ui.map.RouteMapView
 
 /**
@@ -262,11 +265,18 @@ private fun NavRunningContent(
     Column(modifier = modifier.fillMaxSize()) {
         if (navState.offRoute) {
             Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Off route",
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.padding(12.dp),
-                )
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = "Off route · ${formatDistance(navState.rejoinDistanceM)}",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Text(
+                        text = rejoinMessage(navState),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
             }
         }
 
@@ -285,6 +295,9 @@ private fun NavRunningContent(
         RouteMapView(
             points = navState.routePoints,
             bounds = routeBounds(navState.routePoints),
+            rejoinPath = navState.rejoinPath,
+            rejoinPoint = if (navState.offRoute) navState.snap?.let { LatLon(it.lat, it.lon) } else null,
+            rejoinRouted = navState.rejoinRouted,
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -361,4 +374,24 @@ private fun routeBounds(points: List<RidePoint>): Bounds? {
         maxLat = points.maxOf { it.lat },
         maxLon = points.maxOf { it.lon },
     )
+}
+
+/** Compass direction to head in: along the cycling path back to the track when one's been found, otherwise straight at the closest route point. Port of rejoinBearing in src/routes/rides.$id.nav.tsx. */
+private fun rejoinDirectionLabel(navState: NavUiState): String? {
+    val position = navState.position ?: return null
+    val target =
+        navState.rejoinPath.getOrNull(1)
+            ?: navState.snap?.let { LatLon(it.lat, it.lon) }
+            ?: return null
+    return compassLabel(bearing(position.lat, position.lon, target.lat, target.lon))
+}
+
+private fun rejoinMessage(navState: NavUiState): String {
+    val direction = rejoinDirectionLabel(navState)
+    return when {
+        navState.rejoinLoading && navState.rejoinPath.size < 2 -> "Finding a cycling route back to the track…"
+        navState.rejoinRouted ->
+            "Follow the cycling route back" + (direction?.let { " — head $it to start" }.orEmpty())
+        else -> "Head" + (direction?.let { " $it" }.orEmpty()) + " to the closest point of the route"
+    }
 }
