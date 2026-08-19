@@ -23,6 +23,7 @@ import app.hodora.mobile.routing.LatLon
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
+import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
@@ -179,7 +180,7 @@ fun RouteMapView(
                         // every ~2s during navigation would fight any
                         // manual pan/zoom the rider does mid-ride.
                         latLngBoundsFor(points, bounds)?.let { latLngBounds ->
-                            map.moveCamera(CameraUpdateFactory.newLatLngBounds(latLngBounds, ROUTE_BOUNDS_PADDING_PX))
+                            fitBounds(view, map, latLngBounds)
                         }
                     }
                 } else {
@@ -195,6 +196,45 @@ fun RouteMapView(
                     (style.getLayer(LIVE_POSITION_LAYER_ID) as? SymbolLayer)?.setProperties(
                         PropertyFactory.iconRotate((headingDeg ?: 0.0).toFloat()),
                     )
+                }
+            }
+        },
+    )
+}
+
+/**
+ * Fits the camera to [latLngBounds], deferring until [mapView] actually has
+ * a measured pixel size. `newLatLngBounds` computes the camera from the
+ * MapView's current width/height — calling it the instant the style finishes
+ * loading can race Compose's AndroidView layout pass (the native view is
+ * still 0x0), which doesn't throw, it just silently produces the wrong
+ * (usually fully zoomed-out) camera instead of fitting the route.
+ */
+private fun fitBounds(
+    mapView: MapView,
+    map: MapLibreMap,
+    latLngBounds: LatLngBounds,
+) {
+    if (mapView.width > 0 && mapView.height > 0) {
+        map.moveCamera(CameraUpdateFactory.newLatLngBounds(latLngBounds, ROUTE_BOUNDS_PADDING_PX))
+        return
+    }
+    mapView.addOnLayoutChangeListener(
+        object : View.OnLayoutChangeListener {
+            override fun onLayoutChange(
+                v: View,
+                left: Int,
+                top: Int,
+                right: Int,
+                bottom: Int,
+                oldLeft: Int,
+                oldTop: Int,
+                oldRight: Int,
+                oldBottom: Int,
+            ) {
+                if (right - left > 0 && bottom - top > 0) {
+                    mapView.removeOnLayoutChangeListener(this)
+                    map.moveCamera(CameraUpdateFactory.newLatLngBounds(latLngBounds, ROUTE_BOUNDS_PADDING_PX))
                 }
             }
         },
