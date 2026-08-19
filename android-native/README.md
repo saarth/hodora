@@ -128,6 +128,23 @@ validation round Phases 0-3 already went through — see "What's left"
 below. Phase 7 (retiring `android/`) is a deliberate stop, not a task in
 progress — see the plan doc's Phase 7 section for why.
 
+**Visual design pass.** Wasn't part of the original phased plan — the app
+started out plain Material 3 (two brand colors, everything else default).
+`ui/theme/` now carries the web app's full design system: a `ColorScheme`
+built from `src/styles.css`'s oklch tokens (light and dark), and Space
+Grotesk/Fraunces-italic/IBM Plex Mono as bundled variable-font resources
+under `res/font/` (not Google's downloadable-fonts provider — bundling
+keeps them available offline, matching the rest of the app). Shared
+composables in `ui/components/HodoraComponents.kt`
+(`HodoraCard`/`HodoraButton`/`StatFigure`/`Caption`/`HodoraChip`) reproduce
+the web app's `.surface` card recipe and stat-figure typography, and are
+what the rides list, ride detail, navigation, and record screens are built
+from — those four were mocked up first as a design canvas and then
+implemented pixel-for-pixel here. Other screens (Explore, Wind, cloud sync,
+the planner, auth) still use plain Material 3 components, so they pick up
+the new colors/typography automatically but not the custom card/button
+shapes yet.
+
 ## Building it
 
 You'll need [Android Studio](https://developer.android.com/studio) (same
