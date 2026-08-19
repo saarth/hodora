@@ -13,6 +13,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import app.hodora.mobile.routing.LatLon
+import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
@@ -25,6 +27,7 @@ private const val ROUTE_SOURCE_ID = "plan-route"
 private const val ROUTE_LAYER_ID = "plan-route-line"
 private const val WAYPOINTS_SOURCE_ID = "plan-waypoints"
 private const val WAYPOINTS_LAYER_ID = "plan-waypoints-circles"
+private const val CURRENT_LOCATION_ZOOM = 14.0
 
 /**
  * Tap-to-plan map — mirrors RouteMap's onMapClick handling in
@@ -38,6 +41,7 @@ fun PlanMapView(
     routePath: List<LatLon>,
     waypoints: List<LatLon>,
     onMapClick: (LatLon) -> Unit,
+    currentLocation: LatLon? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -87,6 +91,13 @@ fun PlanMapView(
     // screen's ~2s tick made the cost far more visible there.
     val styleReady = remember { booleanArrayOf(false) }
 
+    // Centers on the rider's own position once, as soon as it's available —
+    // otherwise the map opens at MapLibre's raw default (zoomed out over
+    // 0,0). Only fires while there's nothing planned yet; once the rider has
+    // dropped a waypoint their in-progress plan wins and this never
+    // recenters the camera out from under them.
+    val centeredOnLocation = remember { booleanArrayOf(false) }
+
     AndroidView(
         factory = { mapView },
         modifier = modifier,
@@ -118,6 +129,15 @@ fun PlanMapView(
                     val style = map.style ?: return@getMapAsync
                     style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID)?.setGeoJson(routeLineGeoJson(routePath))
                     style.getSourceAs<GeoJsonSource>(WAYPOINTS_SOURCE_ID)?.setGeoJson(waypointsGeoJson(waypoints))
+                }
+                if (!centeredOnLocation[0] && currentLocation != null && waypoints.isEmpty()) {
+                    centeredOnLocation[0] = true
+                    map.moveCamera(
+                        CameraUpdateFactory.newLatLngZoom(
+                            LatLng(currentLocation.lat, currentLocation.lon),
+                            CURRENT_LOCATION_ZOOM,
+                        ),
+                    )
                 }
             }
         },
