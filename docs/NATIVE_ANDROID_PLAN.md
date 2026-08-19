@@ -1,16 +1,27 @@
 # Native Android app — plan
 
-> **Status:** Phases 0-3 have landed at [`android-native/`](../android-native/)
+> **Status:** Phases 0-6 have landed at [`android-native/`](../android-native/)
 > — Gradle/Compose skeleton, Supabase auth, a rides list with GPX import, a
 > ride detail screen (MapLibre route map, elevation profile, GPX export), a
-> route planner (tap-to-plan, BRouter/OSRM routing, save to rides), and
+> route planner (tap-to-plan, BRouter/OSRM routing, save to rides),
 > background turn-by-turn navigation (a foreground `NavigationService`,
 > persistent notification, native TTS, background-location and
 > battery-optimization permission flow, off-route re-routing, rain/wind
 > alerts, proximity alerts on ride notes, a live heading-arrow position
-> marker, and a real status-bar icon). See that folder's README for what's
-> there, how to build it, and why real-device validation is still the
-> remaining step. Phases 4+ below are still to do.
+> marker, and a real status-bar icon), ride recording (`RecordingService`,
+> the same foreground-service pattern as navigation), an offline ride cache
+> (Room) plus downloadable map tiles (MapLibre's `OfflineManager`), and
+> Explore/Wind/shared-route-links/cloud sync. See that folder's README for
+> what's there and how to build it.
+>
+> **Phases 0-3 got real-device fixes from actual Android Studio builds**
+> (map rendering, camera behavior, background nav) — see the git history on
+> `android-native/`. **Phases 4-6 have not been run on a device at all yet**
+> and are exactly the kind of "written correct as far as static reading can
+> tell, but genuinely unverified" code the earlier phases started out as too
+> — expect a similar round of real-build fixes before trusting any of it.
+> **Phase 7 (retiring `android/`, the Capacitor project) is a deliberate
+> stop, not a remaining task list** — see that section below for why.
 
 ## Why
 
@@ -228,29 +239,86 @@ whether TTS announcements are audible and correctly timed relative to a real
 ride's speed, and whether the battery/data cost of a live nav session is
 acceptable in practice.
 
-**Phase 4 — ride recording**
-Port `record.ts`, wire it to the same foreground service from Phase 3 so a
-recorded ride also survives a locked screen.
+**Phase 4 — ride recording (done, see `android-native/`)**
+`record/Record.kt` ports `record.ts`'s `acceptRecordingFix` (GPS-jitter
+filtering). `record/RecordingService.kt` is a *separate* foreground Service
+from `NavigationService` — deliberately not a reuse of it, since recording's
+plain start/pause/resume/finish state machine over a live GPS track shares
+nothing with nav's route-snapping/cues/rejoin/weather logic beyond the
+foreground-service/notification/`FusedLocationProviderClient` mechanics,
+which is what "the same foreground service" in this phase's original
+one-liner actually meant. `ui/record/RecordScreen.kt` reuses the same
+background-location permission checklist navigation does (now factored out
+to `ui/permissions/BackgroundLocationChecklist.kt` so neither screen
+duplicates it) and `RouteMapView`'s follow-mode/recenter-button map. Saving
+calls `buildParsedRide` + `RidesRepository.createRide(isRecorded = true)`
+directly once stopped — no service round-trip needed by then.
 
-**Phase 5 — offline**
-Room cache for rides/profile, MapLibre `OfflineManager` region downloads
-replacing `offline-tiles.ts`. This is where "offline maps and routes" from
-the README's feature list becomes more capable than the PWA version, not
-just equivalent to it.
+**Phase 5 — offline (done, see `android-native/`)**
+`data/local/OfflineStore.kt` is the Room equivalent of `offline-db.ts`'s
+IndexedDB store — rides cached as their own serialized JSON (Room's flat
+schema doesn't map cleanly onto `Ride`'s nested points/cues/notes, so a
+JSON blob keyed by id is the direct equivalent of the IndexedDB object
+store, which does the same thing), plus a cached ride-list snapshot.
+`RidesRepository.listRides()`/`getRide()` fall back to it on any network
+failure. Map tiles use MapLibre Native's built-in `OfflineManager`
+(`offline/OfflineMaps.kt`) instead of a straight port of
+`offline-tiles.ts`'s hand-rolled tile-URL math, per this phase's original
+note that `OfflineManager` is strictly more capable. One flagged
+assumption in that file: `OfflineTilePyramidRegionDefinition` needs a
+resolvable style URL, and `CartoStyle.kt` only builds inline JSON, so
+downloads go against a `data:` URI encoding of it — untested against a
+real Maven-resolved build. `RideDetailScreen` gained a "Save for offline"
+action driving both pieces together. Not carried over: a cached user
+Profile (no profile/settings screen exists yet in the native app to hang
+one off of).
 
-**Phase 6 — Explore, Wind, sharing, cloud sync**
-Port `discover.ts` (Explore loop generator) and `windScore.ts` (Wind page),
-add the shared-link deep link (`/share/$id` → an Android App Link on
-`hodora.app`), and wire cloud sync per the OAuth approach above.
+**Phase 6 — Explore, Wind, sharing, cloud sync (done, see `android-native/`)**
+`discover/Discover.kt` ports `discover.ts` (Overpass lookup + generated
+loops via `fetchRoute`) for `ui/explore/`; Kotlin's structured concurrency
+cancels in-flight per-bearing route requests for free, so there's no
+`AbortSignal` plumbing to port. `wind/WindScore.kt` is a direct port of
+`windScore.ts` built on `nav/Nav.kt`'s existing wind primitives;
+`ui/wind/WindScreen.kt` is intentionally simplified to current-conditions
+scoring only, not `wind.tsx`'s multi-day/hour forecast picker (that needs
+`weather.ts`'s day-grouping helpers, which `weather/Weather.kt`'s own doc
+comment already flags as not ported). `share/SharedRide.kt` hits the same
+public `GET /api/share/{token}` the web share page uses; `MainActivity`
+handles the `https://hodora.app/share/{id}` App Link (needs a real
+`assetlinks.json` deployed server-side for Android to auto-verify it,
+which is outside this module) and routes straight to `SharedRideScreen`,
+bypassing the sign-in gate the same way the web share page is public.
+`data/repository/CloudSyncRepository.kt` connects Google Drive/OneDrive/
+Nextcloud against the existing `src/routes/api/cloud/**` server routes —
+turned out these already authenticate via a plain `Authorization: Bearer
+<jwt>` header (`api-auth.server.ts`), not the cookie session this plan
+originally assumed, so the native app calls them directly with its
+existing Supabase access token. **Deliberately not wired up**: the
+seamless in-app OAuth return (a `hodora://cloud-callback` custom-scheme
+redirect) described below — it needs `authorize.tsx`/`callback.tsx`
+changes to thread an "opened from the app" hint through the signed `state`
+param, which touches live OAuth token-exchange code serving existing web
+users, and felt like a decision worth surfacing rather than making
+silently mid-implementation. Today, Google Drive/OneDrive connect opens
+the consent screen in the system browser and the rider switches back to
+Hodora manually; Nextcloud (server URL + app password, no redirect at all)
+has no such gap.
 
-**Phase 7 — cutover**
-Once Phase 3–6 reach feature parity with the Capacitor build, retire
-`android/` (the Capacitor project) and `capacitor.config.ts`, and update
-`README.md`'s "Android app (Capacitor)" section to describe the native app
-instead. Until then, ship the native app as a parallel/beta track (a
-separate internal-testing track on Play, or a second GitHub release asset
-for the existing Obtainium-based distribution) so the WebView build keeps
-working for existing installs while the native app is validated.
+**Phase 7 — cutover: a deliberate stop, not a remaining task**
+This phase means deleting `android/` (the Capacitor project) and its Play
+Store/Obtainium distribution — an existing, shipping app's only update
+path for real installs. Its own precondition ("once Phase 3–6 reach
+feature parity with the Capacitor build **and are validated**") isn't met:
+Phases 4–6 above have had zero real-device testing, and known gaps exist
+against the web app on purpose (place search in Explore, the wind
+forecast's day/hour picker, seamless cloud-sync OAuth return, offline
+Profile caching, ported `*.test.ts` unit test coverage — see each phase's
+notes above). Retiring the Capacitor build before that would leave
+existing users with either no working app or a native build that hasn't
+been proven on a real phone. Treat this phase as blocked on: (1) the same
+real-device validation round Phases 0–3 already went through, run against
+Phases 4–6, and (2) an explicit decision, not an inferred one, since it's
+irreversible for whoever's still on the Capacitor build when it happens.
 
 ## New manifest permissions needed
 
