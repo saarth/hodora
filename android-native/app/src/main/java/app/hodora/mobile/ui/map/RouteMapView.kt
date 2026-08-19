@@ -85,24 +85,27 @@ fun RouteMapView(
         onDispose { lifecycle.removeObserver(observer) }
     }
 
-    // `update` re-runs on every recomposition where any parameter changes
-    // identity — once, in practice, on the static ride-detail screen (points/
-    // bounds set once when the ride loads), but roughly every 2 seconds on
-    // the nav screen, where rejoinPath/rejoinPoint change on every location
-    // tick while off-route. Each run rebuilds the whole Style from scratch
-    // via setStyle() rather than mutating the existing sources — call this
-    // out again since it's now paying for the rejoin layers too, not just
-    // the route line. See the longer note on this in NavScreen.kt; the real
-    // fix is mutating GeoJsonSource.setGeoJson(...) on an already-built
-    // style instead of rebuilding it, which is out of scope for the
-    // off-route-detection-to-rejoin-routing fix this was written for.
+    // `update` re-runs on every recomposition of the caller — once, in
+    // practice, on the static ride-detail screen, but roughly every 2
+    // seconds on the nav screen, where rejoinPath/rejoinPoint change on
+    // every location tick while off-route. Previously this rebuilt the
+    // whole Style (and re-fetched every basemap tile) on every single call;
+    // now the style/sources/layers are built exactly once — via
+    // `styleReady`, a plain flag rather than Compose state since flipping
+    // it must not itself trigger a recomposition — and every later call
+    // just mutates the existing GeoJsonSources' data and the rejoin layer's
+    // paint properties in place, which is cheap and doesn't touch the
+    // basemap at all.
+    val styleReady = remember { booleanArrayOf(false) }
+
     AndroidView(
         factory = { mapView },
         modifier = modifier,
         update = { view ->
             view.getMapAsync { map ->
-                map.setStyle(Style.Builder().fromJson(cartoStyleJson(dark))) { style ->
-                    if (style.getSource(ROUTE_SOURCE_ID) == null) {
+                if (!styleReady[0]) {
+                    styleReady[0] = true
+                    map.setStyle(Style.Builder().fromJson(cartoStyleJson(dark))) { style ->
                         style.addSource(GeoJsonSource(ROUTE_SOURCE_ID, routeGeoJson(points)))
                         style.addLayer(
                             LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID).withProperties(
@@ -112,34 +115,52 @@ fun RouteMapView(
                                 PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
                             ),
                         )
-                    }
 
-                    // A real cycling path back to the track is drawn solid;
-                    // the straight-line fallback (or the brief window before
-                    // the first rejoin fetch resolves) stays dashed — same
-                    // distinction src/components/RouteMap.tsx draws.
-                    style.addSource(GeoJsonSource(REJOIN_SOURCE_ID, rejoinLineGeoJson(rejoinPath)))
-                    style.addLayer(
-                        LineLayer(REJOIN_LAYER_ID, REJOIN_SOURCE_ID).withProperties(
-                            PropertyFactory.lineColor(Color.parseColor(WARNING_COLOR)),
-                            PropertyFactory.lineWidth(if (rejoinRouted) 5f else 3.5f),
-                            PropertyFactory.lineDasharray(if (rejoinRouted) arrayOf(1f, 0f) else arrayOf(1.5f, 1.5f)),
-                            PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
-                        ),
-                    )
-                    style.addSource(GeoJsonSource(REJOIN_POINT_SOURCE_ID, pointGeoJson(rejoinPoint)))
-                    style.addLayer(
-                        CircleLayer(REJOIN_POINT_LAYER_ID, REJOIN_POINT_SOURCE_ID).withProperties(
-                            PropertyFactory.circleRadius(7f),
-                            PropertyFactory.circleColor(Color.parseColor(WARNING_COLOR)),
-                            PropertyFactory.circleStrokeWidth(2.5f),
-                            PropertyFactory.circleStrokeColor(Color.WHITE),
-                        ),
-                    )
+                        // A real cycling path back to the track is drawn
+                        // solid; the straight-line fallback (or the brief
+                        // window before the first rejoin fetch resolves)
+                        // stays dashed — same distinction
+                        // src/components/RouteMap.tsx draws. Dasharray/width
+                        // get updated in place below as rejoinRouted flips,
+                        // same as the source data.
+                        style.addSource(GeoJsonSource(REJOIN_SOURCE_ID, rejoinLineGeoJson(rejoinPath)))
+                        style.addLayer(
+                            LineLayer(REJOIN_LAYER_ID, REJOIN_SOURCE_ID).withProperties(
+                                PropertyFactory.lineColor(Color.parseColor(WARNING_COLOR)),
+                                PropertyFactory.lineWidth(if (rejoinRouted) 5f else 3.5f),
+                                PropertyFactory.lineDasharray(
+                                    if (rejoinRouted) arrayOf(1f, 0f) else arrayOf(1.5f, 1.5f),
+                                ),
+                                PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                            ),
+                        )
+                        style.addSource(GeoJsonSource(REJOIN_POINT_SOURCE_ID, pointGeoJson(rejoinPoint)))
+                        style.addLayer(
+                            CircleLayer(REJOIN_POINT_LAYER_ID, REJOIN_POINT_SOURCE_ID).withProperties(
+                                PropertyFactory.circleRadius(7f),
+                                PropertyFactory.circleColor(Color.parseColor(WARNING_COLOR)),
+                                PropertyFactory.circleStrokeWidth(2.5f),
+                                PropertyFactory.circleStrokeColor(Color.WHITE),
+                            ),
+                        )
 
-                    latLngBoundsFor(points, bounds)?.let { latLngBounds ->
-                        map.moveCamera(CameraUpdateFactory.newLatLngBounds(latLngBounds, ROUTE_BOUNDS_PADDING_PX))
+                        // Fit once, on first load, rather than on every
+                        // update — re-fitting to the full route's bounds
+                        // every ~2s during navigation would fight any
+                        // manual pan/zoom the rider does mid-ride.
+                        latLngBoundsFor(points, bounds)?.let { latLngBounds ->
+                            map.moveCamera(CameraUpdateFactory.newLatLngBounds(latLngBounds, ROUTE_BOUNDS_PADDING_PX))
+                        }
                     }
+                } else {
+                    val style = map.style ?: return@getMapAsync
+                    style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID)?.setGeoJson(routeGeoJson(points))
+                    style.getSourceAs<GeoJsonSource>(REJOIN_SOURCE_ID)?.setGeoJson(rejoinLineGeoJson(rejoinPath))
+                    style.getSourceAs<GeoJsonSource>(REJOIN_POINT_SOURCE_ID)?.setGeoJson(pointGeoJson(rejoinPoint))
+                    (style.getLayer(REJOIN_LAYER_ID) as? LineLayer)?.setProperties(
+                        PropertyFactory.lineWidth(if (rejoinRouted) 5f else 3.5f),
+                        PropertyFactory.lineDasharray(if (rejoinRouted) arrayOf(1f, 0f) else arrayOf(1.5f, 1.5f)),
+                    )
                 }
             }
         },

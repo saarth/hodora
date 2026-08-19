@@ -78,33 +78,46 @@ fun PlanMapView(
         onDispose { lifecycle.removeObserver(observer) }
     }
 
-    // Same "rebuild the whole style on every update" simplification as
-    // RouteMapView — fine here too, since it only actually re-runs when the
-    // route/waypoints change (i.e. after each reroute, not every frame).
+    // Built once (styleReady, a plain flag rather than Compose state so
+    // flipping it doesn't itself trigger a recomposition); every later
+    // `update` — one per reroute, so per waypoint tap or profile change —
+    // just mutates the existing sources' data instead of rebuilding the
+    // whole style and re-fetching every basemap tile. Same fix as
+    // RouteMapView, applied here too for consistency even though the nav
+    // screen's ~2s tick made the cost far more visible there.
+    val styleReady = remember { booleanArrayOf(false) }
+
     AndroidView(
         factory = { mapView },
         modifier = modifier,
         update = { view ->
             view.getMapAsync { map ->
-                map.setStyle(Style.Builder().fromJson(cartoStyleJson(dark))) { style ->
-                    style.addSource(GeoJsonSource(ROUTE_SOURCE_ID, routeLineGeoJson(routePath)))
-                    style.addLayer(
-                        LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID).withProperties(
-                            PropertyFactory.lineColor(Color.parseColor("#1F3A2E")),
-                            PropertyFactory.lineWidth(4f),
-                            PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
-                            PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
-                        ),
-                    )
-                    style.addSource(GeoJsonSource(WAYPOINTS_SOURCE_ID, waypointsGeoJson(waypoints)))
-                    style.addLayer(
-                        CircleLayer(WAYPOINTS_LAYER_ID, WAYPOINTS_SOURCE_ID).withProperties(
-                            PropertyFactory.circleRadius(6f),
-                            PropertyFactory.circleColor(Color.parseColor("#1F3A2E")),
-                            PropertyFactory.circleStrokeWidth(2f),
-                            PropertyFactory.circleStrokeColor(Color.parseColor("#FFFFFF")),
-                        ),
-                    )
+                if (!styleReady[0]) {
+                    styleReady[0] = true
+                    map.setStyle(Style.Builder().fromJson(cartoStyleJson(dark))) { style ->
+                        style.addSource(GeoJsonSource(ROUTE_SOURCE_ID, routeLineGeoJson(routePath)))
+                        style.addLayer(
+                            LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID).withProperties(
+                                PropertyFactory.lineColor(Color.parseColor("#1F3A2E")),
+                                PropertyFactory.lineWidth(4f),
+                                PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                                PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+                            ),
+                        )
+                        style.addSource(GeoJsonSource(WAYPOINTS_SOURCE_ID, waypointsGeoJson(waypoints)))
+                        style.addLayer(
+                            CircleLayer(WAYPOINTS_LAYER_ID, WAYPOINTS_SOURCE_ID).withProperties(
+                                PropertyFactory.circleRadius(6f),
+                                PropertyFactory.circleColor(Color.parseColor("#1F3A2E")),
+                                PropertyFactory.circleStrokeWidth(2f),
+                                PropertyFactory.circleStrokeColor(Color.parseColor("#FFFFFF")),
+                            ),
+                        )
+                    }
+                } else {
+                    val style = map.style ?: return@getMapAsync
+                    style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID)?.setGeoJson(routeLineGeoJson(routePath))
+                    style.getSourceAs<GeoJsonSource>(WAYPOINTS_SOURCE_ID)?.setGeoJson(waypointsGeoJson(waypoints))
                 }
             }
         },

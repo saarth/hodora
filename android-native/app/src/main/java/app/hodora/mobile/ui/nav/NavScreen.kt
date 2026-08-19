@@ -282,16 +282,11 @@ private fun NavRunningContent(
 
         // The full route, for orientation — a live position puck/heading
         // arrow on this map is deferred polish, not in this first cut.
-        // Known cost worth fixing before this ships: RouteMapView reloads
-        // its whole MapLibre style on every AndroidView `update` (see the
-        // comment on that composable), and NavRunningContent recomposes on
-        // every NavState tick (~every 2s, per location update) since it
-        // reads other navState fields too — so this map currently reloads
-        // tiles roughly every 2 seconds during a ride. Fine for proving the
-        // service/notification/TTS pipeline works; needs RouteMapView to
-        // mutate its existing GeoJsonSource instead of rebuilding the style,
-        // or this map split into its own composable keyed only on
-        // routePoints, before this is a ride-worthy nav screen.
+        // NavRunningContent recomposes on every NavState tick (~every 2s,
+        // per location update), but RouteMapView only rebuilds its MapLibre
+        // style once (styleReady) and mutates the existing GeoJsonSources
+        // on every later call, so those recompositions no longer reload
+        // basemap tiles or touch the camera.
         RouteMapView(
             points = navState.routePoints,
             bounds = routeBounds(navState.routePoints),

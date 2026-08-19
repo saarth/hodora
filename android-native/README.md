@@ -100,10 +100,6 @@ ride-ready:
   `Ride`).
 - **No live position marker on the nav map** — it currently shows the full
   route for orientation only, not where the rider actually is.
-- **The nav map reloads its whole MapLibre style on every location tick**
-  (~every 2 seconds) — see the comment on `NavRunningContent` in
-  `NavScreen.kt`. Fine for confirming the service/notification/TTS pipeline
-  works end to end; not fine for real battery/data usage on a ride.
 - **The notification's small icon is a system placeholder**
   (`android.R.drawable.ic_menu_directions`) — needs a real monochrome
   status-bar icon asset before shipping.

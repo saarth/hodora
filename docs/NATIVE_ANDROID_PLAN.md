@@ -192,17 +192,18 @@ back to the track via BRouter/OSRM, falling back to a straight line, and
 `RouteMapView`/`NavScreen` draw it the same way `RouteMap.tsx` does (solid
 when routed, dashed for the straight-line fallback).
 
+`RouteMapView`/`PlanMapView` no longer rebuild their whole MapLibre style on
+every recomposition either — they build it once and mutate the existing
+GeoJsonSources in place afterward, so the nav map's ~2s location-tick
+recompositions no longer reload basemap tiles or re-fit the camera.
+
 **Still needed before this is ride-worthy** (validating any of this needs a
 real device — screen off, app backgrounded, ideally on an OEM with
 aggressive battery management like Samsung/Xiaomi in addition to stock/Pixel,
 since none of this can be verified by automated tooling): rain/wind alerts
 and proximity alerts on ride notes (both need modules/columns not ported
-yet — `weather.ts`, ride `notes`); a live position marker on the nav map
-(it currently shows the
-route only, for orientation); and the map-reload performance issue flagged
-in a comment on `NavRunningContent` (it currently reloads the whole MapLibre
-style on every ~2s location tick — fine for proving the pipeline works, not
-fine for a real ride's battery/data usage).
+yet — `weather.ts`, ride `notes`); and a live position marker on the nav map
+(it currently shows the route only, for orientation).
 
 **Phase 4 — ride recording**
 Port `record.ts`, wire it to the same foreground service from Phase 3 so a
