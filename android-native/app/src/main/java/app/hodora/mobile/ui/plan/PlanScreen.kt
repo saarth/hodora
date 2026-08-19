@@ -42,9 +42,9 @@ import app.hodora.mobile.gpx.formatDistance
 import app.hodora.mobile.routing.BikeProfile
 import app.hodora.mobile.routing.LatLon
 import app.hodora.mobile.ui.map.PlanMapView
-import com.google.android.gms.location.CancellationTokenSource
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
