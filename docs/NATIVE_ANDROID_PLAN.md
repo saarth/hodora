@@ -1,9 +1,10 @@
 # Native Android app — plan
 
-> **Status:** Phase 0 (project scaffold) has landed at
-> [`android-native/`](../android-native/) — Gradle/Compose skeleton, Supabase
-> auth, and a rides list screen. See that folder's README for what's there
-> and how to build it. Phases 1+ below are still to do.
+> **Status:** Phases 0-1 have landed at [`android-native/`](../android-native/)
+> — Gradle/Compose skeleton, Supabase auth, a rides list with GPX import, and
+> a ride detail screen (MapLibre route map, elevation profile, GPX export).
+> See that folder's README for what's there and how to build it. Phases 2+
+> below are still to do.
 
 ## Why
 
@@ -149,10 +150,14 @@ mirrors `src/routes/auth.tsx`, `reset-password.tsx`) and a rides list screen
 reading straight from PostgREST. No maps, no offline, no background service
 yet — just prove the auth + data plumbing.
 
-**Phase 1 — map + ride detail**
+**Phase 1 — map + ride detail (done, see `android-native/`)**
 MapLibre Native map view, ride detail screen (route line, elevation profile —
-a Compose charting lib such as Vico can stand in for `recharts`), GPX
-import/export. Port `gpx.ts` and enough of `rides.ts` to render a saved ride.
+built as a plain Compose `Canvas` rather than pulling in a charting library,
+since one area chart doesn't justify the dependency), GPX import/export via
+the system file picker (Storage Access Framework). `gpx.ts` is ported in
+full (`gpx/Gpx.kt`); `rides.ts` is ported just enough to list, fetch, and
+create rides — no notes/tags/cues/re-planning yet, those come with the
+screens that use them.
 
 **Phase 2 — route planning**
 Port `routing.ts` (BRouter/OSRM client) and tap-to-plan map interaction

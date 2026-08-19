@@ -8,7 +8,7 @@ is structurally impossible in a WebView — mobile browsers throttle
 `geolocation.watchPosition()` the moment the screen locks) and the full
 phased roadmap.
 
-## Status: Phase 0 — scaffold
+## Status: Phases 0-1 — scaffold, map + ride detail
 
 What's here so far:
 
@@ -19,13 +19,24 @@ What's here so far:
   app uses.
 - A rides list screen (`ui/rides/`) reading from the `rides` table via
   Postgrest, scoped by Row Level Security exactly like the web client (no
-  server code needed or duplicated).
+  server code needed or duplicated) — plus a **GPX import** flow (system
+  file picker → parse → save as a new ride).
+- A full port of `src/lib/gpx.ts` at `gpx/Gpx.kt` — GPX parsing (Android's
+  built-in `XmlPullParser`, no XML library dependency), the RDP route
+  simplifier, haversine/bearing math, elevation smoothing, and GPX
+  serialization for export. Same algorithms as the web app, so a route
+  imported here gets the same distance/ascent/point count it would on web.
+- A ride detail screen (`ui/ridedetail/`) — MapLibre Native route map
+  (`ui/map/RouteMapView.kt`, same free CARTO raster basemap the web app
+  defaults to), a Compose `Canvas` elevation profile, and **GPX export** via
+  the system "save file" picker.
 - Nav host (`ui/navigation/HodoraNavHost.kt`) that switches between the auth
-  screen and the rides list based on Supabase session state.
+  screen, rides list, and ride detail based on Supabase session state and
+  navigation.
 
-What's deliberately **not** here yet (see the plan doc's phases): maps, GPX
-import, route planning, offline storage, and — the actual point of building
-this — background turn-by-turn navigation with a foreground service.
+What's deliberately **not** here yet (see the plan doc's phases): route
+planning, offline storage, and — the actual point of building this —
+background turn-by-turn navigation with a foreground service.
 
 ## Building it
 
@@ -56,15 +67,19 @@ same device while both are being developed.
 
 ```text
 app/src/main/java/app/hodora/mobile/
-  HodoraApplication.kt
+  HodoraApplication.kt   # Also where MapLibre.getInstance(this) is called
   MainActivity.kt
+  gpx/
+    Gpx.kt               # Full port of src/lib/gpx.ts
   data/
     model/         # Kotlin data classes mirroring supabase/migrations/ tables
     repository/     # Auth + Postgrest access, one repository per concern
     supabase/        # The shared SupabaseClient (SupabaseModule.kt)
   ui/
     auth/            # Sign in / sign up / reset password
-    rides/           # Rides list
+    rides/           # Rides list + GPX import
+    ridedetail/       # Route map, elevation profile, GPX export
+    map/               # RouteMapView (MapLibre Native) + the CARTO raster style
     navigation/       # HodoraNavHost — routes on Supabase session state
     theme/            # Material 3 theme using Hodora's racing-green brand color
 ```

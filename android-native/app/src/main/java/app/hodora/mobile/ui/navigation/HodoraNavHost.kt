@@ -6,17 +6,24 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import app.hodora.mobile.ui.auth.AuthScreen
 import app.hodora.mobile.ui.auth.AuthViewModel
+import app.hodora.mobile.ui.ridedetail.RideDetailScreen
 import app.hodora.mobile.ui.rides.RidesListScreen
 import io.github.jan.supabase.auth.status.SessionStatus
 
 object HodoraDestination {
     const val AUTH = "auth"
     const val RIDES = "rides"
+    const val RIDE_ID_ARG = "rideId"
+    const val RIDE_DETAIL = "rides/{$RIDE_ID_ARG}"
+
+    fun rideDetail(rideId: String) = "rides/$rideId"
 }
 
 @Composable
@@ -47,7 +54,17 @@ fun HodoraNavHost(navController: NavHostController = rememberNavController()) {
             AuthScreen(viewModel = authViewModel)
         }
         composable(HodoraDestination.RIDES) {
-            RidesListScreen(onSignOut = { authViewModel.signOut() })
+            RidesListScreen(
+                onSignOut = { authViewModel.signOut() },
+                onOpenRide = { rideId -> navController.navigate(HodoraDestination.rideDetail(rideId)) },
+            )
+        }
+        composable(
+            route = HodoraDestination.RIDE_DETAIL,
+            arguments = listOf(navArgument(HodoraDestination.RIDE_ID_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getString(HodoraDestination.RIDE_ID_ARG).orEmpty()
+            RideDetailScreen(rideId = rideId, onBack = { navController.popBackStack() })
         }
     }
 }

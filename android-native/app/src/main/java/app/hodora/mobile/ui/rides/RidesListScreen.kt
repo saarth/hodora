@@ -1,5 +1,11 @@
 package app.hodora.mobile.ui.rides
 
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -17,22 +24,53 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.hodora.mobile.data.model.RideSummary
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RidesListScreen(
     onSignOut: () -> Unit,
+    onOpenRide: (rideId: String) -> Unit,
     viewModel: RidesViewModel = viewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { viewModel.refresh() }
+
+    // "*/*" rather than a GPX-specific mime type: most Android file pickers
+    // and cloud providers report .gpx files as application/octet-stream (or
+    // nothing at all), so filtering by mime type would hide the very files
+    // riders want to pick.
+    val importLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            scope.launch(Dispatchers.IO) {
+                val displayName = queryDisplayName(context, uri) ?: "Imported ride"
+                val xml =
+                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                        stream.readBytes().toString(Charsets.UTF_8)
+                    }
+                if (xml != null) {
+                    viewModel.importGpx(
+                        xml = xml,
+                        fallbackName = displayName.removeSuffix(".gpx"),
+                        sourceFilename = displayName,
+                        onImported = onOpenRide,
+                    )
+                }
+            }
+        }
 
     Scaffold(
         topBar = {
@@ -42,6 +80,11 @@ fun RidesListScreen(
                     TextButton(onClick = onSignOut) { Text("Sign out") }
                 },
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { importLauncher.launch(arrayOf("*/*")) }) {
+                Text(if (state.isImporting) "…" else "+")
+            }
         },
     ) { padding ->
         when {
@@ -63,19 +106,23 @@ fun RidesListScreen(
                     modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
-                ) { Text("No rides yet — import a GPX from the Hodora web app to see it here.") }
+                ) { Text("No rides yet — tap + to import a GPX file.") }
 
             else ->
                 LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
-                    items(state.rides, key = { it.id }) { ride -> RideRow(ride) }
+                    items(state.rides, key = { it.id }) { ride -> RideRow(ride, onClick = { onOpenRide(ride.id) }) }
                 }
         }
     }
 }
 
 @Composable
-private fun RideRow(ride: RideSummary) {
+private fun RideRow(
+    ride: RideSummary,
+    onClick: () -> Unit,
+) {
     ListItem(
+        modifier = Modifier.clickable(onClick = onClick),
         headlineContent = { Text(ride.name) },
         supportingContent = {
             val km = ride.distanceM / 1000
@@ -83,3 +130,12 @@ private fun RideRow(ride: RideSummary) {
         },
     )
 }
+
+private fun queryDisplayName(
+    context: Context,
+    uri: Uri,
+): String? =
+    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+    }
