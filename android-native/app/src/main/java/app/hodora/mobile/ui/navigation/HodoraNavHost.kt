@@ -13,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import app.hodora.mobile.ui.auth.AuthScreen
 import app.hodora.mobile.ui.auth.AuthViewModel
+import app.hodora.mobile.ui.plan.PlanScreen
 import app.hodora.mobile.ui.ridedetail.RideDetailScreen
 import app.hodora.mobile.ui.rides.RidesListScreen
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -20,6 +21,7 @@ import io.github.jan.supabase.auth.status.SessionStatus
 object HodoraDestination {
     const val AUTH = "auth"
     const val RIDES = "rides"
+    const val PLAN = "plan"
     const val RIDE_ID_ARG = "rideId"
     const val RIDE_DETAIL = "rides/{$RIDE_ID_ARG}"
 
@@ -57,6 +59,7 @@ fun HodoraNavHost(navController: NavHostController = rememberNavController()) {
             RidesListScreen(
                 onSignOut = { authViewModel.signOut() },
                 onOpenRide = { rideId -> navController.navigate(HodoraDestination.rideDetail(rideId)) },
+                onPlanRoute = { navController.navigate(HodoraDestination.PLAN) },
             )
         }
         composable(
@@ -65,6 +68,16 @@ fun HodoraNavHost(navController: NavHostController = rememberNavController()) {
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getString(HodoraDestination.RIDE_ID_ARG).orEmpty()
             RideDetailScreen(rideId = rideId, onBack = { navController.popBackStack() })
+        }
+        composable(HodoraDestination.PLAN) {
+            PlanScreen(
+                onBack = { navController.popBackStack() },
+                onSaved = { rideId ->
+                    navController.navigate(HodoraDestination.rideDetail(rideId)) {
+                        popUpTo(HodoraDestination.RIDES)
+                    }
+                },
+            )
         }
     }
 }

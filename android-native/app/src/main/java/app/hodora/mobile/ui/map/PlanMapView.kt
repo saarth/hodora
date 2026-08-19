@@ -1,0 +1,126 @@
+package app.hodora.mobile.ui.map
+
+import android.graphics.Color
+import android.view.View
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import app.hodora.mobile.routing.LatLon
+import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.Style
+import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.Property
+import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.sources.GeoJsonSource
+
+private const val ROUTE_SOURCE_ID = "plan-route"
+private const val ROUTE_LAYER_ID = "plan-route-line"
+private const val WAYPOINTS_SOURCE_ID = "plan-waypoints"
+private const val WAYPOINTS_LAYER_ID = "plan-waypoints-circles"
+
+/**
+ * Tap-to-plan map — mirrors RouteMap's onMapClick handling in
+ * src/routes/plan.tsx. Kept separate from RouteMapView (ride detail's
+ * static map) rather than generalizing the two into one composable:
+ * planning needs click handling and waypoint markers that ride detail
+ * doesn't, and the two have no other logic in common yet.
+ */
+@Composable
+fun PlanMapView(
+    routePath: List<LatLon>,
+    waypoints: List<LatLon>,
+    onMapClick: (LatLon) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val dark = isSystemInDarkTheme()
+
+    // onMapClick is captured once here, not re-read on every recomposition —
+    // fine as long as the caller passes a stable reference (PlanViewModel's
+    // addWaypoint), which PlanScreen does.
+    val mapView =
+        remember {
+            MapView(context).apply {
+                id = View.generateViewId()
+                onCreate(null)
+                getMapAsync { map ->
+                    map.addOnMapClickListener { latLng ->
+                        onMapClick(LatLon(latLng.latitude, latLng.longitude))
+                        true
+                    }
+                }
+            }
+        }
+
+    DisposableEffect(lifecycleOwner) {
+        val lifecycle = lifecycleOwner.lifecycle
+        val observer =
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_START -> mapView.onStart()
+                    Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                    Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                    Lifecycle.Event.ON_STOP -> mapView.onStop()
+                    Lifecycle.Event.ON_DESTROY -> mapView.onDestroy()
+                    else -> {}
+                }
+            }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+
+    // Same "rebuild the whole style on every update" simplification as
+    // RouteMapView — fine here too, since it only actually re-runs when the
+    // route/waypoints change (i.e. after each reroute, not every frame).
+    AndroidView(
+        factory = { mapView },
+        modifier = modifier,
+        update = { view ->
+            view.getMapAsync { map ->
+                map.setStyle(Style.Builder().fromJson(cartoStyleJson(dark))) { style ->
+                    style.addSource(GeoJsonSource(ROUTE_SOURCE_ID, routeLineGeoJson(routePath)))
+                    style.addLayer(
+                        LineLayer(ROUTE_LAYER_ID, ROUTE_SOURCE_ID).withProperties(
+                            PropertyFactory.lineColor(Color.parseColor("#1F3A2E")),
+                            PropertyFactory.lineWidth(4f),
+                            PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                            PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+                        ),
+                    )
+                    style.addSource(GeoJsonSource(WAYPOINTS_SOURCE_ID, waypointsGeoJson(waypoints)))
+                    style.addLayer(
+                        CircleLayer(WAYPOINTS_LAYER_ID, WAYPOINTS_SOURCE_ID).withProperties(
+                            PropertyFactory.circleRadius(6f),
+                            PropertyFactory.circleColor(Color.parseColor("#1F3A2E")),
+                            PropertyFactory.circleStrokeWidth(2f),
+                            PropertyFactory.circleStrokeColor(Color.parseColor("#FFFFFF")),
+                        ),
+                    )
+                }
+            }
+        },
+    )
+}
+
+private fun routeLineGeoJson(path: List<LatLon>): String {
+    if (path.size < 2) return """{"type":"FeatureCollection","features":[]}"""
+    val coordinates = path.joinToString(prefix = "[", postfix = "]") { "[${it.lon},${it.lat}]" }
+    return """{"type":"Feature","properties":{},"geometry":{"type":"LineString","coordinates":$coordinates}}"""
+}
+
+private fun waypointsGeoJson(points: List<LatLon>): String {
+    val features =
+        points.joinToString(prefix = "[", postfix = "]") {
+            """{"type":"Feature","properties":{},"geometry":{"type":"Point","coordinates":[${it.lon},${it.lat}]}}"""
+        }
+    return """{"type":"FeatureCollection","features":$features}"""
+}

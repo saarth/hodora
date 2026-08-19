@@ -40,6 +40,7 @@ import java.util.Locale
 fun RidesListScreen(
     onSignOut: () -> Unit,
     onOpenRide: (rideId: String) -> Unit,
+    onPlanRoute: () -> Unit,
     viewModel: RidesViewModel = viewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -77,6 +78,7 @@ fun RidesListScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Your rides") },
                 actions = {
+                    TextButton(onClick = onPlanRoute) { Text("Plan") }
                     TextButton(onClick = onSignOut) { Text("Sign out") }
                 },
             )

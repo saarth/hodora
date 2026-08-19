@@ -1,6 +1,9 @@
 package app.hodora.mobile.data.model
 
+import app.hodora.mobile.cues.RideCue
 import app.hodora.mobile.gpx.RidePoint
+import app.hodora.mobile.routing.BikeProfile
+import app.hodora.mobile.routing.LatLon
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -18,6 +21,12 @@ data class NewRide(
     @SerialName("max_lat") val maxLat: Double?,
     @SerialName("max_lon") val maxLon: Double?,
     val points: List<RidePoint>,
+    /** router-provided turn-by-turn instructions — empty for a GPX import, may be non-empty for a planned route (OSRM only; BRouter never returns cues, see routing/Routing.kt). */
+    val cues: List<RideCue> = emptyList(),
+    /** waypoints tapped on the planner, kept so a planned route can be reopened and re-routed — null for imported rides. */
+    @SerialName("plan_waypoints") val planWaypoints: List<LatLon>? = null,
+    /** BRouter profile used when this route was planned — null unless planWaypoints is set. */
+    @SerialName("plan_profile") val planProfile: BikeProfile? = null,
 )
 
 @Serializable

@@ -5,8 +5,12 @@ import app.hodora.mobile.data.model.Ride
 import app.hodora.mobile.data.model.RideId
 import app.hodora.mobile.data.model.RideSummary
 import app.hodora.mobile.data.supabase.SupabaseModule
+import app.hodora.mobile.cues.RideCue
 import app.hodora.mobile.gpx.ParsedRide
+import app.hodora.mobile.routing.BikeProfile
+import app.hodora.mobile.routing.LatLon
 import io.github.jan.supabase.auth.auth
+
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
@@ -60,8 +64,19 @@ class RidesRepository {
             }
             .decodeSingle<Ride>()
 
-    /** Saves a freshly-imported/parsed GPX as a new ride, returning its id. */
-    suspend fun createRide(parsed: ParsedRide, sourceFilename: String?): String {
+    /**
+     * Saves a parsed route as a new ride. `sourceFilename` is set for a GPX
+     * import; `cues`/`planWaypoints`/`planProfile` are set for a route saved
+     * from the planner (Phase 2) — the two call sites use the same insert so
+     * a ride's origin doesn't need two separate code paths downstream.
+     */
+    suspend fun createRide(
+        parsed: ParsedRide,
+        sourceFilename: String? = null,
+        cues: List<RideCue> = emptyList(),
+        planWaypoints: List<LatLon>? = null,
+        planProfile: BikeProfile? = null,
+    ): String {
         val userId = auth.currentUserOrNull()?.id ?: error("Not signed in")
         val row =
             NewRide(
@@ -76,6 +91,9 @@ class RidesRepository {
                 maxLat = parsed.bounds.maxLat,
                 maxLon = parsed.bounds.maxLon,
                 points = parsed.points,
+                cues = cues,
+                planWaypoints = planWaypoints,
+                planProfile = planProfile,
             )
         val inserted =
             postgrest

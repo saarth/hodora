@@ -8,7 +8,7 @@ is structurally impossible in a WebView — mobile browsers throttle
 `geolocation.watchPosition()` the moment the screen locks) and the full
 phased roadmap.
 
-## Status: Phases 0-1 — scaffold, map + ride detail
+## Status: Phases 0-2 — scaffold, map + ride detail, route planning
 
 What's here so far:
 
@@ -30,13 +30,19 @@ What's here so far:
   (`ui/map/RouteMapView.kt`, same free CARTO raster basemap the web app
   defaults to), a Compose `Canvas` elevation profile, and **GPX export** via
   the system "save file" picker.
+- A route planner (`ui/plan/`) — tap the map to drop waypoints, reroute
+  through BRouter (preferred, respects the chosen bike profile) falling back
+  to OSRM then a straight line, live distance/ascent, undo/clear, and save
+  as a new ride with `plan_waypoints`/`plan_profile`/`cues` populated. A full
+  port of `src/lib/routing.ts` lives at `routing/Routing.kt`.
 - Nav host (`ui/navigation/HodoraNavHost.kt`) that switches between the auth
-  screen, rides list, and ride detail based on Supabase session state and
-  navigation.
+  screen, rides list, ride detail, and the planner based on Supabase session
+  state and navigation.
 
-What's deliberately **not** here yet (see the plan doc's phases): route
-planning, offline storage, and — the actual point of building this —
-background turn-by-turn navigation with a foreground service.
+What's deliberately **not** here yet (see the plan doc's phases): offline
+storage, reopening a saved planned route to edit it, weather-at-departure on
+the planner, and — the actual point of building this — background
+turn-by-turn navigation with a foreground service.
 
 ## Building it
 
@@ -71,6 +77,12 @@ app/src/main/java/app/hodora/mobile/
   MainActivity.kt
   gpx/
     Gpx.kt               # Full port of src/lib/gpx.ts
+  cues/
+    Cues.kt              # Partial port of src/lib/cues.ts (just what routing needs)
+  routing/
+    Routing.kt           # Full port of src/lib/routing.ts (BRouter/OSRM client)
+  net/
+    HttpClientProvider.kt # Shared Ktor client for BRouter/OSRM (non-Supabase calls)
   data/
     model/         # Kotlin data classes mirroring supabase/migrations/ tables
     repository/     # Auth + Postgrest access, one repository per concern
@@ -79,7 +91,8 @@ app/src/main/java/app/hodora/mobile/
     auth/            # Sign in / sign up / reset password
     rides/           # Rides list + GPX import
     ridedetail/       # Route map, elevation profile, GPX export
-    map/               # RouteMapView (MapLibre Native) + the CARTO raster style
+    plan/              # Route planner — tap-to-plan, BRouter/OSRM, save
+    map/               # RouteMapView + PlanMapView (MapLibre Native) + the CARTO raster style
     navigation/       # HodoraNavHost — routes on Supabase session state
     theme/            # Material 3 theme using Hodora's racing-green brand color
 ```

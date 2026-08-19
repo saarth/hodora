@@ -1,10 +1,11 @@
 # Native Android app — plan
 
-> **Status:** Phases 0-1 have landed at [`android-native/`](../android-native/)
-> — Gradle/Compose skeleton, Supabase auth, a rides list with GPX import, and
-> a ride detail screen (MapLibre route map, elevation profile, GPX export).
-> See that folder's README for what's there and how to build it. Phases 2+
-> below are still to do.
+> **Status:** Phases 0-2 have landed at [`android-native/`](../android-native/)
+> — Gradle/Compose skeleton, Supabase auth, a rides list with GPX import, a
+> ride detail screen (MapLibre route map, elevation profile, GPX export), and
+> a route planner (tap-to-plan, BRouter/OSRM routing, save to rides). See
+> that folder's README for what's there and how to build it. Phases 3+ below
+> are still to do.
 
 ## Why
 
@@ -159,10 +160,16 @@ full (`gpx/Gpx.kt`); `rides.ts` is ported just enough to list, fetch, and
 create rides — no notes/tags/cues/re-planning yet, those come with the
 screens that use them.
 
-**Phase 2 — route planning**
-Port `routing.ts` (BRouter/OSRM client) and tap-to-plan map interaction
-(`src/routes/plan.tsx`'s behavior). No offline yet — this can hit the network
-every time, same as today.
+**Phase 2 — route planning (done, see `android-native/`)**
+Port of `routing.ts` (BRouter/OSRM client, straight-line fallback) and the
+waypoint/routing/save logic in `src/routes/plan.tsx` — tap the map to add a
+waypoint, reroute through BRouter (preferred, profile-aware) falling back to
+OSRM then a straight line, save to `rides` with `plan_waypoints`/
+`plan_profile`/`cues` populated so the route is re-plannable later (reopening
+a saved route in the planner to edit it isn't wired up yet — the planner
+only creates new rides so far). Not ported: the weather-at-departure panel
+(needs `weather.ts`) and reopening an existing planned route for editing.
+No offline yet — this hits the network every time, same as web.
 
 **Phase 3 — the flagship feature: background turn-by-turn navigation**
 This is the actual reason to build a native app, so it's worth treating as
