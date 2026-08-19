@@ -2,19 +2,22 @@ package app.hodora.mobile.ui.ridedetail
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,6 +55,7 @@ fun RideDetailScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val dark = isSystemInDarkTheme()
 
     LaunchedEffect(rideId) { viewModel.load() }
 
@@ -95,7 +99,18 @@ fun RideDetailScreen(
                     Text(state.error.orEmpty())
                 }
 
-            state.ride != null -> RideDetailContent(state.ride!!, onNavigate, Modifier.padding(padding))
+            state.ride != null ->
+                RideDetailContent(
+                    ride = state.ride!!,
+                    onNavigate = onNavigate,
+                    isSavedOffline = state.isSavedOffline,
+                    isSavingOffline = state.isSavingOffline,
+                    tileProgress = state.tileProgress,
+                    offlineError = state.offlineError,
+                    onSaveOffline = { viewModel.saveForOffline(context, dark) },
+                    onRemoveOffline = { viewModel.removeOffline(context) },
+                    modifier = Modifier.padding(padding),
+                )
         }
     }
 }
@@ -104,6 +119,12 @@ fun RideDetailScreen(
 private fun RideDetailContent(
     ride: Ride,
     onNavigate: () -> Unit,
+    isSavedOffline: Boolean,
+    isSavingOffline: Boolean,
+    tileProgress: Float?,
+    offlineError: String?,
+    onSaveOffline: () -> Unit,
+    onRemoveOffline: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -131,6 +152,40 @@ private fun RideDetailContent(
             ) {
                 Text("Start navigation")
             }
+
+            Row(modifier = Modifier.padding(top = 8.dp)) {
+                when {
+                    isSavingOffline ->
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text("Saving for offline…", style = MaterialTheme.typography.bodySmall)
+                            LinearProgressIndicator(
+                                progress = { tileProgress ?: 0f },
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            )
+                        }
+                    isSavedOffline ->
+                        OutlinedButton(onClick = onRemoveOffline, modifier = Modifier.fillMaxWidth()) {
+                            Text("✓ Saved offline — remove")
+                        }
+                    else ->
+                        OutlinedButton(
+                            onClick = onSaveOffline,
+                            enabled = ride.points.size >= 2,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Save for offline")
+                        }
+                }
+            }
+            offlineError?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+
             ElevationProfile(points = ride.points, modifier = Modifier.padding(top = 16.dp))
         }
     }

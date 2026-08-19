@@ -25,6 +25,12 @@ kotlinxSerialization = "1.8.0"
 # MapLibre Native for Android: https://github.com/maplibre/maplibre-native
 maplibre = "13.4.1"
 playServicesLocation = "21.4.0"
+# Room for the Phase 5 offline ride cache (data/local/). Uses kapt for the
+# annotation processor rather than KSP — kapt's version tracks the project's
+# own Kotlin version automatically (no separate version to guess right
+# without Maven access), where KSP needs an exact
+# "<kotlin-version>-<ksp-version>" pin that can't be verified from here.
+room = "2.7.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -49,9 +55,13 @@ ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.r
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 maplibre-android-sdk = { group = "org.maplibre.gl", name = "android-sdk", version.ref = "maplibre" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }

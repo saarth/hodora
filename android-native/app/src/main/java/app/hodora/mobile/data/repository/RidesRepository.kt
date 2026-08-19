@@ -1,5 +1,6 @@
 package app.hodora.mobile.data.repository
 
+import app.hodora.mobile.data.local.OfflineStore
 import app.hodora.mobile.data.model.NewRide
 import app.hodora.mobile.data.model.Ride
 import app.hodora.mobile.data.model.RideId
@@ -45,13 +46,29 @@ class RidesRepository {
     // RLS (supabase/migrations/) scopes both queries below to the signed-in
     // rider's own rows automatically via the session's JWT — same as the
     // web client, no user_id filter needed on the read side.
+    //
+    // Phase 5: both reads fall back to the Room-backed OfflineStore on any
+    // network failure — listRides() to whatever ride-list snapshot the last
+    // successful fetch cached (every successful fetch refreshes it), getRide()
+    // to a full ride only if it was explicitly saved for offline use (see
+    // saveRideOffline below; not every viewed ride is cached automatically).
+    // Both rethrow the original exception when there's nothing cached, so a
+    // genuinely offline rider with nothing saved still sees a real error
+    // instead of a silent empty list.
     suspend fun listRides(): List<RideSummary> =
-        postgrest
-            .from("rides")
-            .select(columns = SUMMARY_COLUMNS) {
-                order("created_at", Order.DESCENDING)
-            }
-            .decodeList<RideSummary>()
+        try {
+            val rides =
+                postgrest
+                    .from("rides")
+                    .select(columns = SUMMARY_COLUMNS) {
+                        order("created_at", Order.DESCENDING)
+                    }
+                    .decodeList<RideSummary>()
+            OfflineStore.putRideList(rides)
+            rides
+        } catch (e: Exception) {
+            OfflineStore.getRideList() ?: throw e
+        }
 
     // The `filter { eq(...) }` / trailing-lambda `select`+`insert` shapes
     // below match supabase-kt's postgrest-kt request-builder DSL as of the
@@ -59,12 +76,23 @@ class RidesRepository {
     // newer major version with a different DSL, fix these call sites first
     // — RidesViewModel/RideDetailViewModel don't need to change either way.
     suspend fun getRide(id: String): Ride =
-        postgrest
-            .from("rides")
-            .select(columns = RIDE_COLUMNS) {
-                filter { eq("id", id) }
-            }
-            .decodeSingle<Ride>()
+        try {
+            postgrest
+                .from("rides")
+                .select(columns = RIDE_COLUMNS) {
+                    filter { eq("id", id) }
+                }
+                .decodeSingle<Ride>()
+        } catch (e: Exception) {
+            OfflineStore.getOfflineRide(id) ?: throw e
+        }
+
+    /** Explicit "Save for offline" action (RideDetailScreen) — see OfflineStore's doc comment for why this isn't automatic. */
+    suspend fun saveRideOffline(ride: Ride) = OfflineStore.putOfflineRide(ride)
+
+    suspend fun isRideSavedOffline(id: String): Boolean = OfflineStore.isRideSavedOffline(id)
+
+    suspend fun removeOfflineRide(id: String) = OfflineStore.deleteOfflineRide(id)
 
     /**
      * Saves a parsed route as a new ride. `sourceFilename` is set for a GPX

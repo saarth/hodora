@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.kapt)
 }
 
 // See secrets.properties.example — copy it to secrets.properties (gitignored)
@@ -95,4 +96,8 @@ dependencies {
 
     implementation(libs.maplibre.android.sdk)
     implementation(libs.play.services.location)
+
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    kapt(libs.room.compiler)
 }
