@@ -7,27 +7,35 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.MyLocation
+import androidx.compose.material.icons.outlined.Pause
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -38,9 +46,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -56,12 +68,19 @@ import app.hodora.mobile.record.RecordState
 import app.hodora.mobile.record.RecordStatus
 import app.hodora.mobile.record.RecordUiState
 import app.hodora.mobile.record.RecordingService
+import app.hodora.mobile.ui.components.Caption
+import app.hodora.mobile.ui.components.HodoraButton
+import app.hodora.mobile.ui.components.HodoraButtonVariant
+import app.hodora.mobile.ui.components.HodoraCard
+import app.hodora.mobile.ui.components.HodoraChip
+import app.hodora.mobile.ui.components.StatFigure
 import app.hodora.mobile.ui.map.RouteMapView
 import app.hodora.mobile.ui.permissions.BackgroundLocationChecklist
 import app.hodora.mobile.ui.permissions.hasBackgroundLocation
 import app.hodora.mobile.ui.permissions.hasFineLocation
 import app.hodora.mobile.ui.permissions.isIgnoringBatteryOptimizations
 import app.hodora.mobile.ui.ridedetail.ElevationProfile
+import app.hodora.mobile.ui.theme.LocalHodoraColors
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
@@ -84,6 +103,7 @@ fun RecordScreen(
     val recordState by RecordState.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     val repository = remember { RidesRepository() }
+    val colors = LocalHodoraColors.current
 
     var fineGranted by remember { mutableStateOf(hasFineLocation(context)) }
     var backgroundGranted by remember { mutableStateOf(hasBackgroundLocation(context)) }
@@ -120,107 +140,100 @@ fun RecordScreen(
         context.startService(Intent(context, RecordingService::class.java).apply { this.action = action })
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Record a ride") },
-                navigationIcon = {
-                    TextButton(onClick = {
-                        if (recordState.status == RecordStatus.RECORDING || recordState.status == RecordStatus.PAUSED) {
-                            sendAction(RecordingService.ACTION_FINISH)
-                        }
-                        RecordState.reset()
-                        onExit()
-                    }) { Text("Exit") }
-                },
-            )
-        },
-    ) { padding ->
-        when (recordState.status) {
-            RecordStatus.IDLE ->
-                BackgroundLocationChecklist(
-                    modifier = Modifier.padding(padding),
-                    fineGranted = fineGranted,
-                    backgroundGranted = backgroundGranted,
-                    batteryExempt = batteryExempt,
-                    error = recordState.error,
-                    startLabel = "Start recording",
-                    onRequestForeground = {
-                        val permissions =
-                            buildList {
-                                add(Manifest.permission.ACCESS_FINE_LOCATION)
-                                add(Manifest.permission.ACCESS_COARSE_LOCATION)
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    add(Manifest.permission.POST_NOTIFICATIONS)
+    fun exitTracking() {
+        if (recordState.status == RecordStatus.RECORDING || recordState.status == RecordStatus.PAUSED) {
+            sendAction(RecordingService.ACTION_FINISH)
+        }
+        RecordState.reset()
+        onExit()
+    }
+
+    Scaffold(containerColor = colors.bg, contentWindowInsets = WindowInsets(0, 0, 0, 0)) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            when (recordState.status) {
+                RecordStatus.IDLE ->
+                    BackgroundLocationChecklist(
+                        fineGranted = fineGranted,
+                        backgroundGranted = backgroundGranted,
+                        batteryExempt = batteryExempt,
+                        error = recordState.error,
+                        startLabel = "Start recording",
+                        onRequestForeground = {
+                            val permissions =
+                                buildList {
+                                    add(Manifest.permission.ACCESS_FINE_LOCATION)
+                                    add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        add(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                }
+                            foregroundPermissionLauncher.launch(permissions.toTypedArray())
+                        },
+                        onRequestBackground = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                            }
+                        },
+                        onRequestBatteryExemption = {
+                            context.startActivity(
+                                Intent(
+                                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                    Uri.parse("package:${context.packageName}"),
+                                ),
+                            )
+                        },
+                        onStart = {
+                            val intent = Intent(context, RecordingService::class.java).apply { action = RecordingService.ACTION_START }
+                            ContextCompat.startForegroundService(context, intent)
+                        },
+                    )
+
+                RecordStatus.RECORDING, RecordStatus.PAUSED ->
+                    RecordTrackingContent(
+                        recordState = recordState,
+                        onBack = ::exitTracking,
+                        onPauseResume = {
+                            sendAction(
+                                if (recordState.status == RecordStatus.RECORDING) {
+                                    RecordingService.ACTION_PAUSE
+                                } else {
+                                    RecordingService.ACTION_RESUME
+                                },
+                            )
+                        },
+                        onFinish = { sendAction(RecordingService.ACTION_FINISH) },
+                    )
+
+                RecordStatus.STOPPED ->
+                    RecordStoppedContent(
+                        recordState = recordState,
+                        name = name,
+                        onNameChange = { name = it },
+                        isSaving = isSaving,
+                        saveError = saveError,
+                        onDiscard = {
+                            RecordState.reset()
+                            name = ""
+                        },
+                        onSave = {
+                            isSaving = true
+                            saveError = null
+                            scope.launch {
+                                try {
+                                    val fallbackName = "Ride — ${DateFormat.getDateInstance().format(Date())}"
+                                    val parsed = buildParsedRide(recordState.rawPoints, name.trim().ifEmpty { fallbackName })
+                                    val rideId = repository.createRide(parsed, isRecorded = true)
+                                    RecordState.reset()
+                                    onSaved(rideId)
+                                } catch (e: Exception) {
+                                    saveError = e.message ?: "Could not save this ride"
+                                } finally {
+                                    isSaving = false
                                 }
                             }
-                        foregroundPermissionLauncher.launch(permissions.toTypedArray())
-                    },
-                    onRequestBackground = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                        }
-                    },
-                    onRequestBatteryExemption = {
-                        context.startActivity(
-                            Intent(
-                                Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                Uri.parse("package:${context.packageName}"),
-                            ),
-                        )
-                    },
-                    onStart = {
-                        val intent = Intent(context, RecordingService::class.java).apply { action = RecordingService.ACTION_START }
-                        ContextCompat.startForegroundService(context, intent)
-                    },
-                )
-
-            RecordStatus.RECORDING, RecordStatus.PAUSED ->
-                RecordTrackingContent(
-                    recordState = recordState,
-                    modifier = Modifier.padding(padding),
-                    onPauseResume = {
-                        sendAction(
-                            if (recordState.status == RecordStatus.RECORDING) {
-                                RecordingService.ACTION_PAUSE
-                            } else {
-                                RecordingService.ACTION_RESUME
-                            },
-                        )
-                    },
-                    onFinish = { sendAction(RecordingService.ACTION_FINISH) },
-                )
-
-            RecordStatus.STOPPED ->
-                RecordStoppedContent(
-                    recordState = recordState,
-                    modifier = Modifier.padding(padding),
-                    name = name,
-                    onNameChange = { name = it },
-                    isSaving = isSaving,
-                    saveError = saveError,
-                    onDiscard = {
-                        RecordState.reset()
-                        name = ""
-                    },
-                    onSave = {
-                        isSaving = true
-                        saveError = null
-                        scope.launch {
-                            try {
-                                val fallbackName = "Ride — ${DateFormat.getDateInstance().format(Date())}"
-                                val parsed = buildParsedRide(recordState.rawPoints, name.trim().ifEmpty { fallbackName })
-                                val rideId = repository.createRide(parsed, isRecorded = true)
-                                RecordState.reset()
-                                onSaved(rideId)
-                            } catch (e: Exception) {
-                                saveError = e.message ?: "Could not save this ride"
-                            } finally {
-                                isSaving = false
-                            }
-                        }
-                    },
-                )
+                        },
+                    )
+            }
         }
     }
 }
@@ -242,18 +255,19 @@ private fun liveRidePoints(recordState: RecordUiState): List<RidePoint> {
 @Composable
 private fun RecordTrackingContent(
     recordState: RecordUiState,
-    modifier: Modifier = Modifier,
+    onBack: () -> Unit,
     onPauseResume: () -> Unit,
     onFinish: () -> Unit,
 ) {
+    val colors = LocalHodoraColors.current
     val points = remember(recordState.rawPoints) { liveRidePoints(recordState) }
     val avgSpeedMps = if (recordState.elapsedSec > 10) recordState.distanceM / recordState.elapsedSec else null
     // Same follow/recenter pattern as NavScreen's map — see RouteMapView.kt.
     var followSuspended by remember { mutableStateOf(false) }
     var recenterRequests by remember { mutableStateOf(0) }
 
-    Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Box(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        Box(modifier = Modifier.fillMaxWidth().height(300.dp)) {
             RouteMapView(
                 points = points,
                 bounds = null,
@@ -264,47 +278,99 @@ private fun RecordTrackingContent(
                 recenterRequests = recenterRequests,
                 modifier = Modifier.fillMaxSize(),
             )
+            HodoraChip(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(top = 52.dp, start = 16.dp)) {
+                Icon(Icons.Outlined.ArrowBack, contentDescription = "Back", tint = colors.ink, modifier = Modifier.size(18.dp))
+                Text("Record a ride", color = colors.ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 52.dp, end = 16.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(lerp(colors.card, colors.destructive, 0.12f))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(colors.destructive),
+                    )
+                    Text(
+                        text = "REC",
+                        color = colors.destructive,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
+            }
             if (followSuspended) {
-                Button(
-                    onClick = { recenterRequests++ },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(12.dp)
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(colors.primary)
+                            .clickable { recenterRequests++ },
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text("Recenter")
+                    Icon(Icons.Outlined.MyLocation, contentDescription = "Recenter", tint = colors.primaryInk)
                 }
             }
         }
 
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                Stat("Elapsed", formatDuration(recordState.elapsedSec))
-                Stat("Distance", formatDistance(recordState.distanceM))
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(40.dp)) {
+                Stat("Elapsed", formatDuration(recordState.elapsedSec), modifier = Modifier.weight(1f))
+                Stat("Distance", formatDistance(recordState.distanceM), modifier = Modifier.weight(1f))
             }
-            Row(modifier = Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                Stat("Speed", recordState.currentSpeedMps?.let { "${formatSpeed(it)} km/h" } ?: "—")
-                Stat("Avg speed", avgSpeedMps?.let { "${formatSpeed(it)} km/h" } ?: "—")
+            Row(modifier = Modifier.padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
+                Stat("Speed", recordState.currentSpeedMps?.let { formatSpeed(it) } ?: "—", modifier = Modifier.weight(1f))
+                Stat("Avg speed", avgSpeedMps?.let { formatSpeed(it) } ?: "—", modifier = Modifier.weight(1f))
             }
-            Stat("Elevation gain", formatElevation(recordState.ascentM), modifier = Modifier.padding(top = 12.dp))
+            Stat("Elevation gain", formatElevation(recordState.ascentM), modifier = Modifier.padding(top = 20.dp))
 
-            Row(modifier = Modifier.padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(modifier = Modifier.padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (recordState.status == RecordStatus.RECORDING) {
-                    OutlinedButton(onClick = onPauseResume, modifier = Modifier.weight(1f)) { Text("Pause") }
+                    HodoraButton(
+                        text = "Pause",
+                        onClick = onPauseResume,
+                        variant = HodoraButtonVariant.Outline,
+                        modifier = Modifier.weight(1f),
+                        icon = { Icon(Icons.Outlined.Pause, contentDescription = null, modifier = Modifier.size(17.dp)) },
+                    )
                 } else {
-                    Button(onClick = onPauseResume, modifier = Modifier.weight(1f)) { Text("Resume") }
+                    HodoraButton(
+                        text = "Resume",
+                        onClick = onPauseResume,
+                        variant = HodoraButtonVariant.Outline,
+                        modifier = Modifier.weight(1f),
+                        icon = { Icon(Icons.Outlined.PlayArrow, contentDescription = null, modifier = Modifier.size(17.dp)) },
+                    )
                 }
-                Button(
+                HodoraButton(
+                    text = "Finish",
                     onClick = onFinish,
                     enabled = recordState.rawPoints.size >= 2,
+                    variant = HodoraButtonVariant.Destructive,
                     modifier = Modifier.weight(1f),
-                ) { Text("Finish") }
+                    icon = { Icon(Icons.Outlined.Stop, contentDescription = null, modifier = Modifier.size(17.dp)) },
+                )
             }
 
             if (points.size > 1) {
-                Text(
-                    "Elevation",
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(top = 20.dp),
-                )
-                ElevationProfile(points = points, modifier = Modifier.padding(top = 8.dp))
+                HodoraCard(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Caption("Elevation")
+                        ElevationProfile(points = points, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
             }
         }
     }
@@ -313,7 +379,6 @@ private fun RecordTrackingContent(
 @Composable
 private fun RecordStoppedContent(
     recordState: RecordUiState,
-    modifier: Modifier = Modifier,
     name: String,
     onNameChange: (String) -> Unit,
     isSaving: Boolean,
@@ -321,12 +386,23 @@ private fun RecordStoppedContent(
     onDiscard: () -> Unit,
     onSave: () -> Unit,
 ) {
+    val colors = LocalHodoraColors.current
     val points = remember(recordState.rawPoints) { liveRidePoints(recordState) }
 
-    Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
         Text(
-            "${formatDistance(recordState.distanceM)} · ${formatElevation(recordState.ascentM)} ascent · ${formatDuration(recordState.elapsedSec)}",
-            style = MaterialTheme.typography.titleMedium,
+            text = "Ride complete",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = colors.ink,
+            modifier = Modifier.padding(top = 40.dp),
+        )
+        StatFigure(
+            text = "${formatDistance(recordState.distanceM)} · ${formatElevation(recordState.ascentM)} ascent · ${formatDuration(recordState.elapsedSec)}",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Normal,
+            color = colors.mutedInk,
+            modifier = Modifier.padding(top = 6.dp),
         )
 
         OutlinedTextField(
@@ -335,31 +411,41 @@ private fun RecordStoppedContent(
             label = { Text("Ride name") },
             placeholder = { Text("Ride — ${DateFormat.getDateInstance().format(Date())}") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
         )
 
         saveError?.let {
-            Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+            Text(it, color = colors.destructive, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
         }
 
-        Row(modifier = Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onDiscard, enabled = !isSaving, modifier = Modifier.weight(1f)) { Text("Discard") }
-            Button(
+        Row(modifier = Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HodoraButton(
+                text = "Discard",
+                onClick = onDiscard,
+                enabled = !isSaving,
+                variant = HodoraButtonVariant.Outline,
+                modifier = Modifier.weight(1f),
+            )
+            HodoraButton(
+                text = if (isSaving) "Saving…" else "Save ride",
                 onClick = onSave,
                 enabled = !isSaving && recordState.rawPoints.size >= 2,
                 modifier = Modifier.weight(1f),
-            ) {
-                if (isSaving) CircularProgressIndicator(modifier = Modifier.size(18.dp)) else Text("Save ride")
-            }
+                icon = if (isSaving) {
+                    { CircularProgressIndicator(modifier = Modifier.size(18.dp), color = colors.primaryInk, strokeWidth = 2.dp) }
+                } else {
+                    null
+                },
+            )
         }
 
         if (points.size > 1) {
-            Text(
-                "Elevation",
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(top = 20.dp),
-            )
-            ElevationProfile(points = points, modifier = Modifier.padding(top = 8.dp))
+            HodoraCard(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Caption("Elevation")
+                    ElevationProfile(points = points, modifier = Modifier.padding(top = 8.dp))
+                }
+            }
         }
     }
 }
@@ -371,7 +457,8 @@ private fun Stat(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
-        Text(label, style = MaterialTheme.typography.labelSmall)
-        Text(value, style = MaterialTheme.typography.titleLarge)
+        Caption(label)
+        StatFigure(text = value, fontSize = 24.sp, modifier = Modifier.padding(top = 2.dp))
     }
 }
+

@@ -53,6 +53,9 @@ androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+# Icons.Outlined.* — thin-stroke glyphs closest to the design mockups' custom
+# stroke icons (chevron-back, route, more, save, play/pause/stop, wind, …).
+androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 # supabase-kt: https://github.com/supabase-community/supabase-kt — module
 # artifact names/package paths (io.github.jan.supabase.*) have shifted
 # across major versions before; double check against the version actually

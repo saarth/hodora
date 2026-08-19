@@ -3,12 +3,13 @@ package app.hodora.mobile.ui.ridedetail
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.unit.dp
+import app.hodora.mobile.ui.theme.LocalHodoraColors
 import app.hodora.mobile.gpx.RidePoint
 
 /**
@@ -20,9 +21,9 @@ import app.hodora.mobile.gpx.RidePoint
 fun ElevationProfile(
     points: List<RidePoint>,
     modifier: Modifier = Modifier,
+    lineColor: Color = LocalHodoraColors.current.rust,
 ) {
-    val lineColor = MaterialTheme.colorScheme.primary
-    val fillColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+    val fillColor = lineColor.copy(alpha = 0.28f)
 
     Canvas(modifier = modifier.fillMaxWidth().height(120.dp)) {
         if (points.size < 2) return@Canvas
