@@ -30,7 +30,16 @@ playServicesLocation = "21.4.0"
 # own Kotlin version automatically (no separate version to guess right
 # without Maven access), where KSP needs an exact
 # "<kotlin-version>-<ksp-version>" pin that can't be verified from here.
-room = "2.7.1"
+# Bumped from 2.7.1: room-compiler's bundled kotlin-metadata-jvm library only
+# read metadata up to version 2.2.0 (confirmed by a real Gradle build's
+# kaptDebugKotlin error — "Provided Metadata instance has version 2.3.0,
+# while maximum supported version is 2.2.0. To support newer versions,
+# update the kotlin-metadata-jvm library."), the same class of mismatch
+# play-services-location hit above, just on Room's annotation processor
+# instead of a runtime dependency. If this specific version still bundles a
+# kotlin-metadata-jvm too old for whatever Kotlin version is pinned above,
+# bump it further.
+room = "2.8.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
