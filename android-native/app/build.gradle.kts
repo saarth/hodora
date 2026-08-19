@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
@@ -55,13 +56,21 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+// The old `android { kotlinOptions { jvmTarget = "11" } }` string-based DSL
+// is a hard error as of the Kotlin Gradle Plugin version bundled with
+// Kotlin 2.3.20 (confirmed by a real Gradle config-phase error — "Using
+// 'jvmTarget: String' is an error. Please migrate to the compilerOptions
+// DSL.") — this top-level `kotlin { compilerOptions { ... } }` block is
+// the replacement.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
     }
 }
 
