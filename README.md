@@ -97,6 +97,12 @@ Drive/OneDrive/Nextcloud cloud sync features need Hodora's server routes
 always loads a live deployment over HTTPS rather than shipping a local copy
 of the site.
 
+A from-scratch native Android app (Kotlin + Jetpack Compose) is also in
+progress alongside this one — see
+[`docs/NATIVE_ANDROID_PLAN.md`](./docs/NATIVE_ANDROID_PLAN.md) for why (in
+short: background turn-by-turn navigation isn't possible in a WebView) and
+[`android-native/`](./android-native/) for the code.
+
 `capacitor.config.ts` points `server.url` at `https://hodora.app` by default.
 Override it for local development against the Vite dev server instead:
 

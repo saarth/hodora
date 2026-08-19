@@ -1,5 +1,10 @@
 # Native Android app — plan
 
+> **Status:** Phase 0 (project scaffold) has landed at
+> [`android-native/`](../android-native/) — Gradle/Compose skeleton, Supabase
+> auth, and a rides list screen. See that folder's README for what's there
+> and how to build it. Phases 1+ below are still to do.
+
 ## Why
 
 `android/` today is a [Capacitor](https://capacitorjs.com/) shell: a
@@ -136,7 +141,7 @@ form, no redirect needed.
 Ship each phase as something that actually works, rather than one long
 native rewrite with nothing usable until the end.
 
-**Phase 0 — project scaffold**
+**Phase 0 — project scaffold (done, see `android-native/`)**
 New Android Studio project, Kotlin + Compose, same `applicationId`
 (`app.hodora.mobile`) so this can eventually replace the Capacitor build
 under the same Play listing. Wire up supabase-kt auth (sign in/up/reset —

@@ -31,6 +31,13 @@ android/build/
 *.jks
 key.properties
 
+# Native Android app (docs/NATIVE_ANDROID_PLAN.md)
+android-native/.gradle/
+android-native/app/build/
+android-native/build/
+android-native/local.properties
+android-native/secrets.properties
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

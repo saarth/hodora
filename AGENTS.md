@@ -48,6 +48,9 @@ capacitor.config.ts  # server.url points the Android WebView at the deployed
 www/                 # Placeholder webDir Capacitor requires to exist; never
                       # actually shown since server.url is set
 assets/               # Source icon/splash images for `npx @capacitor/assets generate --android`
+android-native/      # From-scratch native Android app (Kotlin/Compose), a
+                      # separate Gradle project from android/ — see
+                      # docs/NATIVE_ANDROID_PLAN.md and android-native/README.md
 ```
 
 ## Things worth knowing before touching certain areas

@@ -1,0 +1,45 @@
+[versions]
+# These were current as of when this scaffold was written. Android Studio
+# will flag newer stable releases on sync (or via Tools > Kotlin > Configure
+# Kotlin plugin updates / the version catalog quick-fixes) — since this
+# project can't be built in the environment that generated it (no Android
+# SDK, no Maven Central access), treat a Gradle sync failure here as "bump
+# this version", not as a sign the dependency doesn't exist.
+agp = "8.13.0"
+kotlin = "2.1.20"
+coreKtx = "1.15.0"
+lifecycle = "2.9.0"
+activityCompose = "1.10.1"
+navigationCompose = "2.9.0"
+composeBom = "2025.06.01"
+supabase = "3.1.4"
+ktor = "3.1.1"
+kotlinxSerialization = "1.8.0"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+# supabase-kt: https://github.com/supabase-community/supabase-kt — module
+# artifact names/package paths (io.github.jan.supabase.*) have shifted
+# across major versions before; double check against the version actually
+# resolved if auth-kt/postgrest-kt fail to resolve.
+supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
+supabase-auth = { group = "io.github.jan-tennert.supabase", name = "auth-kt" }
+supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt" }
+ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
