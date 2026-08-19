@@ -6,7 +6,14 @@
 # SDK, no Maven Central access), treat a Gradle sync failure here as "bump
 # this version", not as a sign the dependency doesn't exist.
 agp = "8.13.0"
-kotlin = "2.1.20"
+# Bumped from 2.1.20: play-services-location 21.4.0 bundles Kotlin modules
+# compiled with Kotlin 2.3's metadata format (confirmed by a real Gradle
+# build's compileDebugKotlin error — "Module was compiled with an
+# incompatible version of Kotlin. The binary version of its metadata is
+# 2.3.0, expected version is 2.1.0"), which a 2.1.x compiler can't read.
+# The Compose compiler plugin below tracks this same version, so bumping
+# it here updates both together.
+kotlin = "2.3.20"
 coreKtx = "1.15.0"
 lifecycle = "2.9.0"
 activityCompose = "1.10.1"
