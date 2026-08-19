@@ -44,6 +44,24 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Phase 6: shared-route deep link, https://hodora.app/share/{id}
+                 -> MainActivity.sharedRideIdFromIntent() -> SharedRideScreen.
+                 android:autoVerify requires a real assetlinks.json served at
+                 https://hodora.app/.well-known/assetlinks.json to actually
+                 auto-verify (a server-side deploy step outside this module,
+                 not done here) — until that's live, Android falls back to
+                 showing a disambiguation dialog instead of opening this app
+                 directly, which is a harmless degrade, not a crash. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="hodora.app"
+                    android:pathPrefix="/share/" />
+            </intent-filter>
         </activity>
 
         <service

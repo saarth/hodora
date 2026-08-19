@@ -7,8 +7,8 @@ import androidx.compose.ui.Modifier
 import app.hodora.mobile.ui.navigation.HodoraNavHost
 
 @Composable
-fun HodoraApp() {
+fun HodoraApp(sharedRideId: String? = null) {
     Surface(modifier = Modifier.fillMaxSize()) {
-        HodoraNavHost()
+        HodoraNavHost(sharedRideId = sharedRideId)
     }
 }

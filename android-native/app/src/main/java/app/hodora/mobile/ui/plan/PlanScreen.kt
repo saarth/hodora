@@ -1,8 +1,6 @@
 package app.hodora.mobile.ui.plan
 
 import android.Manifest
-import android.annotation.SuppressLint
-import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -42,9 +40,7 @@ import app.hodora.mobile.gpx.formatDistance
 import app.hodora.mobile.routing.BikeProfile
 import app.hodora.mobile.routing.LatLon
 import app.hodora.mobile.ui.map.PlanMapView
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.CancellationTokenSource
+import app.hodora.mobile.ui.permissions.fetchCurrentLocation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -191,24 +187,4 @@ private fun planSummary(state: PlanUiState): String {
     val distance = state.routed?.let { " · ${formatDistance(it.distanceM)}" }.orEmpty()
     val routing = if (state.isRouting) " · routing…" else ""
     return count + distance + routing
-}
-
-// lastLocation is fast but can be null (fresh install, location services
-// just enabled) — falls back to a fresh fix in that case. Caller already
-// checked ACCESS_FINE_LOCATION/ACCESS_COARSE_LOCATION before invoking this.
-@SuppressLint("MissingPermission")
-private fun fetchCurrentLocation(
-    context: Context,
-    onResult: (LatLon) -> Unit,
-) {
-    val client = LocationServices.getFusedLocationProviderClient(context)
-    client.lastLocation.addOnSuccessListener { location ->
-        if (location != null) {
-            onResult(LatLon(location.latitude, location.longitude))
-        } else {
-            client
-                .getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, CancellationTokenSource().token)
-                .addOnSuccessListener { fresh -> fresh?.let { onResult(LatLon(it.latitude, it.longitude)) } }
-        }
-    }
 }
