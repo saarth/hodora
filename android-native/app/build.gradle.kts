@@ -85,4 +85,5 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.maplibre.android.sdk)
+    implementation(libs.play.services.location)
 }

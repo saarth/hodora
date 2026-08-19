@@ -13,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import app.hodora.mobile.ui.auth.AuthScreen
 import app.hodora.mobile.ui.auth.AuthViewModel
+import app.hodora.mobile.ui.nav.NavScreen
 import app.hodora.mobile.ui.plan.PlanScreen
 import app.hodora.mobile.ui.ridedetail.RideDetailScreen
 import app.hodora.mobile.ui.rides.RidesListScreen
@@ -24,8 +25,11 @@ object HodoraDestination {
     const val PLAN = "plan"
     const val RIDE_ID_ARG = "rideId"
     const val RIDE_DETAIL = "rides/{$RIDE_ID_ARG}"
+    const val NAV = "nav/{$RIDE_ID_ARG}"
 
     fun rideDetail(rideId: String) = "rides/$rideId"
+
+    fun navigate(rideId: String) = "nav/$rideId"
 }
 
 @Composable
@@ -67,7 +71,18 @@ fun HodoraNavHost(navController: NavHostController = rememberNavController()) {
             arguments = listOf(navArgument(HodoraDestination.RIDE_ID_ARG) { type = NavType.StringType }),
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getString(HodoraDestination.RIDE_ID_ARG).orEmpty()
-            RideDetailScreen(rideId = rideId, onBack = { navController.popBackStack() })
+            RideDetailScreen(
+                rideId = rideId,
+                onBack = { navController.popBackStack() },
+                onNavigate = { navController.navigate(HodoraDestination.navigate(rideId)) },
+            )
+        }
+        composable(
+            route = HodoraDestination.NAV,
+            arguments = listOf(navArgument(HodoraDestination.RIDE_ID_ARG) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getString(HodoraDestination.RIDE_ID_ARG).orEmpty()
+            NavScreen(rideId = rideId, onExit = { navController.popBackStack() })
         }
         composable(HodoraDestination.PLAN) {
             PlanScreen(

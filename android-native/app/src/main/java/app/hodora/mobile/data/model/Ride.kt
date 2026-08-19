@@ -1,16 +1,17 @@
 package app.hodora.mobile.data.model
 
+import app.hodora.mobile.cues.RideCue
 import app.hodora.mobile.gpx.RidePoint
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
  * Mirrors the `rides` table (supabase/migrations/ at the repo root) — the
- * columns the Phase 1 ride-detail screen needs. `difficulty`/`surface`/
- * `notes`/`cues`/`plan_waypoints`/`plan_profile`/`is_recorded` exist on the
- * real table too but aren't modeled yet; every query below selects columns
- * explicitly rather than `select("*")` so adding those later is additive,
- * not a breaking decode change.
+ * columns the app needs so far. `difficulty`/`surface`/`notes`/
+ * `plan_waypoints`/`plan_profile`/`is_recorded` exist on the real table too
+ * but aren't modeled yet; every query below selects columns explicitly
+ * rather than `select("*")` so adding those later is additive, not a
+ * breaking decode change.
  */
 @Serializable
 data class Ride(
@@ -26,6 +27,8 @@ data class Ride(
     @SerialName("max_lat") val maxLat: Double? = null,
     @SerialName("max_lon") val maxLon: Double? = null,
     val points: List<RidePoint> = emptyList(),
+    /** router-provided turn-by-turn instructions, if any — NavigationService falls back to geometry-detected turns (buildCueSheet) when empty. */
+    val cues: List<RideCue> = emptyList(),
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String,
 )

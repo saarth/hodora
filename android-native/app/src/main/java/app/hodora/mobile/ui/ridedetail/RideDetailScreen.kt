@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +45,7 @@ import kotlinx.coroutines.launch
 fun RideDetailScreen(
     rideId: String,
     onBack: () -> Unit,
+    onNavigate: () -> Unit,
 ) {
     val viewModel: RideDetailViewModel =
         viewModel(factory = viewModelFactory { initializer { RideDetailViewModel(rideId) } })
@@ -92,7 +95,7 @@ fun RideDetailScreen(
                     Text(state.error.orEmpty())
                 }
 
-            state.ride != null -> RideDetailContent(state.ride!!, Modifier.padding(padding))
+            state.ride != null -> RideDetailContent(state.ride!!, onNavigate, Modifier.padding(padding))
         }
     }
 }
@@ -100,6 +103,7 @@ fun RideDetailScreen(
 @Composable
 private fun RideDetailContent(
     ride: Ride,
+    onNavigate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -119,6 +123,13 @@ private fun RideDetailContent(
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 8.dp),
                 )
+            }
+            Button(
+                onClick = onNavigate,
+                enabled = ride.points.size >= 2,
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            ) {
+                Text("Start navigation")
             }
             ElevationProfile(points = ride.points, modifier = Modifier.padding(top = 16.dp))
         }

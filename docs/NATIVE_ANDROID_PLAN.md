@@ -1,11 +1,14 @@
 # Native Android app — plan
 
-> **Status:** Phases 0-2 have landed at [`android-native/`](../android-native/)
+> **Status:** Phases 0-3 have landed at [`android-native/`](../android-native/)
 > — Gradle/Compose skeleton, Supabase auth, a rides list with GPX import, a
-> ride detail screen (MapLibre route map, elevation profile, GPX export), and
-> a route planner (tap-to-plan, BRouter/OSRM routing, save to rides). See
-> that folder's README for what's there and how to build it. Phases 3+ below
-> are still to do.
+> ride detail screen (MapLibre route map, elevation profile, GPX export), a
+> route planner (tap-to-plan, BRouter/OSRM routing, save to rides), and
+> background turn-by-turn navigation (a foreground `NavigationService`,
+> persistent notification, native TTS, background-location and
+> battery-optimization permission flow). See that folder's README for what's
+> there, how to build it, and what's still missing before it's ride-worthy.
+> Phases 4+ below are still to do.
 
 ## Why
 
@@ -171,16 +174,31 @@ only creates new rides so far). Not ported: the weather-at-departure panel
 (needs `weather.ts`) and reopening an existing planned route for editing.
 No offline yet — this hits the network every time, same as web.
 
-**Phase 3 — the flagship feature: background turn-by-turn navigation**
-This is the actual reason to build a native app, so it's worth treating as
-its own milestone rather than a subtask of "port everything":
-`LocationForegroundService`, ongoing notification, native TTS voice cues,
-background-location permission flow, battery-optimization prompt. Port
-`nav.ts` (turn detection, snap-to-route, cue generation), `cues.ts`,
-`cue-recovery.ts`, `rejoin.ts`, and the weather/wind alert logic from
-`weather.ts`. Validate on a real device with the screen off and the app
-backgrounded — this is exactly the scenario the web app cannot cover, so
-there's no shortcut around on-device testing here.
+**Phase 3 — the flagship feature: background turn-by-turn navigation (done, see `android-native/`)**
+`nav/NavigationService.kt` — a foreground `Service` (`foregroundServiceType="location"`)
+that keeps snapping position to the route, updating a persistent notification,
+and speaking cues via native `TextToSpeech` (`nav/VoiceAnnouncer.kt`) after
+the rider locks the screen or backgrounds the app. `nav/Nav.kt` is a full
+port of `nav.ts` (turn detection, snap-to-route, compass/grade/wind math);
+`cues.ts` is now fully ported (`buildCueSheet`, `cueText`, the
+geometry-detected-turns fallback) so navigation has instructions whether or
+not the route came with router-provided ones. `ui/nav/NavScreen.kt` walks
+through the background-location permission flow (a separate, later step
+from foreground location, per Android 10+'s requirement) and an optional
+battery-optimization exemption prompt before starting.
+
+**Still needed before this is ride-worthy** (validating any of this needs a
+real device — screen off, app backgrounded, ideally on an OEM with
+aggressive battery management like Samsung/Xiaomi in addition to stock/Pixel,
+since none of this can be verified by automated tooling): off-route
+re-routing (currently only flags `offRoute`, doesn't draw a path back —
+`rejoin.ts` isn't ported); rain/wind alerts and proximity alerts on ride
+notes (both need modules/columns not ported yet — `weather.ts`, ride
+`notes`); a live position marker on the nav map (it currently shows the
+route only, for orientation); and the map-reload performance issue flagged
+in a comment on `NavRunningContent` (it currently reloads the whole MapLibre
+style on every ~2s location tick — fine for proving the pipeline works, not
+fine for a real ride's battery/data usage).
 
 **Phase 4 — ride recording**
 Port `record.ts`, wire it to the same foreground service from Phase 3 so a

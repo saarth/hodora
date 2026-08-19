@@ -8,7 +8,7 @@ is structurally impossible in a WebView — mobile browsers throttle
 `geolocation.watchPosition()` the moment the screen locks) and the full
 phased roadmap.
 
-## Status: Phases 0-2 — scaffold, map + ride detail, route planning
+## Status: Phases 0-3 — scaffold, map + ride detail, route planning, background navigation
 
 What's here so far:
 
@@ -35,14 +35,28 @@ What's here so far:
   to OSRM then a straight line, live distance/ascent, undo/clear, and save
   as a new ride with `plan_waypoints`/`plan_profile`/`cues` populated. A full
   port of `src/lib/routing.ts` lives at `routing/Routing.kt`.
+- **Background turn-by-turn navigation** (`nav/`) — the actual point of this
+  rewrite. `NavigationService.kt` is a foreground `Service`
+  (`foregroundServiceType="location"`) that keeps running after the rider
+  locks the screen or backgrounds the app: it snaps live GPS position to the
+  route (`nav/Nav.kt`, a full port of `src/lib/nav.ts`), updates a persistent
+  notification with the next turn, and speaks cues via Android's native
+  `TextToSpeech` (`nav/VoiceAnnouncer.kt`, replacing the Web Speech API
+  `voice.ts` used, which mobile browsers suspend the instant the tab is
+  hidden). `cues.ts` is now fully ported (`cues/Cues.kt`) — a route without
+  router-provided instructions falls back to geometry-detected turns, same
+  as web. `ui/nav/NavScreen.kt` (reached via "Start navigation" on ride
+  detail) walks through the background-location permission flow (a separate
+  step from foreground location on Android 10+) and an optional
+  battery-optimization exemption prompt before handing off to the service.
 - Nav host (`ui/navigation/HodoraNavHost.kt`) that switches between the auth
-  screen, rides list, ride detail, and the planner based on Supabase session
-  state and navigation.
+  screen, rides list, ride detail, the planner, and navigation based on
+  Supabase session state and navigation.
 
 What's deliberately **not** here yet (see the plan doc's phases): offline
-storage, reopening a saved planned route to edit it, weather-at-departure on
-the planner, and — the actual point of building this — background
-turn-by-turn navigation with a foreground service.
+storage, reopening a saved planned route to edit it, and
+weather-at-departure on the planner. Phase 3 itself has real gaps too — see
+"Known gaps in Phase 3" below before treating it as ride-ready.
 
 ## Building it
 
@@ -69,6 +83,31 @@ The debug build type uses `applicationIdSuffix = ".debug"` so it can be
 installed side by side with the Capacitor app (`app.hodora.mobile`) on the
 same device while both are being developed.
 
+## Known gaps in Phase 3
+
+None of this can be verified without a real device (screen off, app
+backgrounded, ideally tested on an OEM with aggressive battery management —
+Samsung/Xiaomi are the usual troublemakers — in addition to stock/Pixel),
+which this environment can't do. Before treating background navigation as
+ride-ready:
+
+- **Off-route handling is detection-only.** `NavigationService` flags
+  `offRoute` when the snap distance crosses a threshold, but doesn't draw a
+  path back — `rejoin.ts` (BRouter/OSRM re-routing to the track) isn't
+  ported yet.
+- **No rain/wind alerts or proximity alerts on ride notes** — both need
+  modules/columns not ported yet (`weather.ts`; `notes` isn't modeled on
+  `Ride`).
+- **No live position marker on the nav map** — it currently shows the full
+  route for orientation only, not where the rider actually is.
+- **The nav map reloads its whole MapLibre style on every location tick**
+  (~every 2 seconds) — see the comment on `NavRunningContent` in
+  `NavScreen.kt`. Fine for confirming the service/notification/TTS pipeline
+  works end to end; not fine for real battery/data usage on a ride.
+- **The notification's small icon is a system placeholder**
+  (`android.R.drawable.ic_menu_directions`) — needs a real monochrome
+  status-bar icon asset before shipping.
+
 ## Project layout
 
 ```text
@@ -78,9 +117,14 @@ app/src/main/java/app/hodora/mobile/
   gpx/
     Gpx.kt               # Full port of src/lib/gpx.ts
   cues/
-    Cues.kt              # Partial port of src/lib/cues.ts (just what routing needs)
+    Cues.kt              # Full port of src/lib/cues.ts
   routing/
     Routing.kt           # Full port of src/lib/routing.ts (BRouter/OSRM client)
+  nav/
+    Nav.kt                # Full port of src/lib/nav.ts (turn detection, snap-to-route, ...)
+    NavigationService.kt  # Foreground service: location, notification, TTS — the flagship feature
+    NavState.kt            # Shared StateFlow between the service and NavScreen
+    VoiceAnnouncer.kt       # Native TextToSpeech, port of src/lib/voice.ts's threshold logic
   net/
     HttpClientProvider.kt # Shared Ktor client for BRouter/OSRM (non-Supabase calls)
   data/
@@ -92,6 +136,7 @@ app/src/main/java/app/hodora/mobile/
     rides/           # Rides list + GPX import
     ridedetail/       # Route map, elevation profile, GPX export
     plan/              # Route planner — tap-to-plan, BRouter/OSRM, save
+    nav/                # NavScreen — permission flow + turn-by-turn UI
     map/               # RouteMapView + PlanMapView (MapLibre Native) + the CARTO raster style
     navigation/       # HodoraNavHost — routes on Supabase session state
     theme/            # Material 3 theme using Hodora's racing-green brand color
