@@ -111,6 +111,15 @@ fun RouteMapView(
     // basemap at all.
     val styleReady = remember { booleanArrayOf(false) }
 
+    // Separate from styleReady: on the nav screen, `points`/`bounds` start
+    // out empty (NavigationService.start() loads the ride asynchronously)
+    // and only become real a beat after this composable's first call — by
+    // which point styleReady has already flipped, so the fit-to-bounds
+    // logic can't live inside that one-shot block or it would silently
+    // never run. Instead it's checked on every `update`, same cadence as
+    // the ~2s nav-tick recompositions, until it succeeds once.
+    val boundsFitted = remember { booleanArrayOf(false) }
+
     AndroidView(
         factory = { mapView },
         modifier = modifier,
@@ -174,14 +183,6 @@ fun RouteMapView(
                                 PropertyFactory.iconIgnorePlacement(true),
                             ),
                         )
-
-                        // Fit once, on first load, rather than on every
-                        // update — re-fitting to the full route's bounds
-                        // every ~2s during navigation would fight any
-                        // manual pan/zoom the rider does mid-ride.
-                        latLngBoundsFor(points, bounds)?.let { latLngBounds ->
-                            fitBounds(view, map, latLngBounds)
-                        }
                     }
                 } else {
                     val style = map.style ?: return@getMapAsync
@@ -196,6 +197,17 @@ fun RouteMapView(
                     (style.getLayer(LIVE_POSITION_LAYER_ID) as? SymbolLayer)?.setProperties(
                         PropertyFactory.iconRotate((headingDeg ?: 0.0).toFloat()),
                     )
+                }
+
+                // Fit once, whenever real bounds first become available,
+                // rather than on every update — re-fitting to the full
+                // route's bounds every ~2s during navigation would fight
+                // any manual pan/zoom the rider does mid-ride.
+                if (!boundsFitted[0]) {
+                    latLngBoundsFor(points, bounds)?.let { latLngBounds ->
+                        boundsFitted[0] = true
+                        fitBounds(view, map, latLngBounds)
+                    }
                 }
             }
         },
