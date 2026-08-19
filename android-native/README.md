@@ -40,27 +40,37 @@ What's here so far:
   (`foregroundServiceType="location"`) that keeps running after the rider
   locks the screen or backgrounds the app: it snaps live GPS position to the
   route (`nav/Nav.kt`, a full port of `src/lib/nav.ts`), updates a persistent
-  notification with the next turn, and speaks cues via Android's native
-  `TextToSpeech` (`nav/VoiceAnnouncer.kt`, replacing the Web Speech API
-  `voice.ts` used, which mobile browsers suspend the instant the tab is
-  hidden). `cues.ts` is now fully ported (`cues/Cues.kt`) — a route without
-  router-provided instructions falls back to geometry-detected turns, same
-  as web. Going off-route re-routes back to the track (`maybeRejoin` in
+  notification (a real hand-drawn status-bar icon, not a system placeholder)
+  with the next turn, and speaks cues via Android's native `TextToSpeech`
+  (`nav/VoiceAnnouncer.kt`, replacing the Web Speech API `voice.ts` used,
+  which mobile browsers suspend the instant the tab is hidden). `cues.ts` is
+  now fully ported (`cues/Cues.kt`) — a route without router-provided
+  instructions falls back to geometry-detected turns, same as web. Going
+  off-route re-routes back to the track (`maybeRejoin` in
   `NavigationService.kt`, a full port of `rejoin.ts`'s throttled
   `useRejoinRoute`) via BRouter/OSRM, falling back to a straight line, drawn
   on the map the same solid-when-routed/dashed-when-fallback way
-  `RouteMap.tsx` does. `ui/nav/NavScreen.kt` (reached via "Start navigation"
-  on ride detail) walks through the background-location permission flow (a
-  separate step from foreground location on Android 10+) and an optional
-  battery-optimization exemption prompt before handing off to the service.
+  `RouteMap.tsx` does, alongside a live heading-rotated arrow showing the
+  rider's own position (falling back to the route's own direction of travel
+  when GPS bearing is unavailable, which is common at cycling speed). A
+  partial port of `weather.ts` (`weather/Weather.kt` — just `fetchWeather`/
+  `fetchHourlyWind`/`findRainAlert`, not the departure-weather picker
+  helpers) drives a live headwind/tailwind readout and a one-shot rain-alert
+  snackbar; ride notes are modeled now too (`RideNote` in
+  `data/model/Ride.kt`) so passing one raises a proximity-alert snackbar
+  (and voice cue, if enabled) via `findProximityAlert`. `ui/nav/NavScreen.kt`
+  (reached via "Start navigation" on ride detail) walks through the
+  background-location permission flow (a separate step from foreground
+  location on Android 10+) and an optional battery-optimization exemption
+  prompt before handing off to the service.
 - Nav host (`ui/navigation/HodoraNavHost.kt`) that switches between the auth
   screen, rides list, ride detail, the planner, and navigation based on
   Supabase session state and navigation.
 
 What's deliberately **not** here yet (see the plan doc's phases): offline
 storage, reopening a saved planned route to edit it, and
-weather-at-departure on the planner. Phase 3 itself has real gaps too — see
-"Known gaps in Phase 3" below before treating it as ride-ready.
+weather-at-departure on the planner. Phase 3's code is done; what's left is
+real-device validation — see "What's left in Phase 3" below.
 
 ## Building it
 
@@ -87,22 +97,25 @@ The debug build type uses `applicationIdSuffix = ".debug"` so it can be
 installed side by side with the Capacitor app (`app.hodora.mobile`) on the
 same device while both are being developed.
 
-## Known gaps in Phase 3
+## What's left in Phase 3
 
-None of this can be verified without a real device (screen off, app
-backgrounded, ideally tested on an OEM with aggressive battery management —
-Samsung/Xiaomi are the usual troublemakers — in addition to stock/Pixel),
-which this environment can't do. Before treating background navigation as
-ride-ready:
+Every gap from the previous round (rain/wind alerts, proximity alerts on
+ride notes, a live position marker, the placeholder notification icon) is
+now built. What's left isn't code — it's validation nothing in this
+environment can substitute for: a real device, screen off, app
+backgrounded, ideally tested on an OEM with aggressive battery management
+(Samsung/Xiaomi are the usual troublemakers) in addition to stock/Pixel.
+That's the only way to confirm:
 
-- **No rain/wind alerts or proximity alerts on ride notes** — both need
-  modules/columns not ported yet (`weather.ts`; `notes` isn't modeled on
-  `Ride`).
-- **No live position marker on the nav map** — it currently shows the full
-  route for orientation only, not where the rider actually is.
-- **The notification's small icon is a system placeholder**
-  (`android.R.drawable.ic_menu_directions`) — needs a real monochrome
-  status-bar icon asset before shipping.
+- The foreground service actually survives Doze/App Standby over a
+  realistic ride length, not just a few minutes of active testing.
+- TTS announcements are audible, correctly timed relative to real cycling
+  speed, and don't overlap awkwardly with rain/proximity alert speech.
+- The battery and mobile-data cost of a live nav session (GPS every 2s,
+  periodic weather/rejoin fetches) is acceptable in practice.
+- The permission flow (foreground → background location → battery
+  exemption) reads sensibly against the real system dialogs it triggers,
+  not just the in-app rationale text.
 
 ## Project layout
 
@@ -121,10 +134,12 @@ app/src/main/java/app/hodora/mobile/
     NavigationService.kt  # Foreground service: location, notification, TTS — the flagship feature
     NavState.kt            # Shared StateFlow between the service and NavScreen
     VoiceAnnouncer.kt       # Native TextToSpeech, port of src/lib/voice.ts's threshold logic
+  weather/
+    Weather.kt            # Partial port of src/lib/weather.ts (current + hourly forecast, rain alerts)
   net/
-    HttpClientProvider.kt # Shared Ktor client for BRouter/OSRM (non-Supabase calls)
+    HttpClientProvider.kt # Shared Ktor client for BRouter/OSRM/Open-Meteo (non-Supabase calls)
   data/
-    model/         # Kotlin data classes mirroring supabase/migrations/ tables
+    model/         # Kotlin data classes mirroring supabase/migrations/ tables (Ride, RideNote, ...)
     repository/     # Auth + Postgrest access, one repository per concern
     supabase/        # The shared SupabaseClient (SupabaseModule.kt)
   ui/

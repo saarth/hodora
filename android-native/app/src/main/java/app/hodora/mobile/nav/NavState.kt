@@ -3,11 +3,19 @@ package app.hodora.mobile.nav
 import app.hodora.mobile.cues.CueSheetEntry
 import app.hodora.mobile.gpx.RidePoint
 import app.hodora.mobile.routing.LatLon
+import app.hodora.mobile.weather.RainAlert
+import app.hodora.mobile.weather.WeatherFix
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 data class NavPosition(val lat: Double, val lon: Double, val headingDeg: Double?)
+
+/** Live wind relative to the rider's direction of travel — port of the headwind/tailwind readout in src/routes/rides.$id.nav.tsx. */
+data class NavWindInfo(val effect: WindEffect, val windSpeedMs: Double, val componentMs: Double)
+
+/** A note the rider is passing right now — port of the proximity-alert toast in src/routes/rides.$id.nav.tsx. */
+data class ProximityAlert(val noteId: String, val text: String)
 
 data class NavUiState(
     val rideId: String? = null,
@@ -28,6 +36,13 @@ data class NavUiState(
     val rejoinRouted: Boolean = false,
     val rejoinLoading: Boolean = false,
     val rejoinDistanceM: Double = 0.0,
+    /** Current conditions at (roughly) the rider's position — refreshed on the same move/staleness throttle as useWeather on web. */
+    val weather: WeatherFix? = null,
+    val wind: NavWindInfo? = null,
+    /** Set once when a new rain alert fires; NavScreen keys a one-shot snackbar off `rainAlert?.key` so the same alert never re-shows. */
+    val rainAlert: RainAlert? = null,
+    /** Set once when the rider passes a ride note; NavScreen keys a one-shot snackbar off `proximityAlert?.noteId`. */
+    val proximityAlert: ProximityAlert? = null,
     val voiceEnabled: Boolean = false,
     val error: String? = null,
 )

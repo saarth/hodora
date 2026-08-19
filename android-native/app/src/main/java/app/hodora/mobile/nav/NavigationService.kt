@@ -17,14 +17,21 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import app.hodora.mobile.MainActivity
+import app.hodora.mobile.R
 import app.hodora.mobile.cues.CueSheetEntry
 import app.hodora.mobile.cues.buildCueSheet
+import app.hodora.mobile.data.model.RideNote
 import app.hodora.mobile.data.repository.RidesRepository
 import app.hodora.mobile.gpx.RidePoint
 import app.hodora.mobile.gpx.formatDistance
 import app.hodora.mobile.gpx.haversine
 import app.hodora.mobile.routing.LatLon
 import app.hodora.mobile.routing.fetchCyclingRoute
+import app.hodora.mobile.weather.HourlyForecast
+import app.hodora.mobile.weather.WeatherFix
+import app.hodora.mobile.weather.fetchHourlyWind
+import app.hodora.mobile.weather.fetchWeather
+import app.hodora.mobile.weather.findRainAlert
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -44,17 +51,13 @@ import kotlinx.coroutines.launch
  * Capacitor WebView shell: a foreground Service keeps reporting position,
  * detecting turns, updating a persistent notification, re-routing back to
  * the track when the rider strays off it (see [maybeRejoin], a port of
- * rejoin.ts's `useRejoinRoute`), and speaking cues via [VoiceAnnouncer]
- * after the rider locks the screen or backgrounds the app — every one of
- * those things stops dead in the web version the moment the tab is hidden
- * (see AGENTS.md's "Background navigation" note at the repo root for why
- * that was never attempted there).
- *
- * Deliberately out of scope for this first cut (see docs/NATIVE_ANDROID_PLAN.md):
- * rain/wind alerts (weather.ts isn't ported yet), proximity alerts on ride
- * notes (notes aren't modeled on Ride yet), and a live position marker on
- * the nav map (NavScreen currently shows the full route for orientation
- * only).
+ * rejoin.ts's `useRejoinRoute`), watching for rain and proximity alerts
+ * (see [maybeFetchWeather]/[checkRainAlert]/[checkProximityAlert]), and
+ * speaking all of it via [VoiceAnnouncer] after the rider locks the screen
+ * or backgrounds the app — every one of those things stops dead in the web
+ * version the moment the tab is hidden (see AGENTS.md's "Background
+ * navigation" note at the repo root for why that was never attempted
+ * there).
  */
 class NavigationService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -77,6 +80,22 @@ class NavigationService : Service() {
     private var lastRejoinFrom: LatLon? = null
     private var lastRejoinTo: LatLon? = null
     private var lastRejoinAtMs: Long = 0L
+
+    private var notes: List<RideNote> = emptyList()
+    private val alertedNoteIds = mutableSetOf<String>()
+
+    // Weather (src/lib/weather.ts's useWeather + findRainAlert, run here
+    // instead of a Compose hook/query for the same "must outlive this
+    // screen" reason as rejoin routing). Current conditions and the hourly
+    // forecast are refreshed together, throttled the same way useWeather
+    // throttles its own refetches; the rain check itself runs every tick
+    // (cheap, pure, no network) against whatever forecast is already cached.
+    private var weatherJob: Job? = null
+    private var lastWeatherPosition: LatLon? = null
+    private var lastWeatherFetchAtMs: Long = 0L
+    private var currentWeather: WeatherFix? = null
+    private var hourlyForecast: List<HourlyForecast> = emptyList()
+    private val rainAlerted = mutableSetOf<String>()
 
     private val locationCallback =
         object : LocationCallback() {
@@ -112,18 +131,37 @@ class NavigationService : Service() {
 
     private fun start(rideId: String) {
         showForegroundNotification(buildNotification("Loading route…"))
-        NavState.update { it.copy(rideId = rideId, isRunning = true, isFinished = false, error = null) }
+        NavState.update {
+            it.copy(
+                rideId = rideId,
+                isRunning = true,
+                isFinished = false,
+                error = null,
+                weather = null,
+                wind = null,
+                rainAlert = null,
+                proximityAlert = null,
+            )
+        }
         scope.launch {
             try {
                 val ride = repository.getRide(rideId)
                 points = ride.points
                 cueSheet = buildCueSheet(ride.points, ride.cues)
+                notes = ride.notes
                 lastSnapIndex = 0
                 announced.clear()
+                alertedNoteIds.clear()
                 rejoinJob?.cancel()
                 lastRejoinFrom = null
                 lastRejoinTo = null
                 lastRejoinAtMs = 0L
+                weatherJob?.cancel()
+                lastWeatherPosition = null
+                lastWeatherFetchAtMs = 0L
+                currentWeather = null
+                hourlyForecast = emptyList()
+                rainAlerted.clear()
                 NavState.update {
                     it.copy(
                         rideName = ride.name,
@@ -171,15 +209,40 @@ class NavigationService : Service() {
         val nextCueDistanceM = nextCue?.let { it.atM - snap.progressM } ?: 0.0
         val offRoute = snap.offRouteM > OFF_ROUTE_THRESHOLD_M
 
+        // GPS bearing is frequently null/stale at cycling speeds (Location.
+        // hasBearing() often false when slow or stationary) — falling back
+        // to the route's own direction of travel at the snapped index keeps
+        // the map arrow pointing somewhere sensible instead of frozen at 0°.
+        val effectiveHeading = headingDeg ?: routeBearing(points, snap.index)
+
+        // Headwind/tailwind relative to the route's own direction of travel
+        // (routeBearing again, not effectiveHeading — GPS heading is too
+        // jittery at cycling speed for this, same reasoning as nav.tsx's
+        // `wind` readout) using whatever current weather is already cached;
+        // maybeFetchWeather below only refreshes it, doesn't block on it.
+        val travelBearing = routeBearing(points, snap.index)
+        val wind =
+            currentWeather?.let { fix ->
+                travelBearing?.let { bearingDeg ->
+                    val relative = windRelativeAngle(bearingDeg, fix.windDirectionDeg)
+                    NavWindInfo(
+                        effect = windEffect(relative),
+                        windSpeedMs = fix.windSpeedMs,
+                        componentMs = windComponent(fix.windSpeedMs, relative),
+                    )
+                }
+            }
+
         NavState.update {
             it.copy(
-                position = NavPosition(lat, lon, headingDeg),
+                position = NavPosition(lat, lon, effectiveHeading),
                 snap = snap,
                 distanceRemainingM = remainingM,
                 nextCue = nextCue,
                 nextCueDistanceM = nextCueDistanceM,
                 offRoute = offRoute,
                 isFinished = finished,
+                wind = wind,
             )
         }
 
@@ -193,6 +256,12 @@ class NavigationService : Service() {
             maybeRejoin(from = LatLon(lat, lon), to = LatLon(snap.lat, snap.lon))
         } else {
             clearRejoin()
+        }
+
+        if (!finished) {
+            maybeFetchWeather(LatLon(lat, lon))
+            checkRainAlert()
+            checkProximityAlert(snap.progressM)
         }
 
         if (finished) stopNavigation()
@@ -265,6 +334,73 @@ class NavigationService : Service() {
         }
     }
 
+    /**
+     * Refreshes current conditions + the hourly forecast for rain alerts,
+     * throttled the same way useWeather is on web: skip unless the rider
+     * has moved more than WEATHER_MIN_MOVE_M since the last fetch, or
+     * WEATHER_MIN_INTERVAL_MS has elapsed. Both requests share one throttle
+     * (web's useWeather and the rain-forecast query are throttled
+     * separately by different triggers) since they're driven by the same
+     * rider position and there's no reason to fetch them on different
+     * cadences here.
+     */
+    private fun maybeFetchWeather(position: LatLon) {
+        val now = System.currentTimeMillis()
+        val last = lastWeatherPosition
+        val moved = last == null || haversine(last.lat, last.lon, position.lat, position.lon) > WEATHER_MIN_MOVE_M
+        val stale = lastWeatherFetchAtMs == 0L || now - lastWeatherFetchAtMs > WEATHER_MIN_INTERVAL_MS
+        if (!moved && !stale) return
+        if (weatherJob?.isActive == true) return
+
+        lastWeatherPosition = position
+        lastWeatherFetchAtMs = now
+        weatherJob =
+            scope.launch {
+                try {
+                    val weather = fetchWeather(position.lat, position.lon)
+                    currentWeather = weather
+                    NavState.update { it.copy(weather = weather) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Keep whatever weather/wind readout was already showing.
+                }
+                try {
+                    hourlyForecast = fetchHourlyWind(position.lat, position.lon)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Keep the previous forecast for the rain check below.
+                }
+            }
+    }
+
+    /** Pure/cheap — runs every location tick against whatever forecast maybeFetchWeather last cached, no network call of its own. */
+    private fun checkRainAlert() {
+        if (hourlyForecast.isEmpty()) return
+        val alert = findRainAlert(hourlyForecast, System.currentTimeMillis(), rainAlerted) ?: return
+        rainAlerted.add(alert.key)
+        val message = if (alert.minutesAway <= 2) "Rain is starting" else "Rain expected in about ${alert.minutesAway} min"
+        NavState.update { it.copy(rainAlert = alert) }
+        if (NavState.uiState.value.voiceEnabled) voice?.speak(message)
+    }
+
+    /** Port of the proximity-alert wiring in rides.$id.nav.tsx, built on the same live position stream as everything else here rather than a separate background-geolocation plugin. */
+    private fun checkProximityAlert(progressM: Double) {
+        if (notes.isEmpty()) return
+        val note =
+            findProximityAlert(
+                notes = notes,
+                progressM = progressM,
+                alerted = alertedNoteIds,
+                idOf = { it.id },
+                distanceMOf = { it.distanceM },
+            ) ?: return
+        alertedNoteIds.add(note.id)
+        NavState.update { it.copy(proximityAlert = ProximityAlert(noteId = note.id, text = note.text)) }
+        if (NavState.uiState.value.voiceEnabled) voice?.speak(note.text)
+    }
+
     private fun notificationText(
         nextCue: CueSheetEntry?,
         distanceM: Double,
@@ -291,6 +427,7 @@ class NavigationService : Service() {
     private fun stopNavigation() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
         rejoinJob?.cancel()
+        weatherJob?.cancel()
         NavState.update { it.copy(isRunning = false) }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -351,7 +488,7 @@ class NavigationService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Hodora navigation")
             .setContentText(text)
-            .setSmallIcon(android.R.drawable.ic_menu_directions)
+            .setSmallIcon(R.drawable.ic_stat_navigation)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -375,5 +512,9 @@ class NavigationService : Service() {
         // Matches useRejoinRoute's defaults in src/lib/rejoin.ts.
         private const val REJOIN_MIN_MOVE_M = 30.0
         private const val REJOIN_MIN_INTERVAL_MS = 8000L
+
+        // Matches useWeather's defaults in src/lib/weather.ts.
+        private const val WEATHER_MIN_MOVE_M = 5000.0
+        private const val WEATHER_MIN_INTERVAL_MS = 10 * 60 * 1000L
     }
 }

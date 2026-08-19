@@ -1,6 +1,10 @@
 package app.hodora.mobile.ui.map
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
 import android.view.View
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
@@ -25,6 +29,7 @@ import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
 
 private const val ROUTE_SOURCE_ID = "route"
@@ -33,6 +38,9 @@ private const val REJOIN_SOURCE_ID = "rejoin"
 private const val REJOIN_LAYER_ID = "rejoin-line"
 private const val REJOIN_POINT_SOURCE_ID = "rejoin-point"
 private const val REJOIN_POINT_LAYER_ID = "rejoin-point-layer"
+private const val LIVE_POSITION_SOURCE_ID = "live-position"
+private const val LIVE_POSITION_LAYER_ID = "live-position-arrow"
+private const val LIVE_POSITION_ICON_ID = "live-position-icon"
 private const val ROUTE_BOUNDS_PADDING_PX = 64
 
 // Approximates the web app's --warning token (src/styles.css, an OKLCH
@@ -45,7 +53,9 @@ private const val WARNING_COLOR = "#D97706"
  * Route line + CARTO basemap, mirroring src/components/RouteMap.tsx's
  * default (non-vector) mode. [rejoinPath]/[rejoinPoint]/[rejoinRouted] draw
  * the off-route guide line — see NavigationService's rejoin handling and
- * src/lib/rejoin.ts — and are no-ops (empty/null) outside of navigation.
+ * src/lib/rejoin.ts. [livePosition]/[headingDeg] draw the rider's position
+ * as a heading-rotated arrow during navigation. All are no-ops (empty/null)
+ * outside of the nav screen.
  */
 @Composable
 fun RouteMapView(
@@ -55,6 +65,8 @@ fun RouteMapView(
     rejoinPath: List<LatLon> = emptyList(),
     rejoinPoint: LatLon? = null,
     rejoinRouted: Boolean = false,
+    livePosition: LatLon? = null,
+    headingDeg: Double? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -144,6 +156,24 @@ fun RouteMapView(
                             ),
                         )
 
+                        // The rider's own position — a heading-rotated arrow
+                        // (rotated in map space, not screen space, so it
+                        // stays correct as the map itself doesn't rotate).
+                        // Falls back to pointing north (0°) when no heading
+                        // is available yet.
+                        style.addImage(LIVE_POSITION_ICON_ID, buildArrowBitmap())
+                        style.addSource(GeoJsonSource(LIVE_POSITION_SOURCE_ID, pointGeoJson(livePosition)))
+                        style.addLayer(
+                            SymbolLayer(LIVE_POSITION_LAYER_ID, LIVE_POSITION_SOURCE_ID).withProperties(
+                                PropertyFactory.iconImage(LIVE_POSITION_ICON_ID),
+                                PropertyFactory.iconSize(0.6f),
+                                PropertyFactory.iconRotate((headingDeg ?: 0.0).toFloat()),
+                                PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
+                                PropertyFactory.iconAllowOverlap(true),
+                                PropertyFactory.iconIgnorePlacement(true),
+                            ),
+                        )
+
                         // Fit once, on first load, rather than on every
                         // update — re-fitting to the full route's bounds
                         // every ~2s during navigation would fight any
@@ -161,10 +191,57 @@ fun RouteMapView(
                         PropertyFactory.lineWidth(if (rejoinRouted) 5f else 3.5f),
                         PropertyFactory.lineDasharray(if (rejoinRouted) arrayOf(1f, 0f) else arrayOf(1.5f, 1.5f)),
                     )
+                    style.getSourceAs<GeoJsonSource>(LIVE_POSITION_SOURCE_ID)?.setGeoJson(pointGeoJson(livePosition))
+                    (style.getLayer(LIVE_POSITION_LAYER_ID) as? SymbolLayer)?.setProperties(
+                        PropertyFactory.iconRotate((headingDeg ?: 0.0).toFloat()),
+                    )
                 }
             }
         },
     )
+}
+
+/**
+ * A simple filled kite/arrow shape pointing up (north, i.e. 0° rotation),
+ * for the live-position SymbolLayer — drawn in code rather than as a
+ * drawable resource decoded to a Bitmap, since it's small and this is the
+ * only place that needs it.
+ */
+private fun buildArrowBitmap(
+    sizePx: Int = 96,
+    fillColorHex: String = "#1F3A2E",
+): Bitmap {
+    val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val size = sizePx.toFloat()
+    val center = size / 2f
+
+    val path =
+        Path().apply {
+            moveTo(center, size * 0.06f)
+            lineTo(size * 0.84f, size * 0.94f)
+            lineTo(center, size * 0.72f)
+            lineTo(size * 0.16f, size * 0.94f)
+            close()
+        }
+
+    canvas.drawPath(
+        path,
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor(fillColorHex)
+            style = Paint.Style.FILL
+        },
+    )
+    canvas.drawPath(
+        path,
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeWidth = size * 0.08f
+            strokeJoin = Paint.Join.ROUND
+        },
+    )
+    return bitmap
 }
 
 private fun routeGeoJson(points: List<RidePoint>): String {

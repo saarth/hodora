@@ -23,12 +23,15 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,12 +50,15 @@ import app.hodora.mobile.gpx.bearing
 import app.hodora.mobile.gpx.formatDistance
 import app.hodora.mobile.nav.NavState
 import app.hodora.mobile.nav.NavUiState
+import app.hodora.mobile.nav.NavWindInfo
 import app.hodora.mobile.nav.NavigationService
+import app.hodora.mobile.nav.WindEffect
 import app.hodora.mobile.nav.compassLabel
 import app.hodora.mobile.nav.getVoicePreference
 import app.hodora.mobile.nav.setVoicePreference
 import app.hodora.mobile.routing.LatLon
 import app.hodora.mobile.ui.map.RouteMapView
+import app.hodora.mobile.weather.formatWindSpeed
 
 /**
  * NavigationService — not a ViewModel — owns navigation state, because
@@ -101,6 +107,20 @@ fun NavScreen(
             backgroundGranted = hasBackgroundLocation(context)
         }
 
+    // One-shot alerts (rain, passing a ride note) — keyed on the alert's own
+    // unique id, so a re-render with the same alert still showing doesn't
+    // re-show the snackbar, but a genuinely new alert always does.
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(navState.rainAlert?.key) {
+        val alert = navState.rainAlert ?: return@LaunchedEffect
+        val message = if (alert.minutesAway <= 2) "Rain is starting" else "Rain expected in about ${alert.minutesAway} min"
+        snackbarHostState.showSnackbar(message)
+    }
+    LaunchedEffect(navState.proximityAlert?.noteId) {
+        val alert = navState.proximityAlert ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(alert.text)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -110,6 +130,7 @@ fun NavScreen(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         if (!isThisRideRunning) {
             PreNavChecklist(
@@ -280,8 +301,6 @@ private fun NavRunningContent(
             }
         }
 
-        // The full route, for orientation — a live position puck/heading
-        // arrow on this map is deferred polish, not in this first cut.
         // NavRunningContent recomposes on every NavState tick (~every 2s,
         // per location update), but RouteMapView only rebuilds its MapLibre
         // style once (styleReady) and mutates the existing GeoJsonSources
@@ -293,6 +312,8 @@ private fun NavRunningContent(
             rejoinPath = navState.rejoinPath,
             rejoinPoint = if (navState.offRoute) navState.snap?.let { LatLon(it.lat, it.lon) } else null,
             rejoinRouted = navState.rejoinRouted,
+            livePosition = navState.position?.let { LatLon(it.lat, it.lon) },
+            headingDeg = navState.position?.headingDeg,
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -318,6 +339,13 @@ private fun NavRunningContent(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 8.dp),
             )
+            navState.wind?.let { wind ->
+                Text(
+                    text = windLabel(wind),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
 
             Column(modifier = Modifier.padding(top = 16.dp)) {
                 OutlinedButton(onClick = onToggleVoice) {
@@ -379,6 +407,16 @@ private fun rejoinDirectionLabel(navState: NavUiState): String? {
             ?: navState.snap?.let { LatLon(it.lat, it.lon) }
             ?: return null
     return compassLabel(bearing(position.lat, position.lon, target.lat, target.lon))
+}
+
+private fun windLabel(wind: NavWindInfo): String {
+    val effect =
+        when (wind.effect) {
+            WindEffect.HEADWIND -> "Headwind"
+            WindEffect.TAILWIND -> "Tailwind"
+            WindEffect.CROSSWIND -> "Crosswind"
+        }
+    return "$effect · ${formatWindSpeed(wind.windSpeedMs)}"
 }
 
 private fun rejoinMessage(navState: NavUiState): String {

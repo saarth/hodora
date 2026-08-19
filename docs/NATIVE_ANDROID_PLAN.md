@@ -6,9 +6,11 @@
 > route planner (tap-to-plan, BRouter/OSRM routing, save to rides), and
 > background turn-by-turn navigation (a foreground `NavigationService`,
 > persistent notification, native TTS, background-location and
-> battery-optimization permission flow). See that folder's README for what's
-> there, how to build it, and what's still missing before it's ride-worthy.
-> Phases 4+ below are still to do.
+> battery-optimization permission flow, off-route re-routing, rain/wind
+> alerts, proximity alerts on ride notes, a live heading-arrow position
+> marker, and a real status-bar icon). See that folder's README for what's
+> there, how to build it, and why real-device validation is still the
+> remaining step. Phases 4+ below are still to do.
 
 ## Why
 
@@ -195,15 +197,36 @@ when routed, dashed for the straight-line fallback).
 `RouteMapView`/`PlanMapView` no longer rebuild their whole MapLibre style on
 every recomposition either — they build it once and mutate the existing
 GeoJsonSources in place afterward, so the nav map's ~2s location-tick
-recompositions no longer reload basemap tiles or re-fit the camera.
+recompositions no longer reload basemap tiles or re-fit the camera. The map
+also now shows a live, heading-rotated position arrow (`buildArrowBitmap` in
+`RouteMapView.kt`), falling back to the route's own direction of travel
+(`routeBearing`) when GPS bearing is unavailable, which is often at cycling
+speed.
 
-**Still needed before this is ride-worthy** (validating any of this needs a
-real device — screen off, app backgrounded, ideally on an OEM with
-aggressive battery management like Samsung/Xiaomi in addition to stock/Pixel,
-since none of this can be verified by automated tooling): rain/wind alerts
-and proximity alerts on ride notes (both need modules/columns not ported
-yet — `weather.ts`, ride `notes`); and a live position marker on the nav map
-(it currently shows the route only, for orientation).
+`weather/Weather.kt` is a partial port of `weather.ts` — `fetchWeather`,
+`fetchHourlyWind`, `findRainAlert` (not the departure-weather day/hour
+picker helpers, which belong to `/plan`'s weather panel, a Phase 2 gap).
+`NavigationService` refreshes current conditions and the hourly forecast on
+the same move/staleness throttle `useWeather` uses on web, drives a live
+headwind/tailwind readout (`routeBearing` + `windRelativeAngle`/`windEffect`
+from `nav/Nav.kt`) shown on `NavScreen`, and raises a one-shot snackbar (via
+`NavState.rainAlert`) when `findRainAlert` crosses its thresholds. Ride
+`notes` are modeled now too (`data/model/Ride.kt`'s `RideNote`,
+`RidesRepository`'s `RIDE_COLUMNS`), so `NavigationService.checkProximityAlert`
+can alert (snackbar + optional voice) as the rider passes one, using the
+same `findProximityAlert` from `nav/Nav.kt` nav.ts always had. The
+notification's small icon is a real hand-drawn vector glyph now too
+(`res/drawable/ic_stat_navigation.xml`), not the `android.R` system
+placeholder.
+
+**What's left before this is ride-worthy**: none of it is code — it's
+validation on a real device (screen off, app backgrounded, ideally on an OEM
+with aggressive battery management like Samsung/Xiaomi in addition to
+stock/Pixel), which nothing in this environment can substitute for. That
+covers whether the foreground service actually survives Doze/App Standby,
+whether TTS announcements are audible and correctly timed relative to a real
+ride's speed, and whether the battery/data cost of a live nav session is
+acceptable in practice.
 
 **Phase 4 — ride recording**
 Port `record.ts`, wire it to the same foreground service from Phase 3 so a

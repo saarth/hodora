@@ -33,6 +33,7 @@ private val RIDE_COLUMNS =
         "max_lon",
         "points",
         "cues",
+        "notes",
         "created_at",
         "updated_at",
     )
