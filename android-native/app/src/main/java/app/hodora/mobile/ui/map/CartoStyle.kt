@@ -11,6 +11,14 @@ private const val ATTRIBUTION =
 
 fun cartoStyleJson(dark: Boolean): String {
     val tiles = if (dark) DARK_TILES else LIGHT_TILES
+    // ATTRIBUTION contains literal `"` (the <a href="..."> markup) — those
+    // must be escaped before landing inside a JSON string value below, or
+    // MapLibre's style parser chokes with "Missing a comma or '}' after an
+    // object member" (confirmed via a real device's logcat: Mbgl E
+    // [ParseStyle] at the exact offset the unescaped quote lands), which
+    // silently aborts style loading — no basemap, no layers, nothing drawn,
+    // on every screen that uses this style.
+    val escapedAttribution = ATTRIBUTION.replace("\"", "\\\"")
     return """
         {
           "version": 8,
@@ -20,7 +28,7 @@ fun cartoStyleJson(dark: Boolean): String {
               "tiles": ["$tiles"],
               "tileSize": 256,
               "maxzoom": 20,
-              "attribution": "$ATTRIBUTION"
+              "attribution": "$escapedAttribution"
             }
           },
           "layers": [
