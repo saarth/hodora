@@ -40,9 +40,11 @@ Verified with Playwright screenshots at 320/360/390/414/640/768px, including
 worst-case values (`30 km/h`, `100%`), plus `npx tsc --noEmit`, `npm run lint`
 (0 errors) and `npm test` (181 passing).
 
-Noted but deliberately not changed (not an alignment bug): the Distance,
-Elevation and Temperature rows in the expanded panel all use the `Wind` icon,
-which looks like a copy-paste slip.
+Also fixed while in here (spotted during the pass, not an alignment bug): the
+Distance, Elevation and Temperature rows in the expanded panel all rendered
+the `Wind` icon — a copy-paste slip. They now use `Ruler`, `Mountain` and
+`Thermometer`. `Avg wind` and `Headwind` still share the `Wind` glyph, which
+is at least accurate for both.
 
 ## 2026-08-18 — Missing-features pass: CI, cue sheets, recording, editing,
 ## search/filter, elevation, place search, POI overlay, weather/rain,

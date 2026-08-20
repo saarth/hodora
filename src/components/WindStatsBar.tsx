@@ -6,7 +6,10 @@ import {
   ChevronDown,
   ChevronUp,
   Compass,
+  Mountain,
   Navigation2,
+  Ruler,
+  Thermometer,
   TrendingUp,
   Wind,
 } from "lucide-react";
@@ -130,17 +133,17 @@ export function WindStatsBar({
             value={`${meanKmh >= 0 ? "" : "-"}${formatWindSpeed(Math.abs(score.meanComponentMs), metric)}`}
           />
           <DetailRow
-            icon={Wind}
+            icon={Ruler}
             label="Distance"
             value={formatDistance(detail.distanceM, metric)}
           />
           <DetailRow
-            icon={Wind}
+            icon={Mountain}
             label="Elevation"
             value={formatElevation(detail.elevationM, metric)}
           />
           <DetailRow
-            icon={Wind}
+            icon={Thermometer}
             label="Temperature"
             value={formatTemperature(detail.temperatureC, metric)}
           />
