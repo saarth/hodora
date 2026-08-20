@@ -43,8 +43,8 @@ worst-case values (`30 km/h`, `100%`), plus `npx tsc --noEmit`, `npm run lint`
 Also fixed while in here (spotted during the pass, not an alignment bug): the
 Distance, Elevation and Temperature rows in the expanded panel all rendered
 the `Wind` icon — a copy-paste slip. They now use `Ruler`, `Mountain` and
-`Thermometer`. `Avg wind` and `Headwind` still share the `Wind` glyph, which
-is at least accurate for both.
+`Thermometer`, and `Headwind` mirrors `Tailwind` with `TrendingDown` against
+its `TrendingUp` instead of repeating the generic `Wind` glyph.
 
 ## 2026-08-18 — Missing-features pass: CI, cue sheets, recording, editing,
 ## search/filter, elevation, place search, POI overlay, weather/rain,

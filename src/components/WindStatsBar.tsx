@@ -10,6 +10,7 @@ import {
   Navigation2,
   Ruler,
   Thermometer,
+  TrendingDown,
   TrendingUp,
   Wind,
 } from "lucide-react";
@@ -121,7 +122,11 @@ export function WindStatsBar({
             value={formatWindSpeed(score.meanCrosswindMs, metric)}
           />
           <DetailRow icon={TrendingUp} label="Tailwind" value={`${score.tailwindPct}% of route`} />
-          <DetailRow icon={Wind} label="Headwind" value={`${score.headwindPct}% of route`} />
+          <DetailRow
+            icon={TrendingDown}
+            label="Headwind"
+            value={`${score.headwindPct}% of route`}
+          />
           <DetailRow
             icon={Compass}
             label="Crosswind share"
