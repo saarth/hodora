@@ -5,6 +5,47 @@ correctness (GPX parsing, navigation math, offline storage), build/deploy
 correctness, and maintainability. Verified with `tsc --noEmit`, `eslint`, and
 real production builds — not just a read-through.
 
+## 2026-08-20 — Fixed the text alignment in the wind stats bar
+
+Reported from a phone screenshot of `/rides/$id`: in `WindStatsBar`, the
+summary strip's labels ran into each other ("TAILWIND %CROSSWIND %") and the
+expanded detail grid's values spilled past the card's right edge. Reproduced
+at 320-412px with Playwright against a dev server before changing anything.
+
+Two root causes, both in `src/components/WindStatsBar.tsx`:
+
+- **The summary strip's labels weren't actually clipped by their cell.** Each
+  cell was a `flex-col items-center` column, so its children were sized to
+  their content rather than stretched to the cell — which makes `truncate` a
+  no-op, and let a label wider than its share of the row overflow in both
+  directions onto its neighbours. Labels and values are now `w-full`, so the
+  truncation the class was already asking for takes effect.
+- **Five stat columns don't fit in a phone-width row.** At 360px each cell
+  got ~48px, so `9 km/h` wrapped to two lines and dragged its label out of
+  line with the other four. The strip is now a responsive grid — two columns
+  under 360px, three up to `sm`, the original five above it — with the expand
+  chevron kept outside the grid so it stays vertically centred, and the column
+  dividers only drawn at `sm` where the cells really are one row. Labels are
+  bottom-aligned (`mt-auto`), so a wrapped value can't shift a label off the
+  row's baseline, and the icon sits in a fixed-height slot so the icon-less
+  score cell still lines up with the cells that have one.
+
+The detail grid below the strip is single-column on phones and two-column from
+`sm` up, and its rows are baseline-aligned with the value right-aligned and
+both sides allowed to shrink (`min-w-0`) — previously a value that wrapped
+("22% of route", "Clear sky") left-aligned its second line and overflowed the
+card padding.
+
+Verified with Playwright screenshots at 320/360/390/414/640/768px, including
+worst-case values (`30 km/h`, `100%`), plus `npx tsc --noEmit`, `npm run lint`
+(0 errors) and `npm test` (181 passing).
+
+Also fixed while in here (spotted during the pass, not an alignment bug): the
+Distance, Elevation and Temperature rows in the expanded panel all rendered
+the `Wind` icon — a copy-paste slip. They now use `Ruler`, `Mountain` and
+`Thermometer`, and `Headwind` mirrors `Tailwind` with `TrendingDown` against
+its `TrendingUp` instead of repeating the generic `Wind` glyph.
+
 ## 2026-08-18 — Missing-features pass: CI, cue sheets, recording, editing,
 ## search/filter, elevation, place search, POI overlay, weather/rain,
 ## low-power mode, vector tile caching
