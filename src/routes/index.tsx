@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useUser } from "@/hooks/use-user";
 import { useTheme } from "@/lib/theme";
 import { HodoraLogo } from "@/components/HodoraLogo";
+import { MobileTabBar } from "@/components/MobileTabBar";
 import { Moon, Sun } from "lucide-react";
 
 const GITHUB_URL = "https://github.com/saarth/hodora";
@@ -87,6 +88,9 @@ function Landing() {
 
   return (
     <main className="hero-surface min-h-screen">
+      {/* The landing page is the tab bar's Home destination, so it carries
+          one too — otherwise the bar vanishes the moment you tap Home. */}
+      <MobileTabBar />
       <div className="mx-auto w-full max-w-6xl px-5 pb-24">
         <nav className="flex h-20 items-center justify-between">
           <HodoraLogo textClassName="text-xl font-extrabold" />

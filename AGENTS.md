@@ -132,6 +132,23 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   is the one place native-vs-web branching happens (`Capacitor.isNativePlatform()`),
   guarded so it's a no-op on the web build. See "Android app (Capacitor)" in
   README.md.
+- **Safe-area insets.** Size against `var(--safe-area-inset-top)` (and
+  `-right`/`-bottom`/`-left`), never `env(safe-area-inset-*)` directly. The
+  Android WebView is laid out edge to edge and reports `env(...)` as `0` on
+  most WebView versions; Capacitor's built-in `SystemBars` plugin publishes
+  the real system-bar insets by writing those exact custom properties as
+  inline styles on `<html>`. `styles.css` seeds them from `env()` at `:root`
+  so the web and iOS keep working, and the inline styles win on Android. Use
+  `env()` and the app header ends up drawn on top of the status-bar clock.
+  For the same reason, don't call `StatusBar.setOverlaysWebView()` — it drives
+  the deprecated pre-Android-15 fullscreen flags and fights `SystemBars` for
+  control of the same layout.
+- **Phone navigation.** The header's section links are `hidden sm:inline-flex`,
+  so `MobileTabBar` (rendered by `AppHeader`, plus the landing page, which has
+  its own header) is the only way to reach them on a phone — and the native
+  shell has no browser chrome to fall back on. Its `data-mobile-tabbar`
+  attribute drives the body bottom-padding rule in `styles.css`; a page that
+  renders the bar gets that clearance automatically.
 - **Proximity alerts** (`findProximityAlert` in `src/lib/nav.ts`, wired into
   `src/routes/rides.$id.nav.tsx`) run on the same foreground
   `navigator.geolocation.watchPosition` stream every other location feature

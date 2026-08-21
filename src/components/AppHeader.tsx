@@ -1,6 +1,7 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   Circle,
   Compass,
   LogIn,
@@ -14,14 +15,17 @@ import {
   WifiOff,
   Wind,
 } from "lucide-react";
+import { useIsNativeApp } from "@/hooks/use-native-app";
 import { useOnlineStatus } from "@/hooks/use-online";
 import { useUser } from "@/hooks/use-user";
 
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProfile, ridesKeys, updateUnit } from "@/lib/rides";
 import { useTheme, type ThemeMode } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { HodoraLogo } from "@/components/HodoraLogo";
+import { MobileTabBar } from "@/components/MobileTabBar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,9 +41,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 export function AppHeader() {
   const { theme, mode, setMode } = useTheme();
   const online = useOnlineStatus();
+  const nativeApp = useIsNativeApp();
   const { user, loading } = useUser();
 
   const navigate = useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
   const queryClient = useQueryClient();
   const { data: profile } = useQuery({
     queryKey: ridesKeys.profile,
@@ -64,141 +71,171 @@ export function AppHeader() {
   }
 
   return (
-    <header className="sticky top-[env(safe-area-inset-top)] z-30 border-b border-border bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4">
-        <Link to="/">
-          <HodoraLogo textClassName="text-xl font-extrabold" />
-        </Link>
-
-        <div className="flex items-center gap-1.5">
-          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-            <Link to="/explore">
-              <Compass className="size-4" />
-              Explore
-            </Link>
-          </Button>
-
-          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-            <Link to="/plan">
-              <Route className="size-4" />
-              Plan
-            </Link>
-          </Button>
-
-          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-            <Link to="/wind">
-              <Wind className="size-4" />
-              Wind
-            </Link>
-          </Button>
-
-          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-            <Link to="/record">
-              <Circle className="size-4" />
-              Record
-            </Link>
-          </Button>
-
-          {!online && (
-            <span className="flex items-center gap-1.5 rounded-full border border-border bg-secondary px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              <WifiOff className="size-3.5" />
-              Offline
-            </span>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+    <>
+      <header className="sticky top-[var(--safe-area-inset-top)] z-30 border-b border-border bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4">
+          <div className="flex min-w-0 items-center gap-1">
+            {/*
+             * There is no browser chrome in the native shell and no visible
+             * back affordance on a phone, so history navigation has to live
+             * in the app itself. On the web it's phone-only — a desktop
+             * browser's own back button is right there.
+             */}
+            {canGoBack && (
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label={`Theme: ${mode === "system" ? `system (currently ${theme})` : mode}`}
+                className={cn("-ml-2 shrink-0", !nativeApp && "sm:hidden")}
+                aria-label="Go back"
+                onClick={() => router.history.back()}
               >
-                {mode === "system" ? (
-                  <Monitor className="size-4" />
-                ) : theme === "dark" ? (
-                  <Moon className="size-4" />
-                ) : (
-                  <Sun className="size-4" />
-                )}
+                <ArrowLeft className="size-5" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuRadioGroup
-                value={mode}
-                onValueChange={(value) => setMode(value as ThemeMode)}
-              >
-                <DropdownMenuRadioItem value="light">
-                  <Sun className="mr-2 size-3.5" />
-                  Light
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="dark">
-                  <Moon className="mr-2 size-3.5" />
-                  Dark
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="system">
-                  <Monitor className="mr-2 size-3.5" />
-                  System
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            )}
 
-          {!signedIn ? (
-            !loading && (
-              <Button asChild size="sm" variant="secondary">
-                <Link to="/auth" search={{ redirect: "/rides" }}>
-                  <LogIn className="size-4" />
-                  Sign in
-                </Link>
-              </Button>
-            )
-          ) : (
+            <Link to="/" aria-label="Home" className="min-w-0">
+              <HodoraLogo textClassName="text-xl font-extrabold" />
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+              <Link to="/explore">
+                <Compass className="size-4" />
+                Explore
+              </Link>
+            </Button>
+
+            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+              <Link to="/plan">
+                <Route className="size-4" />
+                Plan
+              </Link>
+            </Button>
+
+            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+              <Link to="/wind">
+                <Wind className="size-4" />
+                Wind
+              </Link>
+            </Button>
+
+            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+              <Link to="/record">
+                <Circle className="size-4" />
+                Record
+              </Link>
+            </Button>
+
+            {!online && (
+              <span className="flex items-center gap-1.5 rounded-full border border-border bg-secondary px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <WifiOff className="size-3.5" />
+                Offline
+              </span>
+            )}
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
-                  className="rounded-full outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Account menu"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Theme: ${mode === "system" ? `system (currently ${theme})` : mode}`}
                 >
-                  <Avatar className="size-9 border border-border">
-                    {profile?.avatar_url ? <AvatarImage src={profile.avatar_url} alt="" /> : null}
-                    <AvatarFallback className="bg-secondary text-xs font-semibold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
+                  {mode === "system" ? (
+                    <Monitor className="size-4" />
+                  ) : theme === "dark" ? (
+                    <Moon className="size-4" />
+                  ) : (
+                    <Sun className="size-4" />
+                  )}
+                </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="flex flex-col">
-                  <span className="text-sm font-semibold">
-                    {profile?.display_name || profile?.username || "Rider"}
-                  </span>
-                  {profile?.username ? (
-                    <span className="text-xs font-normal text-muted-foreground">
-                      @{profile.username}
-                    </span>
-                  ) : null}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/settings">
-                    <Settings className="size-4" />
-                    Account settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleUnitToggle}>
-                  <Ruler className="size-4" />
-                  Units: {profile?.unit === "imperial" ? "Miles / feet" : "km / meters"}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="size-4" />
-                  Sign out
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuRadioGroup
+                  value={mode}
+                  onValueChange={(value) => setMode(value as ThemeMode)}
+                >
+                  <DropdownMenuRadioItem value="light">
+                    <Sun className="mr-2 size-3.5" />
+                    Light
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="dark">
+                    <Moon className="mr-2 size-3.5" />
+                    Dark
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="system">
+                    <Monitor className="mr-2 size-3.5" />
+                    System
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
+
+            {!signedIn ? (
+              !loading && (
+                <Button asChild size="sm" variant="secondary">
+                  <Link to="/auth" search={{ redirect: "/rides" }}>
+                    <LogIn className="size-4" />
+                    Sign in
+                  </Link>
+                </Button>
+              )
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="rounded-full outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="Account menu"
+                  >
+                    <Avatar className="size-9 border border-border">
+                      {profile?.avatar_url ? <AvatarImage src={profile.avatar_url} alt="" /> : null}
+                      <AvatarFallback className="bg-secondary text-xs font-semibold">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="flex flex-col">
+                    <span className="text-sm font-semibold">
+                      {profile?.display_name || profile?.username || "Rider"}
+                    </span>
+                    {profile?.username ? (
+                      <span className="text-xs font-normal text-muted-foreground">
+                        @{profile.username}
+                      </span>
+                    ) : null}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/rides">
+                      <Route className="size-4" />
+                      My rides
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings">
+                      <Settings className="size-4" />
+                      Account settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleUnitToggle}>
+                    <Ruler className="size-4" />
+                    Units: {profile?.unit === "imperial" ? "Miles / feet" : "km / meters"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="size-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      <MobileTabBar />
+    </>
   );
 }

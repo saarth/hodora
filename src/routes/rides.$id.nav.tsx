@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -39,12 +39,12 @@ import {
   remainingAscent,
   routeBearing,
   snapToRoute,
-  turnLabel,
   upcomingGrade,
   windComponent,
   windEffect,
   windRelativeAngle,
   type Snap,
+  type WindEffect,
 } from "@/lib/nav";
 import { geolocationOptions, getLowPowerMode, weatherPollOptions } from "@/lib/low-power";
 import { useRejoinRoute } from "@/lib/rejoin";
@@ -109,7 +109,6 @@ function NavigatePage() {
   const [geoError, setGeoError] = useState<string | null>(null);
   const [follow, setFollow] = useState(true);
   const [angled, setAngled] = useState(false);
-  const [topMinimized, setTopMinimized] = useState(false);
   const [bottomMinimized, setBottomMinimized] = useState(false);
   const [finished, setFinished] = useState(false);
   // Lazy initializer (not an effect): this route is client-only (ssr: false),
@@ -196,8 +195,9 @@ function NavigatePage() {
   const turnDistanceM = turn && snap ? Math.max(0, turn.at - snap.progressM) : null;
 
   // Full cue sheet (falls back to detectTurns-derived turns when the ride
-  // has no router-provided cues) — used only to enrich a voice announcement
-  // with a street name when one is close enough to the turn being detected.
+  // has no router-provided cues) — used to name the street in the maneuver
+  // banner and the matching voice announcement, when the router provided one
+  // close enough to this turn to plausibly be the same one.
   const cueSheet = useMemo(() => (ride ? buildCueSheet(ride.points, ride.cues) : []), [ride]);
 
   // Live position when we have a GPS fix, otherwise the route's start — so
@@ -392,6 +392,8 @@ function NavigatePage() {
   }
 
   const remainingM = Math.max(0, ride.distance_m - (snap?.progressM ?? 0));
+  const progressPct =
+    ride.distance_m > 0 ? Math.min(100, ((snap?.progressM ?? 0) / ride.distance_m) * 100) : 0;
   const grade = snap ? upcomingGrade(ride.points, snap.index) : 0;
   const climbLeft = snap ? remainingAscent(ride.points, snap.index) : ride.ascent_m;
   const turnDistance = turnDistanceM;
@@ -432,93 +434,171 @@ function NavigatePage() {
         rejoin={offRoute && snap ? { lat: snap.lat, lon: snap.lon } : null}
         rejoinPath={offRoute ? (rejoinRoute?.path ?? null) : null}
         notes={ride.notes ?? []}
-
         fitTo={fitTo}
         showFitControl={false}
+        showZoomControl={false}
       />
 
-      <div className="pointer-events-none relative z-10 flex h-full flex-col justify-between gap-2 p-4">
+      {/*
+       * Overlay chrome, laid out top-to-bottom: the maneuver banner sits where
+       * the eye lands first, secondary controls collapse into an icon rail at
+       * the right thumb, and the stats card anchors the bottom. The bottom
+       * padding clears the Android gesture bar / iOS home indicator — the map
+       * runs edge to edge underneath, but nothing tappable does.
+       */}
+      <div className="pointer-events-none relative z-10 flex h-full flex-col gap-2 p-3 pb-[calc(0.75rem+var(--safe-area-inset-bottom))]">
         <div className="flex shrink-0 flex-wrap items-start justify-between gap-2">
-          <div className="pointer-events-auto flex items-start gap-2">
-            {!topMinimized ? (
-              <>
-                <Button asChild variant="secondary" size="sm" className="glass">
-                  <Link to="/rides/$id" params={{ id: ride.id }}>
-                    <ArrowLeft className="size-4" />
-                    End
-                  </Link>
-                </Button>
-                <Button
-                  variant={follow ? "default" : "secondary"}
-                  size="sm"
-                  className={follow ? "" : "glass"}
-                  onClick={() => setFollow((value) => !value)}
-                >
-                  <Crosshair className="size-4" />
-                  {follow ? "Following" : "Recenter"}
-                </Button>
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="glass"
-                  aria-label="Minimise top controls"
-                  onClick={() => setTopMinimized(true)}
-                >
-                  <Minimize2 className="size-4" />
-                </Button>
-              </>
-            ) : (
-              <Button
-                size="icon"
-                variant="secondary"
-                className="glass"
-                aria-label="Expand top controls"
-                onClick={() => setTopMinimized(false)}
-              >
-                <Maximize2 className="size-4" />
-              </Button>
-            )}
-          </div>
+          <Button
+            asChild
+            variant="secondary"
+            size="sm"
+            className="glass pointer-events-auto h-10 rounded-full px-4"
+          >
+            <Link to="/rides/$id" params={{ id: ride.id }}>
+              <ArrowLeft className="size-4" />
+              End
+            </Link>
+          </Button>
 
           {weather && (
-            <div className="glass-faint pointer-events-auto mr-12 flex shrink-0 flex-col items-end gap-1 rounded-xl px-2.5 py-2 text-xs">
-              <div className="flex items-center gap-1.5">
-                <WeatherGlyph
-                  icon={weatherInfo(weather.weatherCode, weather.isDay).icon}
-                  className="size-4 text-primary"
-                />
-                <span className="font-semibold leading-none">
-                  {formatTemperature(weather.temperatureC, metric)}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 whitespace-nowrap text-muted-foreground">
-                <Wind className="size-3 shrink-0" aria-hidden />
+            <div className="glass pointer-events-auto ml-auto flex max-w-full flex-wrap items-center justify-end gap-x-3 gap-y-0.5 rounded-2xl px-3 py-1.5 text-xs">
+              <WeatherGlyph
+                icon={weatherInfo(weather.weatherCode, weather.isDay).icon}
+                className="size-4 shrink-0 text-primary"
+              />
+              <span className="font-mono font-semibold leading-none">
+                {formatTemperature(weather.temperatureC, metric)}
+              </span>
+              <span className="flex items-center gap-1 whitespace-nowrap font-mono leading-none text-muted-foreground">
+                <Wind className="size-3.5 shrink-0" aria-hidden />
                 {formatWindSpeed(weather.windSpeedMs, metric)}{" "}
                 {compassAbbrev(weather.windDirectionDeg)}
-              </div>
-              {wind && wind.effect !== "crosswind" && Math.abs(wind.componentMs) > 1 && (
+              </span>
+              {/* Named, not just color-coded: on a bike this is the number
+                  that explains why the ride feels the way it does. */}
+              {wind && Math.abs(wind.componentMs) > 1 && (
                 <span
                   className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                    "whitespace-nowrap font-semibold uppercase leading-none tracking-wide",
                     wind.effect === "headwind"
-                      ? "bg-destructive/15 text-destructive"
-                      : "bg-primary/15 text-primary",
+                      ? "text-destructive"
+                      : wind.effect === "tailwind"
+                        ? "text-primary"
+                        : "text-muted-foreground",
                   )}
                 >
-                  {wind.effect === "headwind" ? "Headwind" : "Tailwind"}
+                  {windLabel(wind.effect)}
                 </span>
               )}
             </div>
           )}
         </div>
 
-        <div className="flex min-h-0 flex-col gap-3">
-          <div className="pointer-events-auto flex shrink-0 justify-end gap-2">
+        {/* The one thing that has to be readable at 30 km/h. */}
+        {!finished &&
+          (offRoute && snap ? (
+            <div className="glass pointer-events-auto shrink-0 rounded-2xl border-destructive/40 p-3">
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-destructive text-destructive-foreground"
+                  aria-hidden
+                >
+                  <Navigation
+                    className="size-7"
+                    style={{
+                      transform: `rotate(${(rejoinBearing ?? 0) - (fix?.heading ?? 0)}deg)`,
+                    }}
+                  />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="stat-figure text-3xl font-bold leading-none text-destructive">
+                    {formatDistance(rejoinDistanceM, metric)}
+                  </p>
+                  <p className="mt-1.5 font-serif text-sm italic leading-snug text-muted-foreground">
+                    {rejoinLoading && !rejoinRoute
+                      ? "Finding a cycling route back to the track…"
+                      : rejoinRoute?.routed
+                        ? `Follow the route back — head ${rejoinBearing !== null ? compassLabel(rejoinBearing) : "—"} to start`
+                        : `Head ${rejoinBearing !== null ? compassLabel(rejoinBearing) : "—"} to the closest point of the route`}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-9 shrink-0 rounded-full"
+                  onClick={showRejoinOnMap}
+                >
+                  Show
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="glass pointer-events-auto shrink-0 rounded-2xl p-3">
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground"
+                  aria-hidden
+                >
+                  {turn ? (
+                    turn.direction.includes("left") ? (
+                      <CornerDownLeft className="size-7" />
+                    ) : (
+                      <CornerDownRight className="size-7" />
+                    )
+                  ) : (
+                    <Flag className="size-6" />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="stat-figure text-3xl font-bold leading-none">
+                    {turn
+                      ? turnDistance !== null
+                        ? formatDistance(turnDistance, metric)
+                        : "—"
+                      : formatDistance(remainingM, metric)}
+                  </p>
+                  <p className="mt-1.5 truncate font-serif text-base italic leading-snug text-muted-foreground">
+                    {turn
+                      ? cueText(turn.direction, nearestCueName(cueSheet, turn.at))
+                      : "Continue straight to the finish"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+
+        {geoError && (
+          <div className="glass-faint pointer-events-auto flex shrink-0 items-center gap-2 rounded-xl p-2.5 text-xs text-destructive">
+            <TriangleAlert className="size-3.5 shrink-0" />
+            {geoError} — allow location access to navigate.
+          </div>
+        )}
+
+        {/*
+         * Spacer that keeps the map visible, with the control rail sitting on
+         * its bottom edge, just above the stats card and under the thumb. The
+         * rail is a row rather than a column on purpose: five stacked buttons
+         * are taller than the space left on a short phone and end up drawn
+         * over the maneuver banner, where a single row always fits.
+         */}
+        <div className="flex min-h-0 flex-1 items-end justify-end">
+          <div className="pointer-events-auto flex flex-wrap justify-end gap-2">
+            <RailButton
+              active={follow}
+              label={follow ? "Stop following my position" : "Recenter on my position"}
+              pressed={follow}
+              onClick={() => setFollow((value) => !value)}
+            >
+              <Crosshair className="size-5" />
+            </RailButton>
+
             {isVoiceSupported() && (
-              <Button
-                variant={voiceEnabled ? "default" : "secondary"}
-                size="sm"
-                className={voiceEnabled ? "" : "glass"}
+              <RailButton
+                active={voiceEnabled}
+                label={
+                  voiceEnabled ? "Turn off voice announcements" : "Turn on voice announcements"
+                }
+                pressed={voiceEnabled}
                 onClick={() => {
                   setVoiceEnabled((value) => {
                     const next = !value;
@@ -526,217 +606,168 @@ function NavigatePage() {
                     return next;
                   });
                 }}
-                aria-label={
-                  voiceEnabled ? "Turn off voice announcements" : "Turn on voice announcements"
-                }
-                aria-pressed={voiceEnabled}
               >
-                {voiceEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
-                Voice
-              </Button>
+                {voiceEnabled ? <Volume2 className="size-5" /> : <VolumeX className="size-5" />}
+              </RailButton>
             )}
-            <Button
-              variant={highContrast ? "default" : "secondary"}
-              size="sm"
-              className={highContrast ? "" : "glass"}
+
+            <RailButton
+              active={highContrast}
+              label={highContrast ? "Turn off high contrast" : "Turn on high contrast"}
+              pressed={highContrast}
               onClick={() => setHighContrast((value) => !value)}
-              aria-label={highContrast ? "Turn off high contrast" : "Turn on high contrast"}
-              aria-pressed={highContrast}
             >
-              <Contrast className="size-4" />
-              Contrast
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="glass"
+              <Contrast className="size-5" />
+            </RailButton>
+
+            <RailButton
+              active={angled}
+              label={angled ? "Switch to bird's-eye view" : "Switch to angled view"}
+              pressed={angled}
               onClick={() => setAngled((value) => !value)}
-              aria-label={angled ? "Switch to bird's-eye view" : "Switch to angled view"}
             >
-              {angled ? <MapIcon className="size-4" /> : <Box className="size-4" />}
-              {angled ? "Bird's-eye" : "Angled"}
-            </Button>
-            <Button
-              size="icon"
-              variant="secondary"
-              className="glass"
-              aria-label={bottomMinimized ? "Expand navigation info" : "Minimise navigation info"}
+              {angled ? <MapIcon className="size-5" /> : <Box className="size-5" />}
+            </RailButton>
+
+            <RailButton
+              label={bottomMinimized ? "Show ride stats" : "Hide ride stats"}
               onClick={() => setBottomMinimized((value) => !value)}
             >
               {bottomMinimized ? (
-                <Maximize2 className="size-4" />
+                <Maximize2 className="size-5" />
               ) : (
-                <Minimize2 className="size-4" />
+                <Minimize2 className="size-5" />
               )}
+            </RailButton>
+          </div>
+        </div>
+
+        {finished ? (
+          <div className="glass pointer-events-auto shrink-0 space-y-3 rounded-2xl p-4 text-center">
+            <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <CheckCircle2 className="size-6" />
+            </span>
+            <div>
+              <p className="font-serif text-2xl italic leading-none">Ride complete</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                You've reached the end of {ride.name}.
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-2 border-t border-border pt-3 text-left">
+              <Metric label="Distance" value={formatDistance(ride.distance_m, metric)} />
+              <Metric label="Climbed" value={formatElevation(ride.ascent_m, metric)} />
+              <Metric label="Elapsed" value={formatDuration(elapsedSec)} />
+            </div>
+            <Button asChild className="w-full" size="lg">
+              <Link to="/rides/$id" params={{ id: ride.id }}>
+                Finish ride
+              </Link>
             </Button>
           </div>
-
-          {!bottomMinimized && (
+        ) : (
+          !bottomMinimized && (
             /*
              * Scrolls within itself rather than growing the page: on a short
-             * screen the off-route banner + turn card + metrics + elevation
-             * chart can exceed the space left under the map controls, and
-             * the page itself is height-locked so it can't scroll to reveal
-             * them. `min-h-0` is what actually lets this flex child shrink
-             * below its content height.
+             * screen the metrics and charts can exceed the space left under
+             * the maneuver banner, and the page itself is height-locked so it
+             * can't scroll to reveal them. `max-h-[45%]` keeps the map at
+             * least half visible whatever ends up inside.
              */
-            <div className="pointer-events-auto min-h-0 space-y-2 overflow-y-auto overscroll-contain">
-              {finished ? (
-                <div className="glass-faint space-y-3 rounded-2xl p-4 text-center">
-                  <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
-                    <CheckCircle2 className="size-6" />
-                  </span>
-                  <div>
-                    <p className="text-lg font-bold leading-none">Ride complete!</p>
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      You've reached the end of {ride.name}.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 border-t border-border pt-3 text-left">
-                    <Metric label="Distance" value={formatDistance(ride.distance_m, metric)} />
-                    <Metric label="Elevation gain" value={formatElevation(ride.ascent_m, metric)} />
-                  </div>
-                  <Button asChild className="w-full">
-                    <Link to="/rides/$id" params={{ id: ride.id }}>
-                      Finish ride
-                    </Link>
-                  </Button>
+            <div className="glass pointer-events-auto max-h-[45%] shrink-0 overflow-y-auto overscroll-contain rounded-2xl p-3">
+              <div
+                className="h-1.5 w-full overflow-hidden rounded-full bg-border"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(progressPct)}
+                aria-label="Route progress"
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-500"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2 min-[360px]:grid-cols-4">
+                <Metric label="To go" value={formatDistance(remainingM, metric)} />
+                <Metric label="Climb left" value={formatElevation(climbLeft, metric)} />
+                <Metric label="Grade" value={`${grade > 0 ? "+" : ""}${grade.toFixed(1)}%`} />
+                <Metric
+                  label="Speed"
+                  value={fix?.speed != null ? formatSpeed(fix.speed, metric) : "—"}
+                />
+              </div>
+
+              <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3">
+                <Metric label="Elapsed" value={formatDuration(elapsedSec)} />
+                <Metric
+                  label="Avg speed"
+                  value={avgSpeedMps != null ? formatSpeed(avgSpeedMps, metric) : "—"}
+                />
+                <Metric label="ETA" value={etaLabel} />
+              </div>
+
+              <div className="mt-3 border-t border-border pt-3">
+                <ElevationChart
+                  points={ride.points}
+                  metric={metric}
+                  progressM={snap?.progressM ?? null}
+                  height={64}
+                />
+              </div>
+
+              {speedHistory.length > 1 && (
+                <div className="mt-3 border-t border-border pt-3">
+                  <p className="mb-1.5 text-[10px] uppercase tracking-widest text-muted-foreground">
+                    Speed
+                  </p>
+                  <SpeedHistoryChart samples={speedHistory} metric={metric} height={52} />
                 </div>
-              ) : (
-                <>
-                  {geoError && (
-                    <div className="glass-faint flex items-center gap-2 rounded-xl p-2.5 text-xs text-destructive">
-                      <TriangleAlert className="size-3.5 shrink-0" />
-                      {geoError} — allow location access to navigate.
-                    </div>
-                  )}
-
-                  {offRoute && snap && (
-                    <div className="glass-faint space-y-2 rounded-xl border border-destructive/30 p-2.5">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
-                        <TriangleAlert className="size-3.5 shrink-0" />
-                        Off route — {formatDistance(snap.offRouteM, metric)} from the track
-                      </div>
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/15 text-destructive"
-                          aria-hidden
-                        >
-                          <Navigation
-                            className="size-4"
-                            style={{
-                              transform: `rotate(${(rejoinBearing ?? 0) - (fix?.heading ?? 0)}deg)`,
-                            }}
-                          />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-mono text-base font-bold leading-none">
-                            {formatDistance(rejoinDistanceM, metric)}
-                          </p>
-                          <p className="mt-1 text-[11px] leading-tight text-muted-foreground">
-                            {rejoinLoading && !rejoinRoute
-                              ? "Finding a cycling route back to the track…"
-                              : rejoinRoute?.routed
-                                ? `Follow the orange cycling route — head ${rejoinBearing !== null ? compassLabel(rejoinBearing) : "—"} to start`
-                                : `Head ${rejoinBearing !== null ? compassLabel(rejoinBearing) : "—"} to the closest point of the route`}
-                          </p>
-                        </div>
-
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="glass-faint h-8 text-xs"
-                          onClick={showRejoinOnMap}
-                        >
-                          Show
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="glass-faint rounded-2xl p-3">
-                    {turn ? (
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={cn(
-                            "flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary",
-                          )}
-                        >
-                          {turn.direction.includes("left") ? (
-                            <CornerDownLeft className="size-5" />
-                          ) : (
-                            <CornerDownRight className="size-5" />
-                          )}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-mono text-xl font-bold leading-none">
-                            {turnDistance !== null ? formatDistance(turnDistance, metric) : "—"}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {turnLabel(turn.direction)}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3">
-                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                          <Flag className="size-4" />
-                        </span>
-                        <div>
-                          <p className="font-mono text-xl font-bold leading-none">
-                            {formatDistance(remainingM, metric)}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Continue straight to the finish
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mt-3 grid grid-cols-4 gap-2 border-t border-border pt-3">
-                      <Metric label="To go" value={formatDistance(remainingM, metric)} />
-                      <Metric label="Climb left" value={formatElevation(climbLeft, metric)} />
-                      <Metric label="Grade" value={`${grade > 0 ? "+" : ""}${grade.toFixed(1)}%`} />
-                      <Metric
-                        label="Speed"
-                        value={fix?.speed != null ? formatSpeed(fix.speed, metric) : "—"}
-                      />
-                    </div>
-
-                    <div className="mt-2 grid grid-cols-3 gap-2 border-t border-border pt-3">
-                      <Metric label="Elapsed" value={formatDuration(elapsedSec)} />
-                      <Metric
-                        label="Avg speed"
-                        value={avgSpeedMps != null ? formatSpeed(avgSpeedMps, metric) : "—"}
-                      />
-                      <Metric label="ETA" value={etaLabel} />
-                    </div>
-
-                    <div className="mt-3">
-                      <ElevationChart
-                        points={ride.points}
-                        metric={metric}
-                        progressM={snap?.progressM ?? null}
-                        height={70}
-                      />
-                    </div>
-
-                    {speedHistory.length > 1 && (
-                      <div className="mt-2">
-                        <p className="mb-1 text-[10px] uppercase tracking-widest text-muted-foreground">
-                          Speed
-                        </p>
-                        <SpeedHistoryChart samples={speedHistory} metric={metric} height={56} />
-                      </div>
-                    )}
-                  </div>
-                </>
               )}
             </div>
-          )}
-        </div>
+          )
+        )}
       </div>
     </div>
+  );
+}
+
+/** Tooltip text for the wind chip — the spoken form of a WindEffect. */
+function windLabel(effect: WindEffect): string {
+  if (effect === "headwind") return "Headwind";
+  if (effect === "tailwind") return "Tailwind";
+  return "Crosswind";
+}
+
+/**
+ * A control-rail button: icon-only and circular, so five of them stack into
+ * the corner without the wrapping pill row they used to form. `active` gives
+ * the same filled treatment the labelled `default` button variant has.
+ */
+function RailButton({
+  children,
+  label,
+  onClick,
+  active = false,
+  pressed,
+}: {
+  children: ReactNode;
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+  pressed?: boolean;
+}) {
+  return (
+    <Button
+      size="icon"
+      variant={active ? "default" : "secondary"}
+      className={cn("size-11 rounded-full [&_svg]:size-5", !active && "glass")}
+      aria-label={label}
+      aria-pressed={pressed}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
   );
 }
 

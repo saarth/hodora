@@ -42,6 +42,12 @@ type RouteMapProps = {
   fitTo?: { coords: { lat: number; lon: number }[]; nonce: number } | null;
   /** show the "Fit route" button overlay (off during turn-by-turn navigation) */
   showFitControl?: boolean;
+  /**
+   * show MapLibre's zoom/compass buttons. Off during turn-by-turn navigation:
+   * they land in the same top-right corner as the maneuver banner, and pinch,
+   * drag and double-tap all still work without them.
+   */
+  showZoomControl?: boolean;
   /** starting camera position when there is no route yet */
   initialCenter?: { lat: number; lon: number } | null;
   /** bump `nonce` to move the camera to a point (explore / locate me) */
@@ -257,6 +263,7 @@ export function RouteMap({
 
   fitTo = null,
   showFitControl = true,
+  showZoomControl = true,
   initialCenter = null,
   flyTo = null,
   onViewChange,
@@ -338,10 +345,12 @@ export function RouteMap({
       });
 
       if (interactive) {
-        map.addControl(
-          new maplibre.NavigationControl({ showCompass: true, visualizePitch: true }),
-          "top-right",
-        );
+        if (showZoomControl) {
+          map.addControl(
+            new maplibre.NavigationControl({ showCompass: true, visualizePitch: true }),
+            "top-right",
+          );
+        }
         // Explicit gesture setup: wheel/pinch zoom, drag pan, double-tap zoom,
         // and keyboard arrows all stay enabled on touch and desktop.
         map.scrollZoom.enable();
