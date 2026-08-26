@@ -15,6 +15,8 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as OauthCallbackRouteImport } from './routes/oauth-callback'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as ApiDeleteAccountRouteImport } from './routes/api/delete-account'
 import { Route as RidesIndexRouteImport } from './routes/rides.index'
@@ -50,6 +52,16 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -82,6 +94,8 @@ export interface FileRoutesByFullPath {
   '/explore': typeof ExploreRoute
   '/oauth-callback': typeof OauthCallbackRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/delete-account': typeof ApiDeleteAccountRoute
   '/rides/': typeof RidesIndexRoute
@@ -94,6 +108,8 @@ export interface FileRoutesByTo {
   '/explore': typeof ExploreRoute
   '/oauth-callback': typeof OauthCallbackRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/delete-account': typeof ApiDeleteAccountRoute
   '/rides': typeof RidesIndexRoute
@@ -108,6 +124,8 @@ export interface FileRoutesById {
   '/explore': typeof ExploreRoute
   '/oauth-callback': typeof OauthCallbackRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/delete-account': typeof ApiDeleteAccountRoute
   '/rides/': typeof RidesIndexRoute
@@ -122,6 +140,8 @@ export interface FileRouteTypes {
     | '/explore'
     | '/oauth-callback'
     | '/reset-password'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/settings'
     | '/api/delete-account'
     | '/rides/'
@@ -134,6 +154,8 @@ export interface FileRouteTypes {
     | '/explore'
     | '/oauth-callback'
     | '/reset-password'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/settings'
     | '/api/delete-account'
     | '/rides'
@@ -147,6 +169,8 @@ export interface FileRouteTypes {
     | '/explore'
     | '/oauth-callback'
     | '/reset-password'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/_authenticated/settings'
     | '/api/delete-account'
     | '/rides/'
@@ -161,6 +185,8 @@ export interface RootRouteChildren {
   ExploreRoute: typeof ExploreRoute
   OauthCallbackRoute: typeof OauthCallbackRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiDeleteAccountRoute: typeof ApiDeleteAccountRoute
   RidesIndexRoute: typeof RidesIndexRoute
   RidesIdNavRoute: typeof RidesIdNavRoute
@@ -209,6 +235,20 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/settings': {
@@ -267,6 +307,8 @@ const rootRouteChildren: RootRouteChildren = {
   ExploreRoute: ExploreRoute,
   OauthCallbackRoute: OauthCallbackRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiDeleteAccountRoute: ApiDeleteAccountRoute,
   RidesIndexRoute: RidesIndexRoute,
   RidesIdNavRoute: RidesIdNavRoute,

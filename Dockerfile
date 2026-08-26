@@ -9,10 +9,12 @@ WORKDIR /app
 # Vite, so they have to be build args, not runtime environment variables.
 # They're the publishable/anon Supabase values — safe to be visible in the
 # built client bundle (that's the point of them), never the service-role key.
+ARG VITE_SITE_URL
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PROJECT_ID
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
-ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
+ENV VITE_SITE_URL=$VITE_SITE_URL \
+    VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
     VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID \
     VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 

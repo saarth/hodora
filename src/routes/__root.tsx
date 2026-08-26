@@ -14,6 +14,7 @@ import { reportError } from "../lib/error-reporting";
 import { ThemeProvider } from "../lib/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { registerServiceWorker } from "@/lib/pwa";
+import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, seoMeta } from "@/lib/seo";
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -82,23 +83,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Hodora — Ride your GPX routes" },
-      {
-        name: "description",
-        content:
-          "Import GPX files, see distance and climbing at a glance, then ride with live turn-by-turn navigation and off-route alerts.",
-      },
-      { property: "og:title", content: "Hodora — Ride your GPX routes" },
-      {
-        property: "og:description",
-        content: "Import GPX files, see distance and climbing at a glance, then ride with live turn-by-turn navigation and off-route alerts.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Hodora — Ride your GPX routes" },
-      { name: "twitter:description", content: "Import GPX files, see distance and climbing at a glance, then ride with live turn-by-turn navigation and off-route alerts." },
-      { property: "og:image", content: "/og-image.png" },
-      { name: "twitter:image", content: "/og-image.png" },
+      ...seoMeta({
+        title: DEFAULT_TITLE,
+        description: DEFAULT_DESCRIPTION,
+        path: "/",
+      }),
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -112,7 +101,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/icon-192.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
     ],
-
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -155,7 +143,6 @@ function RootComponent() {
     });
     return () => data.subscription.unsubscribe();
   }, [queryClient, router]);
-
 
   return (
     <QueryClientProvider client={queryClient}>

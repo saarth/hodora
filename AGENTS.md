@@ -58,6 +58,14 @@ cloudflared/
   The production service worker is generated *after* `vite build` — see the
   comment in `vite.config.ts`'s `VitePWA(...)` call for why, and
   `docs/CODE_REVIEW.md` for the full story if it regresses.
+- **SEO metadata.** `src/lib/seo.ts` is the single source of truth for
+  titles, descriptions, OpenGraph/Twitter tags and canonical URLs — build a
+  route's `head` with `seoMeta()`/`canonicalLink()` rather than hand-writing
+  the twelve tags again. `/robots.txt` and `/sitemap.xml` are generated
+  routes (`src/routes/robots[.]txt.tsx`, `sitemap[.]xml.tsx`), not files in
+  `public/`, because their URLs must be absolute and the domain isn't known
+  at build time. A new public page needs an entry in the sitemap's `PAGES`;
+  a new signed-in page needs `robots: noindex`.
 - **Row Level Security.** `rides` and `profiles` are both scoped to
   `auth.uid()` in `supabase/migrations/`. Any new table needs its own RLS
   policy before shipping — don't assume the client can be trusted to filter

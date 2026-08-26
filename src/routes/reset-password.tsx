@@ -11,6 +11,7 @@ export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
       { title: "Reset password — Hodora" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content: "Choose a new password for your Hodora account and get back to your routes.",

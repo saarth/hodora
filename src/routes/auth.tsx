@@ -19,6 +19,7 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign in — Hodora" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content: "Sign in to Hodora with Google or email to import and navigate your GPX bike routes.",

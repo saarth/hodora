@@ -41,6 +41,7 @@ export const Route = createFileRoute("/rides/$id/nav")({
   head: () => ({
     meta: [
       { title: "Navigate — Hodora" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content: "Live turn-by-turn navigation along your GPX route with distance to go, next turn and off-route alerts.",

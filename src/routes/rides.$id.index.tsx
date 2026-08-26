@@ -16,6 +16,7 @@ export const Route = createFileRoute("/rides/$id/")({
   head: () => ({
     meta: [
       { title: "Route details — Hodora" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content: "Route overview with map, elevation profile, distance and total climbing before you start navigating.",

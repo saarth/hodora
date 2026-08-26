@@ -3,24 +3,25 @@ import { ArrowRight, Compass, Mountain, Route as RouteIcon, Upload } from "lucid
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/hooks/use-user";
 import { useTheme } from "@/lib/theme";
+import { JsonLd } from "@/components/JsonLd";
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_TITLE,
+  SITE_NAME,
+  absoluteUrl,
+  canonicalLink,
+  seoMeta,
+} from "@/lib/seo";
 import { Moon, Sun } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
-    meta: [
-      { title: "Hodora — Ride your GPX routes" },
-      {
-        name: "description",
-        content:
-          "Import GPX files, see distance and climbing at a glance, then ride with live turn-by-turn navigation and off-route alerts.",
-      },
-      { property: "og:title", content: "Hodora — Ride your GPX routes" },
-      {
-        property: "og:description",
-        content:
-          "Import GPX files, see distance and climbing at a glance, then ride with live turn-by-turn navigation and off-route alerts.",
-      },
-    ],
+    meta: seoMeta({
+      title: DEFAULT_TITLE,
+      description: DEFAULT_DESCRIPTION,
+      path: "/",
+    }),
+    links: canonicalLink("/"),
   }),
   component: Landing,
 });
@@ -40,6 +41,61 @@ const features = [
     icon: Compass,
     title: "Turn-by-turn",
     body: "Live GPS following with turn prompts, distance to go and an alert the moment you drift off route.",
+  },
+];
+
+/**
+ * Answers to the questions people actually type into Google around GPX and
+ * bike route planning. These are real page content first — the FAQPage
+ * structured data below only describes what a reader can already see.
+ */
+const faqs = [
+  {
+    q: "What is a GPX file?",
+    a: "GPX (GPS Exchange Format) is the standard file cyclists use to share a route. Every route planner — Komoot, Strava, Ride with GPS, Garmin Connect — can export one, and Hodora reads them all.",
+  },
+  {
+    q: "Can I plan a bike route in Hodora?",
+    a: "Yes. Explore finds signposted cycle routes around you from OpenStreetMap data, or generates a loop of whatever length you want, and saves it straight to your rides. You can also import a GPX you planned elsewhere.",
+  },
+  {
+    q: "Does bike navigation work offline?",
+    a: "Yes. Save a route and its map tiles to your device before you leave, and turn-by-turn navigation keeps working with no signal — which is most of the point on a long ride.",
+  },
+  {
+    q: "Is Hodora free?",
+    a: "Hodora is free and open source. Use the hosted app, or self-host it yourself from the source on GitHub.",
+  },
+];
+
+const structuredData = [
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: SITE_NAME,
+    applicationCategory: "TravelApplication",
+    operatingSystem: "Web, Android, iOS",
+    description: DEFAULT_DESCRIPTION,
+    url: absoluteUrl("/"),
+    image: absoluteUrl("/og-image.png"),
+    isAccessibleForFree: true,
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    featureList: [
+      "GPX route import",
+      "Bike route planning and loop generation",
+      "Turn-by-turn cycling navigation",
+      "Elevation profiles and climbing totals",
+      "Offline maps and routes",
+    ],
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.q,
+      acceptedAnswer: { "@type": "Answer", text: faq.a },
+    })),
   },
 ];
 
@@ -78,7 +134,7 @@ function Landing() {
             GPX in. Ride out.
           </p>
           <h1 className="mt-5 max-w-2xl text-4xl font-extrabold leading-[1.05] sm:text-6xl">
-            Your bike routes, navigated properly.
+            Your GPX bike routes, planned and navigated properly.
           </h1>
           <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
             Hodora turns a GPX file into a ride you can actually follow — distance,
@@ -114,7 +170,24 @@ function Landing() {
             </article>
           ))}
         </section>
+
+        <section className="mt-20 max-w-3xl">
+          <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+            GPX and bike route planning, answered
+          </h2>
+          <dl className="mt-6 space-y-4">
+            {faqs.map((faq) => (
+              <div key={faq.q} className="surface p-6">
+                <dt className="text-base font-bold">{faq.q}</dt>
+                <dd className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {faq.a}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       </div>
+      <JsonLd data={structuredData} />
     </main>
   );
 }

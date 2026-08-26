@@ -33,6 +33,7 @@ export const Route = createFileRoute("/rides/")({
   head: () => ({
     meta: [
       { title: "My rides — Hodora" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content: "Your imported GPX bike routes with distance, climbing and quick access to navigation.",

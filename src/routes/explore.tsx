@@ -26,26 +26,18 @@ import {
 } from "@/lib/discover";
 import { createRide } from "@/lib/rides";
 import { cn } from "@/lib/utils";
+import { canonicalLink, seoMeta } from "@/lib/seo";
 
 export const Route = createFileRoute("/explore")({
   ssr: false,
   head: () => ({
-    meta: [
-      { title: "Explore routes near you — Hodora" },
-      {
-        name: "description",
-        content:
-          "Discover signposted cycle routes around you from OpenStreetMap, or generate a loop ride of any length, then save it to your rides.",
-      },
-      { property: "og:title", content: "Explore routes near you — Hodora" },
-      {
-        property: "og:description",
-        content:
-          "Find nearby cycle networks and generated loop rides, then save them and navigate turn by turn.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
+    meta: seoMeta({
+      title: "Bike route planner — find cycling routes near you | Hodora",
+      description:
+        "Plan a bike route in seconds: find signposted cycle routes near you from OpenStreetMap, or generate a loop of any length, then ride it turn by turn.",
+      path: "/explore",
+    }),
+    links: canonicalLink("/explore"),
   }),
   component: ExplorePage,
 });

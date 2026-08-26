@@ -11,7 +11,7 @@ export const Route = createFileRoute("/oauth-callback")({
       { name: "description", content: "Completing your Hodora sign-in." },
       { property: "og:title", content: "Signing you in — Hodora" },
       { property: "og:description", content: "Completing your Hodora sign-in." },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: OAuthCallback,

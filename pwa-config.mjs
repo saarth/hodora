@@ -27,7 +27,7 @@ export const pwaManifest = {
 export const workboxConfig = {
   globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
   navigateFallback: "/",
-  navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//],
+  navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/robots\.txt$/, /^\/sitemap\.xml$/],
   cleanupOutdatedCaches: true,
   runtimeCaching: [
     {

@@ -196,6 +196,41 @@ certificate to manage, and no config file to write. Once it's running,
 add to Supabase's Auth URL Configuration (and the Google OAuth client's
 authorized origins, if you use Google sign-in).
 
+## Search engine visibility
+
+Every public page ships a title, description, OpenGraph/Twitter tags and
+schema.org JSON-LD, built in one place (`src/lib/seo.ts`) so the copies can't
+drift. `/robots.txt` and `/sitemap.xml` are generated routes rather than
+static files, because the URLs in them have to be absolute and Hodora doesn't
+know its own domain at build time.
+
+Signed-in pages (`/rides`, `/auth`, `/settings`, the OAuth steps) are marked
+`noindex` and disallowed in robots.txt — only `/` and `/explore` are meant to
+be indexed.
+
+**Set `VITE_SITE_URL`** on whichever deployment should own the search results,
+with no trailing slash:
+
+```sh
+VITE_SITE_URL=https://hodora.example.com
+```
+
+It's a build-time variable (`VITE_` prefix), so it has to be set when you build
+— as a `--build-arg` for Docker, or in the environment for `npm run build`.
+Without it, canonical tags are omitted and OpenGraph URLs stay relative, which
+means Google may pick its own idea of the canonical URL if the app is reachable
+at more than one hostname.
+
+Code gets you an indexable site; it doesn't get you indexed. The remaining
+steps are manual, one time each:
+
+1. Verify the domain in [Google Search Console](https://search.google.com/search-console)
+   and submit `https://your-domain/sitemap.xml`.
+2. Do the same in [Bing Webmaster Tools](https://www.bing.com/webmasters).
+3. Check the rendered result with the
+   [Rich Results Test](https://search.google.com/test/rich-results) — it should
+   find `SoftwareApplication` and `FAQPage` on the landing page.
+
 ## Contributing
 
 Contributions are welcome! Please open an issue or pull request. If you find a bug or want a new feature, let us know in the issue tracker.

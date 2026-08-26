@@ -50,6 +50,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
       { title: "Account settings — Hodora" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content:
