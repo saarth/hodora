@@ -309,16 +309,28 @@ unset to keep the raster basemap.
 
 Hodora ships with basic SEO built in: a JSON-LD `WebApplication` block on
 the homepage, canonical and `og:url` tags on the public routes (`/`,
-`/plan`, `/explore`, `/wind`), and `public/sitemap.xml`. All of these are
-hardcoded to `https://hodora.app`, the project's official deployment, since
-they're not derived from an env var. If you're self-hosting a public-facing
-instance under your own domain and want search engines to index _your_
-instance correctly, update the `TITLE`/`DESCRIPTION`/canonical constants in
-each route's `head()` (`src/routes/index.tsx`, `plan.tsx`, `explore.tsx`,
-`wind.tsx`), the `og:image`/`twitter:image` URLs and `og:site_name` in
-`src/routes/__root.tsx`, and the URLs in `public/sitemap.xml` and
-`public/robots.txt`. Account-only and per-user pages (`/auth`, `/rides`,
-`/share/$id`, etc.) are already marked `noindex` and don't need changes.
+`/plan`, `/explore`, `/wind`), and `/sitemap.xml`.
+
+All of those URLs come from one place — `src/lib/seo.ts` — and default to
+`https://hodora.app`, the project's official deployment. **If you're
+self-hosting a public-facing instance under your own domain, set
+`VITE_SITE_URL`** and every canonical tag, `og:url`, social image URL and
+sitemap entry follows it:
+
+```sh
+VITE_SITE_URL=https://hodora.example.com
+```
+
+It's a build-time variable (`VITE_` prefix), so set it when you build — as a
+`--build-arg` for Docker, or in the environment for `npm run build`. Leave it
+unset and your instance will keep telling search engines that hodora.app is
+the canonical home of its pages, which stops your own instance from being
+indexed.
+
+`/robots.txt` and `/sitemap.xml` are generated routes rather than files in
+`public/`, because a static file can't know which domain is serving it.
+Account-only and per-user pages (`/auth`, `/rides`, `/share/$id`, etc.) are
+marked `noindex` and stay out of the sitemap.
 
 ### Self-hosting with Docker (e.g. Unraid)
 
@@ -338,6 +350,7 @@ Without Compose, the equivalent is:
 
 ```sh
 docker build \
+  --build-arg VITE_SITE_URL=https://hodora.example.com \
   --build-arg VITE_SUPABASE_URL=https://your-project-id.supabase.co \
   --build-arg VITE_SUPABASE_PROJECT_ID=your-project-id \
   --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key \

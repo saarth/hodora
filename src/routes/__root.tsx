@@ -17,6 +17,7 @@ import { registerServiceWorker } from "@/lib/pwa";
 import { initNativeShell, syncStatusBar } from "@/lib/native";
 
 import { supabase } from "@/integrations/supabase/client";
+import { absoluteUrl } from "@/lib/seo";
 
 function NotFoundComponent() {
   return (
@@ -104,8 +105,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Free GPX bike navigation for club rides and cycling events. No dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
       },
-      { property: "og:image", content: "https://hodora.app/og-image.png" },
-      { name: "twitter:image", content: "https://hodora.app/og-image.png" },
+      { property: "og:image", content: absoluteUrl("/og-image.png") },
+      { name: "twitter:image", content: absoluteUrl("/og-image.png") },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

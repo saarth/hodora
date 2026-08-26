@@ -11,6 +11,9 @@ services:
     build:
       context: .
       args:
+        # Public URL this instance is served at — see
+        # "Search engine visibility" in README.md. Safe to leave empty.
+        VITE_SITE_URL: ${VITE_SITE_URL}
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
         VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
         VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}

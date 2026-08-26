@@ -28,6 +28,7 @@ import {
 } from "@/lib/discover";
 import { createRide } from "@/lib/rides";
 import { cn } from "@/lib/utils";
+import { absoluteUrl, canonicalLink } from "@/lib/seo";
 
 const TITLE = "Bike Trails Near Me — Explore Cycle Routes | Hodora";
 const DESCRIPTION =
@@ -42,10 +43,10 @@ export const Route = createFileRoute("/explore")({
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://hodora.app/explore" },
+      { property: "og:url", content: absoluteUrl("/explore") },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "canonical", href: "https://hodora.app/explore" }],
+    links: canonicalLink("/explore"),
   }),
   component: ExplorePage,
 });

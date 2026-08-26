@@ -65,15 +65,17 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   The production service worker is generated *after* `vite build` — see the
   comment in `vite.config.ts`'s `VitePWA(...)` call for why, and
   `docs/CODE_REVIEW.md` for the full story if it regresses.
-- **SEO metadata is hardcoded to `hodora.app`.** Each public route's
-  `head()` (`src/routes/index.tsx`, `plan.tsx`, `explore.tsx`, `wind.tsx`)
-  sets a `TITLE`/`DESCRIPTION` pair plus a canonical `link` and `og:url`
-  pointing at `https://hodora.app/...`; the `og:image`/`twitter:image` URLs
-  and `og:site_name` in `src/routes/__root.tsx`, and every entry in
-  `public/sitemap.xml`, are hardcoded the same way rather than derived from
-  an env var — see "SEO defaults" in README.md if self-hosting under a
-  different domain. Private/per-user routes (`/auth`, `/reset-password`,
-  `/rides`, `/rides/$id`, `/share/$id`) set
+- **SEO metadata.** Each public route's `head()`
+  (`src/routes/index.tsx`, `plan.tsx`, `explore.tsx`, `wind.tsx`) sets its
+  own `TITLE`/`DESCRIPTION` pair — those strings are keyword-researched, so
+  don't rewrite them casually. Every *URL* in that metadata, though, comes
+  from `src/lib/seo.ts`: use `absoluteUrl(path)` and `canonicalLink(path)`
+  rather than writing `https://hodora.app/...` again, so self-hosted
+  instances under `VITE_SITE_URL` stay correct. `/robots.txt` and
+  `/sitemap.xml` are generated routes (`src/routes/robots[.]txt.tsx`,
+  `sitemap[.]xml.tsx`), not files in `public/` — a new public page needs an
+  entry in the sitemap's `PAGES`. Private/per-user routes (`/auth`,
+  `/reset-password`, `/rides`, `/rides/$id`, `/share/$id`) set
   `{ name: "robots", content: "noindex, follow" }` in their `head()` meta
   instead of a canonical — follow that pattern for any new account-gated or
   user-generated-content route rather than adding it to the sitemap.
