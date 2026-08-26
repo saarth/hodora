@@ -18,6 +18,7 @@ import { boundsOf, toRidePoints } from "@/lib/discover";
 import { computeAscentDescent, formatDistance, formatElevation } from "@/lib/gpx";
 import { compassAbbrev } from "@/lib/nav";
 import { createRide, fetchRide, ridesKeys, updateRide } from "@/lib/rides";
+import { absoluteUrl, canonicalLink } from "@/lib/seo";
 import {
   BIKE_PROFILES,
   fetchRoute,
@@ -54,9 +55,9 @@ export const Route = createFileRoute("/plan")({
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://hodora.app/plan" },
+      { property: "og:url", content: absoluteUrl("/plan") },
     ],
-    links: [{ rel: "canonical", href: "https://hodora.app/plan" }],
+    links: canonicalLink("/plan"),
   }),
   component: PlanPage,
 });

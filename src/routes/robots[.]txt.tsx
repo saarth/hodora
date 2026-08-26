@@ -1,36 +1,43 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { getRequest } from "@tanstack/react-start/server";
 
-import { originFromRequest } from "@/lib/seo";
+import { SITE_URL } from "@/lib/seo";
 
 /**
- * Generated rather than static (`public/robots.txt`) so the `Sitemap:` line can
- * carry an absolute URL — the one thing robots.txt won't accept as a relative
- * path — on a deployment whose domain isn't known until a request arrives.
+ * Same content public/robots.txt served, except the `Sitemap:` line follows
+ * VITE_SITE_URL. That line is the reason this is a route: robots.txt only
+ * accepts an absolute URL there, so a static file can't point at the instance
+ * actually serving it.
  */
 export const Route = createFileRoute("/robots.txt")({
   server: {
     handlers: {
       GET: () => {
-        const origin = originFromRequest(getRequest());
-
-        const body = `User-agent: *
+        return new Response(
+          `User-agent: Googlebot
 Allow: /
-Disallow: /api/
-Disallow: /rides
-Disallow: /auth
-Disallow: /oauth-callback
-Disallow: /reset-password
-Disallow: /settings
-${origin ? `\nSitemap: ${origin}/sitemap.xml\n` : ""}`;
 
-        return new Response(body, {
-          status: 200,
-          headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "Cache-Control": "public, max-age=3600",
+User-agent: Bingbot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: *
+Allow: /
+
+Sitemap: ${SITE_URL}/sitemap.xml
+`,
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+              "Cache-Control": "public, max-age=3600",
+            },
           },
-        });
+        );
       },
     },
   },

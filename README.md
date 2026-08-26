@@ -309,16 +309,28 @@ unset to keep the raster basemap.
 
 Hodora ships with basic SEO built in: a JSON-LD `WebApplication` block on
 the homepage, canonical and `og:url` tags on the public routes (`/`,
-`/plan`, `/explore`, `/wind`), and `public/sitemap.xml`. All of these are
-hardcoded to `https://hodora.app`, the project's official deployment, since
-they're not derived from an env var. If you're self-hosting a public-facing
-instance under your own domain and want search engines to index _your_
-instance correctly, update the `TITLE`/`DESCRIPTION`/canonical constants in
-each route's `head()` (`src/routes/index.tsx`, `plan.tsx`, `explore.tsx`,
-`wind.tsx`), the `og:image`/`twitter:image` URLs and `og:site_name` in
-`src/routes/__root.tsx`, and the URLs in `public/sitemap.xml` and
-`public/robots.txt`. Account-only and per-user pages (`/auth`, `/rides`,
-`/share/$id`, etc.) are already marked `noindex` and don't need changes.
+`/plan`, `/explore`, `/wind`), and `/sitemap.xml`.
+
+All of those URLs come from one place — `src/lib/seo.ts` — and default to
+`https://hodora.app`, the project's official deployment. **If you're
+self-hosting a public-facing instance under your own domain, set
+`VITE_SITE_URL`** and every canonical tag, `og:url`, social image URL and
+sitemap entry follows it:
+
+```sh
+VITE_SITE_URL=https://hodora.example.com
+```
+
+It's a build-time variable (`VITE_` prefix), so set it when you build — as a
+`--build-arg` for Docker, or in the environment for `npm run build`. Leave it
+unset and your instance will keep telling search engines that hodora.app is
+the canonical home of its pages, which stops your own instance from being
+indexed.
+
+`/robots.txt` and `/sitemap.xml` are generated routes rather than files in
+`public/`, because a static file can't know which domain is serving it.
+Account-only and per-user pages (`/auth`, `/rides`, `/share/$id`, etc.) are
+marked `noindex` and stay out of the sitemap.
 
 ### Self-hosting with Docker (e.g. Unraid)
 
@@ -338,6 +350,7 @@ Without Compose, the equivalent is:
 
 ```sh
 docker build \
+  --build-arg VITE_SITE_URL=https://hodora.example.com \
   --build-arg VITE_SUPABASE_URL=https://your-project-id.supabase.co \
   --build-arg VITE_SUPABASE_PROJECT_ID=your-project-id \
   --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key \
@@ -394,41 +407,6 @@ Cloudflare creates the DNS record and terminates HTTPS for you — no
 certificate to manage, and no config file to write. Once it's running,
 `https://hodora.yourdomain.com` is what to open on your phone, and what to
 add to Supabase's Auth URL Configuration.
-
-## Search engine visibility
-
-Every public page ships a title, description, OpenGraph/Twitter tags and
-schema.org JSON-LD, built in one place (`src/lib/seo.ts`) so the copies can't
-drift. `/robots.txt` and `/sitemap.xml` are generated routes rather than
-static files, because the URLs in them have to be absolute and Hodora doesn't
-know its own domain at build time.
-
-Signed-in pages (`/rides`, `/auth`, `/settings`, the OAuth steps) are marked
-`noindex` and disallowed in robots.txt — only `/` and `/explore` are meant to
-be indexed.
-
-**Set `VITE_SITE_URL`** on whichever deployment should own the search results,
-with no trailing slash:
-
-```sh
-VITE_SITE_URL=https://hodora.example.com
-```
-
-It's a build-time variable (`VITE_` prefix), so it has to be set when you build
-— as a `--build-arg` for Docker, or in the environment for `npm run build`.
-Without it, canonical tags are omitted and OpenGraph URLs stay relative, which
-means Google may pick its own idea of the canonical URL if the app is reachable
-at more than one hostname.
-
-Code gets you an indexable site; it doesn't get you indexed. The remaining
-steps are manual, one time each:
-
-1. Verify the domain in [Google Search Console](https://search.google.com/search-console)
-   and submit `https://your-domain/sitemap.xml`.
-2. Do the same in [Bing Webmaster Tools](https://www.bing.com/webmasters).
-3. Check the rendered result with the
-   [Rich Results Test](https://search.google.com/test/rich-results) — it should
-   find `SoftwareApplication` and `FAQPage` on the landing page.
 
 ## Contributing
 

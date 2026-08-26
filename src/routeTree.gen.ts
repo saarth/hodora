@@ -16,6 +16,8 @@ import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as PlanRouteImport } from './routes/plan'
 import { Route as RecordRouteImport } from './routes/record'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as WindRouteImport } from './routes/wind'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as ApiDeleteAccountRouteImport } from './routes/api/delete-account'
@@ -72,6 +74,16 @@ const RecordRoute = RecordRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WindRoute = WindRouteImport.update({
@@ -206,6 +218,8 @@ export interface FileRoutesByFullPath {
   '/plan': typeof PlanRoute
   '/record': typeof RecordRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/wind': typeof WindRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/delete-account': typeof ApiDeleteAccountRoute
@@ -237,6 +251,8 @@ export interface FileRoutesByTo {
   '/plan': typeof PlanRoute
   '/record': typeof RecordRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/wind': typeof WindRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/delete-account': typeof ApiDeleteAccountRoute
@@ -270,6 +286,8 @@ export interface FileRoutesById {
   '/plan': typeof PlanRoute
   '/record': typeof RecordRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/wind': typeof WindRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/delete-account': typeof ApiDeleteAccountRoute
@@ -303,6 +321,8 @@ export interface FileRouteTypes {
     | '/plan'
     | '/record'
     | '/reset-password'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/wind'
     | '/settings'
     | '/api/delete-account'
@@ -334,6 +354,8 @@ export interface FileRouteTypes {
     | '/plan'
     | '/record'
     | '/reset-password'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/wind'
     | '/settings'
     | '/api/delete-account'
@@ -366,6 +388,8 @@ export interface FileRouteTypes {
     | '/plan'
     | '/record'
     | '/reset-password'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/wind'
     | '/_authenticated/settings'
     | '/api/delete-account'
@@ -399,6 +423,8 @@ export interface RootRouteChildren {
   PlanRoute: typeof PlanRoute
   RecordRoute: typeof RecordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   WindRoute: typeof WindRoute
   ApiDeleteAccountRoute: typeof ApiDeleteAccountRoute
   ApiSharedLinksRoute: typeof ApiSharedLinksRoute
@@ -472,6 +498,20 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/wind': {
@@ -657,6 +697,8 @@ const rootRouteChildren: RootRouteChildren = {
   PlanRoute: PlanRoute,
   RecordRoute: RecordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   WindRoute: WindRoute,
   ApiDeleteAccountRoute: ApiDeleteAccountRoute,
   ApiSharedLinksRoute: ApiSharedLinksRoute,

@@ -6,6 +6,7 @@ import { useTheme } from "@/lib/theme";
 import { HodoraLogo } from "@/components/HodoraLogo";
 import { MobileTabBar } from "@/components/MobileTabBar";
 import { Moon, Sun } from "lucide-react";
+import { absoluteUrl, canonicalLink } from "@/lib/seo";
 
 const GITHUB_URL = "https://github.com/saarth/hodora";
 const ANDROID_RELEASES_URL = `${GITHUB_URL}/releases`;
@@ -37,13 +38,13 @@ export const Route = createFileRoute("/")({
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
-      { property: "og:url", content: "https://hodora.app/" },
+      { property: "og:url", content: absoluteUrl("/") },
       {
         "script:ld+json": {
           "@context": "https://schema.org",
           "@type": "WebApplication",
           name: "Hodora",
-          url: "https://hodora.app/",
+          url: absoluteUrl("/"),
           description: DESCRIPTION,
           applicationCategory: "TravelApplication",
           operatingSystem: "Web, Android",
@@ -59,7 +60,7 @@ export const Route = createFileRoute("/")({
         },
       },
     ],
-    links: [{ rel: "canonical", href: "https://hodora.app/" }],
+    links: canonicalLink("/"),
   }),
   component: Landing,
 });

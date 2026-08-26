@@ -20,6 +20,7 @@ import {
   isDaytimeHour,
 } from "@/lib/weather";
 import { buildWindSegments, scoreRoute } from "@/lib/windScore";
+import { absoluteUrl, canonicalLink } from "@/lib/seo";
 
 export const Route = createFileRoute("/wind")({
   ssr: false,
@@ -31,9 +32,9 @@ export const Route = createFileRoute("/wind")({
         content:
           "Browse your saved bike routes with a wind-aware forecast: tailwind/headwind mix and a wind score for any hour ahead, so you can pick the best time to ride.",
       },
-      { property: "og:url", content: "https://hodora.app/wind" },
+      { property: "og:url", content: absoluteUrl("/wind") },
     ],
-    links: [{ rel: "canonical", href: "https://hodora.app/wind" }],
+    links: canonicalLink("/wind"),
   }),
   component: WindPlannerPage,
 });
