@@ -5,13 +5,24 @@ export type RidePoint = {
   lon: number;
   /** elevation in meters */
   ele: number;
-  /** cumulative distance from the start in meters */
+  /** cumulative distance from the start in whole meters */
   d: number;
   /** true if this point starts a new `<trkseg>` — a real gap precedes it (e.g. a ferry crossing removed from the recording) */
   gap?: boolean;
   /** elapsed seconds since the start of the recording — only set for rides captured live via /record */
   t?: number;
 };
+
+/**
+ * The rounding every RidePoint producer must apply before a point is stored:
+ * `d` to whole meters, `ele` to one decimal. Points are persisted as jsonb
+ * and read back by other clients — including ones that decode `d` as an
+ * integer and fail outright on a raw float — and at a few thousand points per
+ * ride the unrounded digits are pure payload weight.
+ */
+export function roundRidePoint<T extends RidePoint>(point: T): T {
+  return { ...point, ele: Math.round(point.ele * 10) / 10, d: Math.round(point.d) };
+}
 
 /** Splits points into contiguous runs, breaking wherever a point has `gap: true`. */
 export function splitBySegments(points: RidePoint[]): RidePoint[][] {
@@ -221,14 +232,14 @@ export function buildParsedRide(raw: RawTrackPoint[], nameFromFile: string): Par
     maxLat = Math.max(maxLat, p.lat);
     minLon = Math.min(minLon, p.lon);
     maxLon = Math.max(maxLon, p.lon);
-    return {
+    return roundRidePoint({
       lat: p.lat,
       lon: p.lon,
-      ele: Math.round(smoothed[i] * 10) / 10,
-      d: Math.round(distance),
+      ele: smoothed[i],
+      d: distance,
       ...(p.gap ? { gap: true as const } : {}),
       ...(p.t !== undefined ? { t: p.t } : {}),
-    };
+    });
   });
 
   return {

@@ -2,7 +2,7 @@
  * Route discovery: finds signposted cycle routes from OpenStreetMap (Overpass)
  * and generates loop rides with a cycling router. All client side — no keys.
  */
-import { computeAscentDescent, haversine, type RidePoint } from "./gpx";
+import { computeAscentDescent, haversine, roundRidePoint, type RidePoint } from "./gpx";
 import { fetchRoute, pathLengthM, type LatLon } from "./routing";
 
 const OVERPASS_ENDPOINTS = [
@@ -29,6 +29,12 @@ export { pathLengthM };
  * itself when the router provided one (BRouter-routed loops); signposted
  * OSM routes from Overpass have no elevation data at all, so they come out
  * flat, same as before.
+ *
+ * The accumulator stays full-precision so rounding error can't compound over
+ * thousands of points, but every emitted point goes through `roundRidePoint`
+ * — same as the GPX pipeline in `buildParsedRide`. Routes saved from
+ * /explore and /plan used to store the raw accumulator instead, which is how
+ * `d` values like 9.109941619688309 ended up in the rides table.
  */
 export function toRidePoints(path: LatLon[]): RidePoint[] {
   let d = 0;
@@ -36,7 +42,7 @@ export function toRidePoints(path: LatLon[]): RidePoint[] {
     if (index > 0) {
       d += haversine(path[index - 1].lat, path[index - 1].lon, point.lat, point.lon);
     }
-    return { lat: point.lat, lon: point.lon, ele: point.ele ?? 0, d };
+    return roundRidePoint({ lat: point.lat, lon: point.lon, ele: point.ele ?? 0, d });
   });
 }
 
