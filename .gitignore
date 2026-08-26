@@ -16,6 +16,10 @@ dist-ssr
 .nitro
 *.local
 
+# Bun lockfile — package-lock.json is the lockfile this repo commits;
+# `bun install` generates this one locally for Bun users.
+bun.lock
+
 # Environment variables
 .env
 .env.local
