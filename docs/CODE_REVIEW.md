@@ -5,6 +5,239 @@ correctness (GPX parsing, navigation math, offline storage), build/deploy
 correctness, and maintainability. Verified with `tsc --noEmit`, `eslint`, and
 real production builds — not just a read-through.
 
+## 2026-08-20 — Fixed the text alignment in the wind stats bar
+
+Reported from a phone screenshot of `/rides/$id`: in `WindStatsBar`, the
+summary strip's labels ran into each other ("TAILWIND %CROSSWIND %") and the
+expanded detail grid's values spilled past the card's right edge. Reproduced
+at 320-412px with Playwright against a dev server before changing anything.
+
+Two root causes, both in `src/components/WindStatsBar.tsx`:
+
+- **The summary strip's labels weren't actually clipped by their cell.** Each
+  cell was a `flex-col items-center` column, so its children were sized to
+  their content rather than stretched to the cell — which makes `truncate` a
+  no-op, and let a label wider than its share of the row overflow in both
+  directions onto its neighbours. Labels and values are now `w-full`, so the
+  truncation the class was already asking for takes effect.
+- **Five stat columns don't fit in a phone-width row.** At 360px each cell
+  got ~48px, so `9 km/h` wrapped to two lines and dragged its label out of
+  line with the other four. The strip is now a responsive grid — two columns
+  under 360px, three up to `sm`, the original five above it — with the expand
+  chevron kept outside the grid so it stays vertically centred, and the column
+  dividers only drawn at `sm` where the cells really are one row. Labels are
+  bottom-aligned (`mt-auto`), so a wrapped value can't shift a label off the
+  row's baseline, and the icon sits in a fixed-height slot so the icon-less
+  score cell still lines up with the cells that have one.
+
+The detail grid below the strip is single-column on phones and two-column from
+`sm` up, and its rows are baseline-aligned with the value right-aligned and
+both sides allowed to shrink (`min-w-0`) — previously a value that wrapped
+("22% of route", "Clear sky") left-aligned its second line and overflowed the
+card padding.
+
+Verified with Playwright screenshots at 320/360/390/414/640/768px, including
+worst-case values (`30 km/h`, `100%`), plus `npx tsc --noEmit`, `npm run lint`
+(0 errors) and `npm test` (181 passing).
+
+Also fixed while in here (spotted during the pass, not an alignment bug): the
+Distance, Elevation and Temperature rows in the expanded panel all rendered
+the `Wind` icon — a copy-paste slip. They now use `Ruler`, `Mountain` and
+`Thermometer`, and `Headwind` mirrors `Tailwind` with `TrendingDown` against
+its `TrendingUp` instead of repeating the generic `Wind` glyph.
+
+## 2026-08-18 — Missing-features pass: CI, cue sheets, recording, editing,
+## search/filter, elevation, place search, POI overlay, weather/rain,
+## low-power mode, vector tile caching
+
+Large feature pass working through a list of gaps against the app as it
+stood on 2026-08-16. Each item below was implemented, type-checked, linted,
+unit-tested where the logic was pure, and where practical verified live
+against a real dev server with Playwright (network egress to brouter.de,
+basemaps.cartocdn.com, overpass-api.de and nominatim.openstreetmap.org is
+blocked in this sandbox, so BRouter/OSRM/Overpass/Nominatim responses were
+mocked for those runs — the request shape and the app's handling of the
+response were verified, not the live third-party services themselves).
+
+**No CI existed at all**, and `npm run lint` was actually failing on `main`
+— dependency bumps (`eslint-plugin-react-hooks` v7 in particular) added
+rules the existing code had never been checked against. Added
+`.github/workflows/ci.yml` (lint, `tsc --noEmit`, test, build) and fixed the
+pre-existing lint failures: `eslint --fix` for formatting, scoped
+`eslint.config.js` overrides for the two files that deliberately use `any`
+for untyped third-party APIs and the pervasive "keep a ref in sync every
+render" idiom, and per-line `react-hooks/set-state-in-effect` disables
+(with rationale comments, matching the existing convention in
+`rides.$id.nav.tsx`) for legitimate synchronous-setState-on-mount effects.
+
+**Cue sheets**: `routing.ts`'s `fetchOsrmRoute` now requests `steps=true`
+and keeps the turn-by-turn step data instead of discarding it; a ride
+without router-provided cues (GPX imports, BRouter-routed plans) falls back
+to `detectTurns()`-derived turns via `buildCueSheet()` in the new
+`src/lib/cues.ts`. Imported GPX routes get a "Recover street names" action
+(`src/lib/cue-recovery.ts`) that downsamples the track and re-routes it
+through OSRM to recover named directions, rescaled onto the original
+track's length — a best-effort approximation, not a real map-match.
+
+**Ride recording** (`/record`): live GPS capture independent of any
+pre-existing route, with elapsed time/distance/speed/elevation, pause/
+resume/finish, and a save-with-name step. `acceptRecordingFix()` filters
+GPS jitter while stationary (a real bug class this specifically guards
+against — without it, idling at a traffic light inflates distance and
+elevation gain).
+
+**Route editing after save**: `/plan?edit=<id>` reopens a route's stored
+waypoints/profile and re-saves in place (`updateRide`) instead of creating
+a duplicate; falls back cleanly (with a toast) for a ride that has no
+planner waypoints to edit.
+
+**Nav additions**: elapsed time/avg speed/ETA/speed-history sparkline;
+voice turn announcements (`src/lib/voice.ts`, Web Speech API, distance
+thresholds tested as a pure picker); rain alerts (`findRainAlert()` in
+`weather.ts`, same pure-picker-plus-alerted-set pattern, polls the hourly
+forecast for the rider's live position).
+
+**Elevation for planned/explored routes**: `routing.ts` was silently
+discarding BRouter's 3rd (elevation) coordinate on every path — `toPath()`
+now keeps it. `/plan` and `/explore`'s generated loops (switched to prefer
+BRouter, same OSRM fallback as elsewhere) now show a real elevation chart
+and ascent instead of a hardcoded 0.
+
+**Other additions**: place search (`src/lib/geocode.ts`, Nominatim) on
+`/plan` and `/explore`; a POI overlay (`src/lib/poi.ts`, Overpass, fetched
+once per toggle rather than on every pan/zoom) for cafes/water/bike shops/
+toilets; search and filter on the ride list; low-power mode
+(`src/lib/low-power.ts` — lower-accuracy geolocation, slower weather
+polling); MapTiler vector tile/glyph caching in the service worker
+(`pwa-config.mjs`, verified present in the actual generated `sw.js`).
+
+**Background navigation** (turn-by-turn/alerts continuing once the app is
+backgrounded or the screen locks) was assessed and deliberately not
+attempted — see the new AGENTS.md note next to the existing proximity-alerts
+one. It needs the same native foreground-service work already called out
+there, plus on-device Android testing this environment can't do.
+
+**One real bug found and fixed by live testing, not by inspection:** the
+ride detail page always said "Imported <date>" regardless of how a route
+was actually created. Caught running the record → save → view-detail flow
+in Playwright and seeing "Imported" on a route that had just been recorded
+live. Fixed to say Recorded/Planned/Imported based on `is_recorded`/
+`plan_waypoints`.
+
+## 2026-08-16 — Added proximity alerts (resolved the background-geolocation
+## plugin question by deliberately not needing one)
+
+The one remaining roadmap feature from the entry below. The background
+geolocation plugin decision it was waiting on: **use the existing foreground
+`navigator.geolocation.watchPosition` stream, no new Capacitor plugin.**
+Every other location feature in this app (route planning, turn-by-turn nav,
+`useWakeLock`) is already built on that same foreground API, and proximity
+alerts are only useful while navigation is actively running — which already
+requires the tab open and the wake lock holding the screen on. A real
+background-geolocation plugin (foreground Android service, persistent
+notification, battery-exemption UX) would be a much bigger, separate feature
+with no clear need yet; see the note added to AGENTS.md.
+
+**What shipped:** `findProximityAlert()` in `src/lib/nav.ts` — a pure
+function that, given a route's waypoint notes, the rider's current progress,
+and the set of note ids already alerted this session, returns the nearest
+qualifying note within `PROXIMITY_ALERT_RADIUS_M` (150 m) ahead, or `null`.
+Wired into `rides.$id.nav.tsx` alongside the existing `snap`/finish-detection
+effects: fires a `sonner` toast ("Coming up: <note text>") and
+`navigator.vibrate([120, 60, 120])` once per note, tracked in a ref reset
+whenever the loaded ride changes. Unit-tested in `nav.test.ts` (nearest-of-two
+candidates, already-alerted exclusion, the small behind-progress slack that
+absorbs GPS jitter, radius boundary). Verified live: Playwright drove a
+simulated rider along an imported test loop toward a real waypoint note and
+confirmed both the toast and the `vibrate()` call fired exactly once as the
+rider entered the 150 m radius.
+
+## 2026-08-16 — Thorough test pass on wake lock, ride-finished, elevation,
+## tagging, notes and offline maps
+
+Wake lock, the ride-finished state, the elevation chart, difficulty/surface
+tagging, segment/waypoint notes, and offline map tiles were all already
+implemented (see the "Add route difficulty/surface tagging and segment notes"
+merge). This pass verified each of them end-to-end — real unit tests plus a
+Playwright smoke run against a live dev server (GPX import → tag → note →
+elevation → offline save → navigate to finish) — rather than re-implementing
+anything. Proximity alerts were deliberately left out, per the task's own
+note that it should wait on a background-geolocation plugin decision.
+
+**Two real bugs found and fixed by that testing, not by inspection:**
+
+- **🟠 `snapToRoute` never got continuity, breaking ride-finished detection on
+  loop/out-and-back routes.** `snapToRoute(points, lat, lon, lastIndex)`
+  accepts a `lastIndex` to window its search around the rider's last known
+  position — but neither call site (`rides.$id.nav.tsx`,
+  `rides.$id.index.tsx`) ever passed it, so `lastIndex` silently defaulted to
+  0 on every GPS fix. For a route whose start and finish sit near each other
+  (a loop closing, an out-and-back), a fix near the true finish is often just
+  as close to the route's *start* — a plain global nearest-point search can
+  snap to progress ≈0 instead of ≈total distance, so `ride.distance_m -
+  snap.progressM <= FINISH_RADIUS_M` never fires and "Ride complete!" never
+  shows. Reproduced live: driving a simulated rider around a closed-loop test
+  route in a headless browser, the nav UI's "To go" jumped from 41 m back to
+  the full 1.79 km right as the loop closed. Fixed in `rides.$id.nav.tsx` by
+  tracking the previous snap's index in a ref and threading it through;
+  regression-tested in `nav.test.ts` (a 300-point loop, cold vs.
+  continuity-seeded search). `rides.$id.index.tsx`'s one-off "place a note"
+  click doesn't need this — there's no previous position to carry forward for
+  a single tap.
+- **🟠 Offline-save toast claimed success even when zero tiles were cached.**
+  `downloadRouteTiles` deliberately never throws on an individual tile
+  failure (a flaky connection just means fewer tiles get cached) — but
+  `OfflineSaveCard`'s `handleSave` treated "the promise resolved" as "it
+  worked" and always showed `toast.success(...)`, regardless of the actual
+  `{ saved, total }` counts. Reproduced live: with outbound tile requests
+  blocked, "Save for offline" toasted "Route and maps saved for offline use"
+  while the card underneath still read "Save the route plus about 114 map
+  tiles" — a rider could head out on a route they believed was cached and get
+  a blank map with no signal. Fixed by extracting `describeTileSaveResult(saved,
+  total)` into `offline-tiles.ts` (success only when `saved >= total`, a
+  distinct partial-failure message when some tiles saved, and a full-failure
+  message when none did) and using it in `OfflineSaveCard`; unit-tested in
+  `offline-tiles.test.ts`.
+
+**Test coverage added** (no behavior changes beyond the two fixes above):
+`src/lib/offline-db.test.ts` (new — the "No automated tests for
+`offline-db.ts`" gap called out below; `fake-indexeddb` added as a
+devDependency since jsdom doesn't implement IndexedDB), `src/lib/rides.test.ts`
+(new — guest/offline code paths: `createRide`, `updateRideTags`,
+`updateRideNotes`, `fetchRides`, `renameRide`, `deleteRide`, `fetchProfile`,
+mocking the Supabase client so a guard assertion fails the test if a guest
+path ever reaches the network), plus `remainingAscent`/`upcomingGrade` cases
+in `nav.test.ts` and the `describeTileSaveResult` cases in
+`offline-tiles.test.ts` mentioned above.
+
+**Verified:** `npx tsc --noEmit`, `npx eslint .` (no new errors — see the note
+below about `eslint-plugin-react-hooks`'s newer `set-state-in-effect`/`refs`
+rules), and `npx vitest run` (139 tests, up from 109) all pass. The
+Playwright smoke run also confirmed, by direct observation rather than
+reading the code: the elevation chart renders a correct profile for a real
+GPX import, difficulty/surface tags persist through the `ToggleGroup` UI, a
+note placed by tapping the map saves and lists correctly, `navigator.wakeLock
+.request("screen")` is actually called while navigating and `release()` fires
+once `finished` flips true, and the "Ride complete!" card renders with the
+right distance/elevation-gain summary.
+
+**Note on `rides.$id.nav.tsx`'s three `eslint-disable-next-line` comments**
+(one `react-hooks/refs`, two `react-hooks/set-state-in-effect`): the `refs`
+one guards the new `lastSnapIndexRef` read described above (the standard
+"remember the previous render's value" ref idiom — the ref is only ever
+written *after* render to seed the *next* computation, never making the
+current render depend on when it runs). The two `set-state-in-effect`
+comments are on **pre-existing, untouched lines** (`setGeoError` when
+`navigator.geolocation` is unavailable, and the `finished` latch) that lint
+cleanly reported zero issues on before this pass touched the file at all —
+adding the ref-based hook above appears to raise this component's hook count
+past whatever threshold makes `eslint-plugin-react-hooks` v7's newer,
+compiler-derived rules start reporting on other effects in the same
+component, even ones matching the rule's own stated "acceptable" pattern
+(external-system sync / a deliberate one-way latch). Left the working,
+already-reviewed logic alone rather than restructuring it to dodge an
+experimental rule; each disable has a comment explaining why.
+
 ## Fixed in this pass
 
 ### 🔴 Critical — offline mode was silently broken in production
@@ -73,11 +306,9 @@ Nitro preset later, re-check that `.output/public` is still the right
    exercise than a bug. **Not run in this pass** — this environment has no
    Node.js/npm installed, so `eslint`/`prettier`/`tsc`/`vitest` could not
    actually be executed here; run them locally before merging.
-2. **No automated tests for `offline-db.ts`.** `gpx.ts` and `nav.ts` now have
-   fixture-based unit tests (see the 2026-08-01 entry below), but
-   `offline-db.ts` (IndexedDB-backed ride/profile caching) still has none.
-   Would need `fake-indexeddb` (or similar) as a devDependency to run under
-   Vitest without a real browser.
+2. ~~**No automated tests for `offline-db.ts`.**~~ **Fixed 2026-08-16** — see
+   `src/lib/offline-db.test.ts` in the entry above (`fake-indexeddb` added as
+   a devDependency).
 
 ## What's already solid (confirmed, not just assumed)
 

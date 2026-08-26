@@ -13,10 +13,16 @@ ARG VITE_SITE_URL
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PROJECT_ID
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
+# Optional — route planning/map style. Leave unset for the zero-config
+# defaults (public BRouter, CARTO raster basemap). See .env.example.
+ARG VITE_BROUTER_URL
+ARG VITE_MAPTILER_KEY
 ENV VITE_SITE_URL=$VITE_SITE_URL \
     VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
     VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID \
-    VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+    VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY \
+    VITE_BROUTER_URL=$VITE_BROUTER_URL \
+    VITE_MAPTILER_KEY=$VITE_MAPTILER_KEY
 
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -31,6 +37,10 @@ WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000
-COPY --from=build /app/.output ./.output
+COPY --from=build --chown=node:node /app/.output ./.output
+# Run as the non-root `node` user (built into the base image) instead of
+# root — this process only needs to listen on a port and read its own
+# files, not own the container.
+USER node
 EXPOSE 3000
 CMD ["node", ".output/server/index.mjs"]

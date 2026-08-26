@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { RidePoint } from "./gpx";
+import type { RideCue } from "./cues";
+import type { BikeProfile, LatLon } from "./routing";
 import {
   deleteOfflineRide,
   getCachedProfile,
@@ -11,6 +13,18 @@ import {
   putRideList,
 } from "./offline-db";
 
+export type RideDifficulty = "easy" | "moderate" | "hard" | "extreme";
+export type RideSurface = "paved" | "gravel" | "mixed" | "unpaved";
+
+export type RideNote = {
+  id: string;
+  /** cumulative route distance in meters where the note sits */
+  distanceM: number;
+  lat: number;
+  lon: number;
+  text: string;
+  createdAt: string;
+};
 
 export type Ride = {
   id: string;
@@ -26,11 +40,25 @@ export type Ride = {
   max_lat: number | null;
   max_lon: number | null;
   points: RidePoint[];
+  difficulty: RideDifficulty | null;
+  surface: RideSurface | null;
+  notes: RideNote[];
+  /** router-provided (or GPX-recovered) turn-by-turn instructions — see src/lib/cues.ts */
+  cues: RideCue[];
+  /** waypoints tapped on /plan, kept so a planned route can be reopened and re-routed — null for imported/recorded/explored rides */
+  plan_waypoints: LatLon[] | null;
+  /** BRouter profile used when this route was planned — null unless plan_waypoints is set */
+  plan_profile: BikeProfile | null;
+  /** true for a route captured live via /record rather than imported or planned */
+  is_recorded: boolean;
   created_at: string;
   updated_at: string;
 };
 
-export type RideSummary = Omit<Ride, "points">;
+export type RideSummary = Omit<
+  Ride,
+  "points" | "notes" | "cues" | "plan_waypoints" | "plan_profile"
+>;
 
 export type Profile = {
   id: string;
@@ -42,7 +70,7 @@ export type Profile = {
 };
 
 const SUMMARY_COLUMNS =
-  "id,user_id,name,description,source_filename,distance_m,ascent_m,descent_m,min_lat,min_lon,max_lat,max_lon,created_at,updated_at";
+  "id,user_id,name,description,source_filename,distance_m,ascent_m,descent_m,min_lat,min_lon,max_lat,max_lon,difficulty,surface,is_recorded,created_at,updated_at";
 
 export const ridesKeys = {
   all: ["rides"] as const,
@@ -65,15 +93,20 @@ export async function isSignedIn(): Promise<boolean> {
 }
 
 function toSummary(ride: Ride): RideSummary {
-  const { points: _points, ...summary } = ride;
+  const {
+    points: _points,
+    notes: _notes,
+    cues: _cues,
+    plan_waypoints: _planWaypoints,
+    plan_profile: _planProfile,
+    ...summary
+  } = ride;
   return summary;
 }
 
 async function localRides(): Promise<RideSummary[]> {
   const rides = await listOfflineRides();
-  return rides
-    .map(toSummary)
-    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  return rides.map(toSummary).sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
 export async function fetchRides(): Promise<RideSummary[]> {
@@ -109,11 +142,7 @@ export async function fetchRide(id: string): Promise<Ride> {
     if (saved) return saved;
   }
   try {
-    const { data, error } = await supabase
-      .from("rides")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+    const { data, error } = await supabase.from("rides").select("*").eq("id", id).maybeSingle();
     if (error) throw error;
     if (!data) throw new Error("Ride not found");
     return data as unknown as Ride;
@@ -144,6 +173,34 @@ export async function renameRide(id: string, name: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Sets a route's difficulty/surface tags. `undefined` leaves a field unchanged, `null` clears it. */
+export async function updateRideTags(
+  id: string,
+  tags: { difficulty?: RideDifficulty | null; surface?: RideSurface | null },
+): Promise<void> {
+  if (!(await isSignedIn())) {
+    const saved = await getOfflineRide(id);
+    if (saved) await putOfflineRide({ ...saved, ...tags });
+    return;
+  }
+  const { error } = await supabase.from("rides").update(tags).eq("id", id);
+  if (error) throw error;
+}
+
+/** Replaces a route's full notes list — the caller already has `ride.notes` loaded to add/edit/remove from. */
+export async function updateRideNotes(id: string, notes: RideNote[]): Promise<void> {
+  if (!(await isSignedIn())) {
+    const saved = await getOfflineRide(id);
+    if (saved) await putOfflineRide({ ...saved, notes });
+    return;
+  }
+  const { error } = await supabase
+    .from("rides")
+    .update({ notes: notes as unknown as never })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function fetchProfile(): Promise<Profile | null> {
   if (!(await isSignedIn())) return null;
   if (isOffline()) {
@@ -169,14 +226,10 @@ export async function fetchProfile(): Promise<Profile | null> {
   }
 }
 
-
 export async function updateUnit(unit: "metric" | "imperial"): Promise<void> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error("Not signed in");
-  const { error } = await supabase
-    .from("profiles")
-    .update({ unit })
-    .eq("id", auth.user.id);
+  const { error } = await supabase.from("profiles").update({ unit }).eq("id", auth.user.id);
   if (error) throw error;
 }
 
@@ -188,7 +241,18 @@ export async function createRide(input: {
   descentM: number;
   bounds: { minLat: number; minLon: number; maxLat: number; maxLon: number } | null;
   points: RidePoint[];
+  cues?: RideCue[];
+  planWaypoints?: LatLon[] | null;
+  planProfile?: BikeProfile | null;
+  isRecorded?: boolean;
 }): Promise<string> {
+  if (input.points.length < 2) {
+    throw new Error("A route needs at least two points.");
+  }
+  const cues = input.cues ?? [];
+  const planWaypoints = input.planWaypoints ?? null;
+  const planProfile = input.planProfile ?? null;
+  const isRecorded = input.isRecorded ?? false;
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) {
     // Guest: keep the route on the device only.
@@ -208,6 +272,13 @@ export async function createRide(input: {
       max_lat: input.bounds?.maxLat ?? null,
       max_lon: input.bounds?.maxLon ?? null,
       points: input.points,
+      difficulty: null,
+      surface: null,
+      notes: [],
+      cues,
+      plan_waypoints: planWaypoints,
+      plan_profile: planProfile,
+      is_recorded: isRecorded,
       created_at: now,
       updated_at: now,
     });
@@ -227,9 +298,123 @@ export async function createRide(input: {
       max_lat: input.bounds?.maxLat ?? null,
       max_lon: input.bounds?.maxLon ?? null,
       points: input.points as unknown as never,
+      cues: cues as unknown as never,
+      plan_waypoints: planWaypoints as unknown as never,
+      plan_profile: planProfile,
+      is_recorded: isRecorded,
     })
     .select("id")
     .single();
   if (error) throw error;
   return (data as { id: string }).id;
+}
+
+/**
+ * Updates an existing route's geometry/metadata in place — used when a
+ * planned route is reopened in /plan and re-saved, so editing keeps the same
+ * ride id (and any notes/shares/offline copy pointing at it) instead of
+ * creating a duplicate.
+ */
+export async function updateRide(
+  id: string,
+  input: {
+    name: string;
+    distanceM: number;
+    ascentM: number;
+    descentM: number;
+    bounds: { minLat: number; minLon: number; maxLat: number; maxLon: number } | null;
+    points: RidePoint[];
+    cues: RideCue[];
+    planWaypoints: LatLon[];
+    planProfile: BikeProfile;
+  },
+): Promise<void> {
+  if (input.points.length < 2) {
+    throw new Error("A route needs at least two points.");
+  }
+  const patch = {
+    name: input.name,
+    distance_m: Math.round(input.distanceM),
+    ascent_m: Math.round(input.ascentM),
+    descent_m: Math.round(input.descentM),
+    min_lat: input.bounds?.minLat ?? null,
+    min_lon: input.bounds?.minLon ?? null,
+    max_lat: input.bounds?.maxLat ?? null,
+    max_lon: input.bounds?.maxLon ?? null,
+    points: input.points,
+    cues: input.cues,
+    plan_waypoints: input.planWaypoints,
+    plan_profile: input.planProfile,
+  };
+  if (!(await isSignedIn())) {
+    const saved = await getOfflineRide(id);
+    if (!saved) throw new Error("Ride not found");
+    await putOfflineRide({ ...saved, ...patch } as Ride);
+    return;
+  }
+  const { error } = await supabase
+    .from("rides")
+    .update(patch as unknown as never)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/** Sets a route's turn-by-turn cue sheet — used by "recover directions" on an imported GPX with no router history. */
+export async function updateRideCues(id: string, cues: RideCue[]): Promise<void> {
+  if (!(await isSignedIn())) {
+    const saved = await getOfflineRide(id);
+    if (saved) await putOfflineRide({ ...saved, cues });
+    return;
+  }
+  const { error } = await supabase
+    .from("rides")
+    .update({ cues: cues as unknown as never })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Mints a public `/share/:token` link for one of the caller's own rides,
+ * snapshotting the wind sample shown at share time. Same bearer-token
+ * pattern as the cloud-sync client wrappers in `sync/connections.ts`, since
+ * this goes through a plain `/api/*` route rather than a server function.
+ */
+export async function createSharedLink(input: {
+  rideId: string;
+  windHour?: string | null;
+  windSpeedMs?: number;
+  windDirectionDeg?: number;
+  temperatureC?: number;
+  weatherCode?: number;
+}): Promise<string> {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError || !session) {
+    throw new Error("You must be signed in to share a route.");
+  }
+  const response = await fetch(`${window.location.origin}/api/shared-links`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      rideId: input.rideId,
+      windHour: input.windHour ?? null,
+      windSpeedMs: input.windSpeedMs,
+      windDirectionDeg: input.windDirectionDeg,
+      temperatureC: input.temperatureC,
+      weatherCode: input.weatherCode,
+    }),
+  });
+  const body = (await response.json().catch(() => null)) as {
+    token?: string;
+    error?: string;
+  } | null;
+  if (!response.ok || !body?.token) {
+    throw new Error(body?.error || "Could not create a share link.");
+  }
+  return body.token;
 }

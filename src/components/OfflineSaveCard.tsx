@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { getOfflineRide } from "@/lib/offline-db";
 import {
+  describeTileSaveResult,
   downloadRouteTiles,
   estimateTileCount,
   isRouteMapSaved,
+  isRouteTileSetTruncated,
   removeRouteTiles,
 } from "@/lib/offline-tiles";
 import { deleteOfflineRide, putOfflineRide } from "@/lib/offline-db";
@@ -42,6 +44,7 @@ export function OfflineSaveCard({ ride }: { ride: Ride }) {
   const saved = Boolean(status?.route && status?.tiles);
   const tileCount = estimateTileCount(ride.points);
   const approxMb = Math.max(1, Math.round((tileCount * 22) / 1024));
+  const truncated = isRouteTileSetTruncated(ride.points);
 
   async function handleSave() {
     const controller = new AbortController();
@@ -49,12 +52,14 @@ export function OfflineSaveCard({ ride }: { ride: Ride }) {
     setProgress(0);
     try {
       await putOfflineRide(ride);
-      await downloadRouteTiles(
+      const { saved, total } = await downloadRouteTiles(
         ride.points,
         (done, total) => setProgress(Math.round((done / total) * 100)),
         controller.signal,
       );
-      toast.success("Route and maps saved for offline use");
+      const result = describeTileSaveResult(saved, total);
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save this route offline");
     } finally {
@@ -97,6 +102,12 @@ export function OfflineSaveCard({ ride }: { ride: Ride }) {
             <p className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
               <WifiOff className="size-3.5" />
               You're offline — reconnect to download maps.
+            </p>
+          )}
+          {truncated && (
+            <p className="mt-2 text-xs text-destructive">
+              This route is long enough that only part of its map can be saved for offline use —
+              some sections may be missing with no signal.
             </p>
           )}
         </div>

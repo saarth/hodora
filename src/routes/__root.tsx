@@ -11,10 +11,10 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportError } from "../lib/error-reporting";
-import { ThemeProvider } from "../lib/theme";
+import { ThemeProvider, useTheme } from "../lib/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { registerServiceWorker } from "@/lib/pwa";
-import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, seoMeta } from "@/lib/seo";
+import { initNativeShell, syncStatusBar } from "@/lib/native";
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -82,12 +82,30 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      ...seoMeta({
-        title: DEFAULT_TITLE,
-        description: DEFAULT_DESCRIPTION,
-        path: "/",
-      }),
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { title: "Hodora — GPX navigation for club rides & bike events" },
+      {
+        name: "description",
+        content:
+          "Free GPX bike navigation for club rides and cycling events. No dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
+      },
+      { property: "og:title", content: "Hodora — GPX navigation for club rides & bike events" },
+      {
+        property: "og:description",
+        content:
+          "Free GPX bike navigation for club rides and cycling events. No dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "Hodora" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Hodora — GPX navigation for club rides & bike events" },
+      {
+        name: "twitter:description",
+        content:
+          "Free GPX bike navigation for club rides and cycling events. No dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
+      },
+      { property: "og:image", content: "https://hodora.app/og-image.png" },
+      { name: "twitter:image", content: "https://hodora.app/og-image.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -95,8 +113,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap",
       },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/icon-192.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
@@ -125,13 +144,22 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function NativeStatusBarSync() {
+  const { theme } = useTheme();
+  useEffect(() => {
+    void syncStatusBar(theme);
+  }, [theme]);
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
 
   useEffect(() => {
     registerServiceWorker();
-  }, []);
+    void initNativeShell(router);
+  }, [router]);
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
@@ -147,6 +175,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <NativeStatusBarSync />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <Toaster position="top-center" />

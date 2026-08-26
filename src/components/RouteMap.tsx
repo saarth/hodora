@@ -1,9 +1,18 @@
 import { useEffect, useRef } from "react";
 import { Maximize2 } from "lucide-react";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+import { buildCyclingStyle, setVectorBasemapTheme } from "@/lib/cycling-style";
 import { haversine, splitBySegments, type RidePoint } from "@/lib/gpx";
+import { poiCategoryLabel, type Poi } from "@/lib/poi";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
+import { windSegmentsToGeoJSON, type WindSegment } from "@/lib/windScore";
+
+// Optional: set VITE_MAPTILER_KEY to swap the default raster CARTO basemap
+// for a custom cycling-focused vector style (see src/lib/cycling-style.ts).
+// Leaving it unset keeps the app's zero-config, self-hosting-friendly default.
+const maptilerKey = (import.meta.env.VITE_MAPTILER_KEY as string | undefined)?.trim();
+const useVectorBasemap = Boolean(maptilerKey);
 
 type LivePosition = {
   lat: number;
@@ -22,6 +31,8 @@ type RouteMapProps = {
   interactive?: boolean;
   /** map tilt in degrees: 0 = birds-eye, ~60 = angled */
   pitch?: number;
+  /** forces the dark basemap plus a punchier navigation-only palette, regardless of the app theme */
+  highContrast?: boolean;
   /** dashed guide line from the live position to the closest route point */
   rejoin?: { lat: number; lon: number } | null;
   /** bike-friendly path back to the track; falls back to a straight dashed line */
@@ -31,12 +42,28 @@ type RouteMapProps = {
   fitTo?: { coords: { lat: number; lon: number }[]; nonce: number } | null;
   /** show the "Fit route" button overlay (off during turn-by-turn navigation) */
   showFitControl?: boolean;
+  /**
+   * show MapLibre's zoom/compass buttons. Off during turn-by-turn navigation:
+   * they land in the same top-right corner as the maneuver banner, and pinch,
+   * drag and double-tap all still work without them.
+   */
+  showZoomControl?: boolean;
   /** starting camera position when there is no route yet */
   initialCenter?: { lat: number; lon: number } | null;
   /** bump `nonce` to move the camera to a point (explore / locate me) */
   flyTo?: { lat: number; lon: number; zoom?: number; nonce: number } | null;
   /** reports the visible area after the user pans or zooms */
   onViewChange?: (view: { center: { lat: number; lon: number }; radiusM: number }) => void;
+  /** points to mark on the map that aren't part of a drawn route yet, e.g. route-planner clicks */
+  waypoints?: { lat: number; lon: number }[] | null;
+  /** fires with the clicked map coordinate; used by the route planner to add waypoints and to place ride notes */
+  onMapClick?: (point: { lat: number; lon: number }) => void;
+  /** rider-authored notes pinned along the route */
+  notes?: { id: string; lat: number; lon: number }[] | null;
+  /** per-segment wind classification; when present, the route is colored tailwind/headwind/crosswind instead of the theme's single route color */
+  windSegments?: WindSegment[] | null;
+  /** nearby points of interest (cafes, water, bike shops, toilets) — tap a marker for its name */
+  pois?: Poi[] | null;
 };
 
 const basemap = (theme: "light" | "dark") =>
@@ -44,22 +71,90 @@ const basemap = (theme: "light" | "dark") =>
     ? "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
     : "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
 
+function parsePercentOrNumber(value: string, hundredPercent: number): number {
+  return value.endsWith("%") ? (parseFloat(value) / 100) * hundredPercent : Number(value);
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function linearToSrgb(value: number): number {
+  const c = clamp01(value);
+  return c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055;
+}
+
+// Converts a CSS `oklch(L C H[ / A])` string to an `rgba()` string using the
+// standard OKLab matrices (Björn Ottosson), entirely in JS with no DOM or
+// Canvas involved. MapLibre's paint-property color parser only understands
+// rgb()/hex/hsl, not oklch(), so this can't just be handed through — and a
+// Canvas-2D round-trip conversion (fillStyle + getImageData) turned out to
+// be unreliable in the wild: privacy-hardened browsers (Brave's
+// fingerprinting protection, Firefox's resistFingerprinting, etc.) block or
+// randomize Canvas pixel readback specifically to stop canvas
+// fingerprinting, which silently defeated that approach and let the raw
+// oklch() string back through, failing every addLayer call.
+function oklchToRgbaString(oklch: string): string | null {
+  const match = oklch.match(
+    /^oklch\(\s*([\d.]+%?)\s+([\d.]+%?)\s+([\d.]+)(?:deg)?\s*(?:\/\s*([\d.]+%?))?\s*\)$/i,
+  );
+  if (!match) return null;
+
+  const L = parsePercentOrNumber(match[1], 1);
+  const C = parsePercentOrNumber(match[2], 0.4);
+  const H = (Number(match[3]) * Math.PI) / 180;
+  const alpha = match[4] !== undefined ? parsePercentOrNumber(match[4], 1) : 1;
+
+  const a = C * Math.cos(H);
+  const b = C * Math.sin(H);
+
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.291485548 * b;
+
+  const l = l_ ** 3;
+  const m = m_ ** 3;
+  const s = s_ ** 3;
+
+  const rLinear = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const gLinear = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const bLinear = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+
+  const r = Math.round(linearToSrgb(rLinear) * 255);
+  const g = Math.round(linearToSrgb(gLinear) * 255);
+  const bComp = Math.round(linearToSrgb(bLinear) * 255);
+
+  return `rgba(${r}, ${g}, ${bComp}, ${alpha.toFixed(3)})`;
+}
+
 // MapLibre paint properties need real color strings, not `var(...)` — it
-// paints to a canvas, not the DOM. Resolving a custom property through a
-// hidden probe element lets the browser do the cascade/inheritance work (and
-// hands back a format MapLibre's color parser always understands), so the
-// route styling tracks the app's CSS theme tokens instead of being frozen to
-// whatever hex value was hardcoded at write-time.
-let colorProbe: HTMLSpanElement | null = null;
+// paints to a canvas, not the DOM.
+//
+// This used to go through a hidden probe element: set `color: var(--x)` on
+// it, then read back `getComputedStyle(probe).color`. That round-trip is
+// fragile — it depends on how each browser *serializes a resolved <color>
+// property*, and that serialization has changed (and differed between
+// Chromium and Firefox) more than once, each time silently dropping every
+// addLayer() call for the route/casing/endpoints with no thrown error (see
+// git history: "Fix route not rendering on the map").
+//
+// Custom properties don't have that problem. Per the CSS spec, the computed
+// value of a custom property is just its declared token text with nested
+// var() references substituted in — it is never re-serialized as a typed
+// <color>. Reading `--color-route` straight off <html> (where the "dark"
+// class is toggled) returns exactly what styles.css wrote, e.g.
+// "oklch(0.584 0.125 49.6)", regardless of browser or version.
 function resolveThemeColor(varName: string): string {
   if (typeof document === "undefined") return "#000000";
-  if (!colorProbe) {
-    colorProbe = document.createElement("span");
-    colorProbe.style.display = "none";
-    document.body.appendChild(colorProbe);
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+
+  // MapLibre's paint-property color parser only understands rgb()/hex/hsl,
+  // not oklch(), so this still needs converting before it reaches addLayer.
+  if (raw.startsWith("oklch(")) {
+    const converted = oklchToRgbaString(raw);
+    if (converted) return converted;
   }
-  colorProbe.style.color = `var(${varName})`;
-  return getComputedStyle(colorProbe).color;
+  return raw || "#000000";
 }
 
 function mapThemeColors() {
@@ -69,8 +164,38 @@ function mapThemeColors() {
     mutedForeground: resolveThemeColor("--color-muted-foreground"),
     warning: resolveThemeColor("--color-warning"),
     foreground: resolveThemeColor("--color-foreground"),
+    chart2: resolveThemeColor("--color-chart-2"),
+    chart3: resolveThemeColor("--color-chart-3"),
+    chart4: resolveThemeColor("--color-chart-4"),
+    chart5: resolveThemeColor("--color-chart-5"),
+    primary: resolveThemeColor("--color-primary"),
+    destructive: resolveThemeColor("--color-destructive"),
   };
 }
+
+const WIND_LINE_COLOR_EXPRESSION = (colors: ReturnType<typeof mapThemeColors>) => [
+  "match",
+  ["get", "effect"],
+  "tailwind",
+  colors.primary,
+  "headwind",
+  colors.destructive,
+  colors.warning,
+];
+
+const POI_COLOR_EXPRESSION = (colors: ReturnType<typeof mapThemeColors>) => [
+  "match",
+  ["get", "category"],
+  "cafe",
+  colors.chart3,
+  "water",
+  colors.chart4,
+  "bike_shop",
+  colors.chart5,
+  "toilets",
+  colors.chart2,
+  colors.mutedForeground,
+];
 
 function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
   if (map.getLayer("route-casing")) {
@@ -78,6 +203,9 @@ function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
   }
   if (map.getLayer("route-line")) {
     map.setPaintProperty("route-line", "line-color", colors.route);
+  }
+  if (map.getLayer("route-wind-line")) {
+    map.setPaintProperty("route-wind-line", "line-color", WIND_LINE_COLOR_EXPRESSION(colors));
   }
   if (map.getLayer("route-done-line")) {
     map.setPaintProperty("route-done-line", "line-color", colors.mutedForeground);
@@ -99,6 +227,26 @@ function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
     ]);
     map.setPaintProperty("endpoints-layer", "circle-stroke-color", colors.background);
   }
+  if (map.getLayer("waypoints-layer")) {
+    map.setPaintProperty("waypoints-layer", "circle-color", [
+      "match",
+      ["get", "role"],
+      "start",
+      colors.route,
+      "end",
+      colors.foreground,
+      colors.warning,
+    ]);
+    map.setPaintProperty("waypoints-layer", "circle-stroke-color", colors.background);
+  }
+  if (map.getLayer("notes-layer")) {
+    map.setPaintProperty("notes-layer", "circle-color", colors.chart2);
+    map.setPaintProperty("notes-layer", "circle-stroke-color", colors.background);
+  }
+  if (map.getLayer("pois-layer")) {
+    map.setPaintProperty("pois-layer", "circle-color", POI_COLOR_EXPRESSION(colors));
+    map.setPaintProperty("pois-layer", "circle-stroke-color", colors.background);
+  }
 }
 
 export function RouteMap({
@@ -109,14 +257,21 @@ export function RouteMap({
   progressIndex = null,
   interactive = true,
   pitch = 0,
+  highContrast = false,
   rejoin = null,
   rejoinPath = null,
 
   fitTo = null,
   showFitControl = true,
+  showZoomControl = true,
   initialCenter = null,
   flyTo = null,
   onViewChange,
+  waypoints = null,
+  onMapClick,
+  notes = null,
+  windSegments = null,
+  pois = null,
 }: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -124,11 +279,22 @@ export function RouteMap({
   const readyRef = useRef(false);
   const pointsRef = useRef<RidePoint[]>(points);
   pointsRef.current = points;
+  const windSegmentsRef = useRef(windSegments);
+  windSegmentsRef.current = windSegments;
   const pitchRef = useRef(pitch);
   pitchRef.current = pitch;
   const riderMarkerRef = useRef<any>(null);
+  const riderHeadingRef = useRef(0);
   const viewChangeRef = useRef(onViewChange);
   viewChangeRef.current = onViewChange;
+  const mapClickRef = useRef(onMapClick);
+  mapClickRef.current = onMapClick;
+  const waypointsRef = useRef(waypoints);
+  waypointsRef.current = waypoints;
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
+  const poisRef = useRef(pois);
+  poisRef.current = pois;
   const { theme } = useTheme();
 
   // Boot the map once, client side only.
@@ -150,21 +316,24 @@ export function RouteMap({
       maplibre.setWorkerUrl(maplibreWorkerUrl);
       libRef.current = maplibre;
 
+      const initialTheme = highContrast ? "dark" : theme;
       const map = new maplibre.Map({
         container: containerRef.current,
-        style: {
-          version: 8,
-          sources: {
-            basemap: {
-              type: "raster",
-              tiles: [basemap(theme)],
-              tileSize: 256,
-              attribution:
-                '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
+        style: useVectorBasemap
+          ? buildCyclingStyle(initialTheme, maptilerKey!)
+          : {
+              version: 8,
+              sources: {
+                basemap: {
+                  type: "raster",
+                  tiles: [basemap(initialTheme)],
+                  tileSize: 256,
+                  attribution:
+                    '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
+                },
+              },
+              layers: [{ id: "basemap", type: "raster", source: "basemap" }],
             },
-          },
-          layers: [{ id: "basemap", type: "raster", source: "basemap" }],
-        },
         center: [
           points[0]?.lon ?? initialCenter?.lon ?? 0,
           points[0]?.lat ?? initialCenter?.lat ?? 0,
@@ -176,10 +345,12 @@ export function RouteMap({
       });
 
       if (interactive) {
-        map.addControl(
-          new maplibre.NavigationControl({ showCompass: true, visualizePitch: true }),
-          "top-right",
-        );
+        if (showZoomControl) {
+          map.addControl(
+            new maplibre.NavigationControl({ showCompass: true, visualizePitch: true }),
+            "top-right",
+          );
+        }
         // Explicit gesture setup: wheel/pinch zoom, drag pan, double-tap zoom,
         // and keyboard arrows all stay enabled on touch and desktop.
         map.scrollZoom.enable();
@@ -196,11 +367,19 @@ export function RouteMap({
         readyRef.current = true;
         const current = pointsRef.current;
         drawRoute(map, current);
+        applyWindSegments(map, current, windSegmentsRef.current);
+        setupWaypointsLayer(map, waypointsRef.current ?? []);
+        setupNotesLayer(map, notesRef.current ?? []);
+        setupPoisLayer(map, maplibre, poisRef.current ?? []);
         // Show the complete route until the first live GPS fix takes over.
         if (current.length > 1) fitRoute(map, current, 48);
         // Some browsers can report their final size after MapLibre's initial
         // layout pass. Recalculate once the view has settled.
         requestAnimationFrame(() => map.resize());
+      });
+
+      map.on("click", (event: any) => {
+        mapClickRef.current?.({ lat: event.lngLat.lat, lon: event.lngLat.lng });
       });
 
       map.on("moveend", () => {
@@ -209,8 +388,7 @@ export function RouteMap({
         const center = map.getCenter();
         const bounds = map.getBounds();
         const nw = bounds.getNorthWest();
-        const radiusM =
-          (haversine(nw.lat, nw.lng, center.lat, center.lng) as number) * 0.9;
+        const radiusM = (haversine(nw.lat, nw.lng, center.lat, center.lng) as number) * 0.9;
         handler({ center: { lat: center.lat, lon: center.lng }, radiusM });
       });
 
@@ -230,14 +408,20 @@ export function RouteMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Swap basemap tiles and re-resolve route/endpoint colors when the theme changes.
+  // Swap basemap tiles/layers and re-resolve route/endpoint colors when the
+  // theme (or the nav-only high-contrast override) changes.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
-    const source = map.getSource("basemap");
-    if (source?.setTiles) source.setTiles([basemap(theme)]);
+    const effectiveTheme = highContrast ? "dark" : theme;
+    if (useVectorBasemap) {
+      setVectorBasemapTheme(map, effectiveTheme);
+    } else {
+      const source = map.getSource("basemap");
+      if (source?.setTiles) source.setTiles([basemap(effectiveTheme)]);
+    }
     applyThemeColors(map, mapThemeColors());
-  }, [theme]);
+  }, [theme, highContrast]);
 
   // Move the camera to an explicit point (locate me, explore results).
   useEffect(() => {
@@ -258,9 +442,17 @@ export function RouteMap({
     const map = mapRef.current;
     if (!map || !readyRef.current || points.length === 0) return;
     drawRoute(map, points);
+    applyWindSegments(map, points, windSegmentsRef.current);
     fitRoute(map, points, follow ? 0 : 48);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points]);
+
+  // Toggle wind-colored segments on/off and repaint when the selection changes.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+    applyWindSegments(map, points, windSegments);
+  }, [windSegments, points]);
 
   // Progress marker: dim what's already ridden.
   useEffect(() => {
@@ -287,15 +479,27 @@ export function RouteMap({
 
     if (!riderMarkerRef.current) {
       const el = document.createElement("div");
-      el.className = "rider-dot";
+      el.className = "rider-arrow";
       el.innerHTML =
-        '<span class="rider-dot__pulse"></span><span class="rider-dot__core"></span>';
-      riderMarkerRef.current = new maplibre.Marker({ element: el })
+        '<span class="rider-arrow__pulse"></span>' +
+        '<svg class="rider-arrow__glyph" viewBox="0 0 24 24"><path d="M12 1.5 L20.5 21 L12 16.5 L3.5 21 Z" /></svg>';
+      // rotationAlignment: "map" ties the marker's rotation to map-north
+      // rather than the viewport, so setRotation(heading) always points the
+      // arrow the rider's true direction of travel — including while
+      // `follow` mode is rotating the whole map to keep heading "up".
+      riderMarkerRef.current = new maplibre.Marker({ element: el, rotationAlignment: "map" })
         .setLngLat([live.lon, live.lat])
         .addTo(map);
     } else {
       riderMarkerRef.current.setLngLat([live.lon, live.lat]);
     }
+
+    // GPS heading drops out (null) at low speed/standstill — hold the last
+    // known heading instead of snapping the arrow back to north.
+    if (typeof live.heading === "number") {
+      riderHeadingRef.current = live.heading;
+    }
+    riderMarkerRef.current.setRotation(riderHeadingRef.current);
 
     if (follow) {
       map.easeTo({
@@ -349,6 +553,30 @@ export function RouteMap({
     });
   }, [live, rejoin, rejoinPath]);
 
+  // Route-planner waypoint markers.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+    const source = map.getSource("waypoints");
+    if (source) source.setData(waypointsFeatureCollection(waypoints ?? []));
+  }, [waypoints]);
+
+  // Rider-authored note pins.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+    const source = map.getSource("notes");
+    if (source) source.setData(notesFeatureCollection(notes ?? []));
+  }, [notes]);
+
+  // Nearby points of interest (cafes, water, bike shops, toilets).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+    const source = map.getSource("pois");
+    if (source) source.setData(poisFeatureCollection(pois ?? []));
+  }, [pois]);
+
   // Fit the camera around an explicit set of coordinates on demand.
   const fitCoordsRef = useRef(fitTo?.coords ?? []);
   fitCoordsRef.current = fitTo?.coords ?? [];
@@ -362,7 +590,6 @@ export function RouteMap({
       new maplibre.LngLatBounds([coords[0].lon, coords[0].lat], [coords[0].lon, coords[0].lat]),
     );
     map.fitBounds(bounds, { padding: 80, maxZoom: 17, duration: 700 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitTo?.nonce]);
 
   const fitWholeRoute = () => {
@@ -443,6 +670,17 @@ function drawRoute(map: any, points: RidePoint[]) {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": colors.route, "line-width": 4.5 },
   });
+  map.addSource("route-wind", {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  });
+  map.addLayer({
+    id: "route-wind-line",
+    type: "line",
+    source: "route-wind",
+    layout: { "line-cap": "round", "line-join": "round", visibility: "none" },
+    paint: { "line-color": WIND_LINE_COLOR_EXPRESSION(colors), "line-width": 4.5 },
+  });
   map.addSource("route-done", { type: "geojson", data: lineFeature([]) });
   map.addLayer({
     id: "route-done-line",
@@ -477,8 +715,6 @@ function drawRoute(map: any, points: RidePoint[]) {
       "circle-stroke-color": colors.background,
     },
   });
-
-
 
   map.addSource("endpoints", {
     type: "geojson",
@@ -518,6 +754,149 @@ function endpointData(points: RidePoint[]) {
           ]
         : [],
   };
+}
+
+function waypointsFeatureCollection(waypoints: { lat: number; lon: number }[]) {
+  return {
+    type: "FeatureCollection" as const,
+    features: waypoints.map((point, index) => ({
+      type: "Feature" as const,
+      properties: {
+        role: index === 0 ? "start" : index === waypoints.length - 1 ? "end" : "via",
+      },
+      geometry: { type: "Point" as const, coordinates: [point.lon, point.lat] },
+    })),
+  };
+}
+
+/** Route-planner click markers — independent of the routed line, so a single tapped point still shows up. */
+function setupWaypointsLayer(map: any, waypoints: { lat: number; lon: number }[]) {
+  if (map.getSource("waypoints")) return;
+  const colors = mapThemeColors();
+  map.addSource("waypoints", { type: "geojson", data: waypointsFeatureCollection(waypoints) });
+  map.addLayer({
+    id: "waypoints-layer",
+    type: "circle",
+    source: "waypoints",
+    paint: {
+      "circle-radius": ["match", ["get", "role"], "via", 5, 7],
+      "circle-color": [
+        "match",
+        ["get", "role"],
+        "start",
+        colors.route,
+        "end",
+        colors.foreground,
+        colors.warning,
+      ],
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": colors.background,
+    },
+  });
+}
+
+function notesFeatureCollection(notes: { id: string; lat: number; lon: number }[]) {
+  return {
+    type: "FeatureCollection" as const,
+    features: notes.map((note) => ({
+      type: "Feature" as const,
+      properties: { id: note.id },
+      geometry: { type: "Point" as const, coordinates: [note.lon, note.lat] },
+    })),
+  };
+}
+
+/** Rider-authored note pins — a distinct color from route/waypoint/endpoint markers so they read as annotations, not navigation geometry. */
+function setupNotesLayer(map: any, notes: { id: string; lat: number; lon: number }[]) {
+  if (map.getSource("notes")) return;
+  const colors = mapThemeColors();
+  map.addSource("notes", { type: "geojson", data: notesFeatureCollection(notes) });
+  map.addLayer({
+    id: "notes-layer",
+    type: "circle",
+    source: "notes",
+    paint: {
+      "circle-radius": 6,
+      "circle-color": colors.chart2,
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": colors.background,
+    },
+  });
+}
+
+function poisFeatureCollection(pois: Poi[]) {
+  return {
+    type: "FeatureCollection" as const,
+    features: pois.map((poi) => ({
+      type: "Feature" as const,
+      properties: { id: poi.id, category: poi.category, name: poi.name ?? "" },
+      geometry: { type: "Point" as const, coordinates: [poi.lon, poi.lat] },
+    })),
+  };
+}
+
+/** Nearby amenities (cafes, water, bike shops, toilets), color-coded by category, with a name popup on tap. */
+function setupPoisLayer(map: any, maplibre: any, pois: Poi[]) {
+  if (map.getSource("pois")) return;
+  const colors = mapThemeColors();
+  map.addSource("pois", { type: "geojson", data: poisFeatureCollection(pois) });
+  map.addLayer({
+    id: "pois-layer",
+    type: "circle",
+    source: "pois",
+    paint: {
+      "circle-radius": 5.5,
+      "circle-color": POI_COLOR_EXPRESSION(colors),
+      "circle-stroke-width": 2,
+      "circle-stroke-color": colors.background,
+    },
+  });
+
+  map.on("mouseenter", "pois-layer", () => {
+    map.getCanvas().style.cursor = "pointer";
+  });
+  map.on("mouseleave", "pois-layer", () => {
+    map.getCanvas().style.cursor = "";
+  });
+  map.on("click", "pois-layer", (event: any) => {
+    const feature = event.features?.[0];
+    if (!feature) return;
+    const name = feature.properties?.name || poiCategoryLabel(feature.properties?.category);
+    const label = feature.properties?.name
+      ? `${name} · ${poiCategoryLabel(feature.properties.category)}`
+      : name;
+    new maplibre.Popup({ closeButton: false, offset: 10 })
+      .setLngLat(feature.geometry.coordinates)
+      .setText(label)
+      .addTo(map);
+  });
+}
+
+/**
+ * Toggles between the theme's single-color route line and a per-segment
+ * tailwind/headwind/crosswind coloring, depending on whether `windSegments`
+ * is populated. Idempotent — safe to call on every points/windSegments
+ * change once the map has loaded.
+ */
+function applyWindSegments(
+  map: any,
+  points: RidePoint[],
+  windSegments: WindSegment[] | null | undefined,
+) {
+  const source = map.getSource("route-wind");
+  if (!source) return;
+  const hasWind = Boolean(windSegments && windSegments.length > 0);
+  source.setData(
+    hasWind
+      ? windSegmentsToGeoJSON(points, windSegments!)
+      : { type: "FeatureCollection", features: [] },
+  );
+  if (map.getLayer("route-wind-line")) {
+    map.setLayoutProperty("route-wind-line", "visibility", hasWind ? "visible" : "none");
+  }
+  if (map.getLayer("route-line")) {
+    map.setLayoutProperty("route-line", "visibility", hasWind ? "none" : "visible");
+  }
 }
 
 function updateEndpoints(map: any, points: RidePoint[]) {

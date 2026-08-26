@@ -1,41 +1,293 @@
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Navigation, TrendingDown, TrendingUp, Ruler } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  ArrowLeft,
+  Coffee,
+  Gauge,
+  Layers,
+  ListChecks,
+  Loader2,
+  MapPin,
+  MapPinPlus,
+  Navigation,
+  Pencil,
+  Share2,
+  Signpost,
+  StickyNote,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  Ruler,
+  X,
+} from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
 import { ElevationChart } from "@/components/ElevationChart";
+import { CueSheet } from "@/components/CueSheet";
 import { OfflineSaveCard } from "@/components/OfflineSaveCard";
+import { DIFFICULTY_OPTIONS, SURFACE_OPTIONS } from "@/components/RideTags";
+import { DayTabs } from "@/components/DayTabs";
+import { HourPicker } from "@/components/HourPicker";
+import { WindStatsBar } from "@/components/WindStatsBar";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDistance, formatElevation } from "@/lib/gpx";
-import { fetchProfile, fetchRide, ridesKeys } from "@/lib/rides";
+import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { buildCueSheet, hasRouterCues } from "@/lib/cues";
+import { recoverCuesForRide } from "@/lib/cue-recovery";
+import { directionsUrl, formatDistance, formatElevation } from "@/lib/gpx";
+import { snapToRoute } from "@/lib/nav";
+import { fetchPois, poiBounds, POI_CATEGORIES, type PoiCategory } from "@/lib/poi";
+import {
+  createSharedLink,
+  fetchProfile,
+  fetchRide,
+  ridesKeys,
+  updateRideCues,
+  updateRideNotes,
+  updateRideTags,
+  type Ride,
+  type RideDifficulty,
+  type RideNote,
+  type RideSurface,
+} from "@/lib/rides";
+import { cn } from "@/lib/utils";
+import {
+  closestHourIndex,
+  fetchHourlyWind,
+  groupForecastByDay,
+  isDaytimeHour,
+} from "@/lib/weather";
+import { buildWindSegments, scoreRoute } from "@/lib/windScore";
 
 export const Route = createFileRoute("/rides/$id/")({
   ssr: false,
   head: () => ({
     meta: [
       { title: "Route details — Hodora" },
-      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
-        content: "Route overview with map, elevation profile, distance and total climbing before you start navigating.",
+        content:
+          "Route overview with map, elevation profile, distance and total climbing before you start navigating.",
       },
       { property: "og:title", content: "Route details — Hodora" },
-      { property: "og:description", content: "Map, elevation profile and climbing for your imported GPX route." },
+      {
+        property: "og:description",
+        content: "Map, elevation profile and climbing for your imported GPX route.",
+      },
+      { name: "robots", content: "noindex, follow" },
     ],
   }),
   component: RideDetail,
 });
 
+/** Matches the category -> color mapping RouteMap's POI layer uses, so the legend swatches agree with the pins on the map. */
+const POI_LEGEND_COLOR_VAR: Record<PoiCategory, string> = {
+  cafe: "--color-chart-3",
+  water: "--color-chart-4",
+  bike_shop: "--color-chart-5",
+  toilets: "--color-chart-2",
+};
+
 function RideDetail() {
   const { id } = Route.useParams();
+  const queryClient = useQueryClient();
   const { data: profile } = useQuery({ queryKey: ridesKeys.profile, queryFn: fetchProfile });
   const metric = profile?.unit !== "imperial";
-  const { data: ride, isLoading, error } = useQuery({
+  const {
+    data: ride,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ridesKeys.detail(id),
     queryFn: () => fetchRide(id),
   });
+
+  const start = ride?.points[0];
+  const { data: hourly } = useQuery({
+    queryKey: ["ride-wind-forecast", id, start?.lat, start?.lon],
+    queryFn: () => fetchHourlyWind(start!.lat, start!.lon),
+    enabled: Boolean(start),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const days = useMemo(() => groupForecastByDay(hourly ?? []), [hourly]);
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+  const [selectedHourIso, setSelectedHourIso] = useState<string | null>(null);
+
+  const selectedDay = days.find((day) => day.dateKey === selectedDayKey) ?? days[0] ?? null;
+  const selectedHour =
+    selectedDay?.hours.find((hour) => hour.atIso === selectedHourIso) ??
+    (selectedDay ? selectedDay.hours[closestHourIndex(selectedDay.hours)] : null);
+
+  // Wind score for every hour of the selected day, so the picker can star the best one.
+  const dayScores = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!ride || !selectedDay) return map;
+    for (const hour of selectedDay.hours) {
+      const result = scoreRoute(ride.points, {
+        windSpeedMs: hour.windSpeedMs,
+        windDirectionDeg: hour.windDirectionDeg,
+      });
+      if (result) map.set(hour.atIso, result.windScore);
+    }
+    return map;
+  }, [ride, selectedDay]);
+
+  const bestHourIso = useMemo(() => {
+    let best: string | null = null;
+    let bestScore = -Infinity;
+    for (const [atIso, hourScore] of dayScores) {
+      if (hourScore > bestScore) {
+        bestScore = hourScore;
+        best = atIso;
+      }
+    }
+    return best;
+  }, [dayScores]);
+
+  const windScore = useMemo(() => {
+    if (!ride || !selectedHour) return null;
+    return scoreRoute(ride.points, {
+      windSpeedMs: selectedHour.windSpeedMs,
+      windDirectionDeg: selectedHour.windDirectionDeg,
+    });
+  }, [ride, selectedHour]);
+
+  const windSegments = useMemo(() => {
+    if (!ride || !selectedHour) return null;
+    return buildWindSegments(ride.points, {
+      windSpeedMs: selectedHour.windSpeedMs,
+      windDirectionDeg: selectedHour.windDirectionDeg,
+    });
+  }, [ride, selectedHour]);
+
+  const [addingNote, setAddingNote] = useState(false);
+  const [pendingNote, setPendingNote] = useState<{
+    lat: number;
+    lon: number;
+    distanceM: number;
+  } | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [cueSheetOpen, setCueSheetOpen] = useState(false);
+  const [showPois, setShowPois] = useState(false);
+
+  const POI_ALL_CATEGORIES: PoiCategory[] = useMemo(() => POI_CATEGORIES.map((c) => c.value), []);
+  const { data: pois, isFetching: poisLoading } = useQuery({
+    queryKey: ["pois", ride?.id],
+    queryFn: ({ signal }) => fetchPois(poiBounds(ride!.points), POI_ALL_CATEGORIES, signal),
+    enabled: showPois && Boolean(ride),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const cueSheet = useMemo(() => (ride ? buildCueSheet(ride.points, ride.cues) : []), [ride]);
+  const hasNamedCues = hasRouterCues(ride?.cues);
+
+  const recoverCuesMutation = useMutation({
+    mutationFn: async () => {
+      if (!ride) throw new Error("Route not loaded");
+      const controller = new AbortController();
+      const cues = await recoverCuesForRide(ride.points, controller.signal);
+      if (cues.length === 0) {
+        throw new Error("Couldn't match this route to the road network");
+      }
+      await updateRideCues(id, cues);
+      return cues;
+    },
+    onSuccess: (cues) => {
+      queryClient.setQueryData<Ride>(ridesKeys.detail(id), (prev) =>
+        prev ? { ...prev, cues } : prev,
+      );
+      toast.success("Recovered street names for this route");
+    },
+    onError: (recoverError) =>
+      toast.error(
+        recoverError instanceof Error ? recoverError.message : "Could not recover directions",
+      ),
+  });
+
+  const tagsMutation = useMutation({
+    mutationFn: (tags: { difficulty?: RideDifficulty | null; surface?: RideSurface | null }) =>
+      updateRideTags(id, tags),
+    onSuccess: (_result, tags) => {
+      queryClient.setQueryData<Ride>(ridesKeys.detail(id), (prev) =>
+        prev ? { ...prev, ...tags } : prev,
+      );
+      queryClient.invalidateQueries({ queryKey: ridesKeys.all });
+    },
+    onError: () => toast.error("Could not update that tag"),
+  });
+
+  const notesMutation = useMutation({
+    mutationFn: (notes: RideNote[]) => updateRideNotes(id, notes),
+    onSuccess: (_result, notes) => {
+      queryClient.setQueryData<Ride>(ridesKeys.detail(id), (prev) =>
+        prev ? { ...prev, notes } : prev,
+      );
+    },
+    onError: () => toast.error("Could not save that note"),
+  });
+
+  const shareMutation = useMutation({
+    mutationFn: () =>
+      createSharedLink({
+        rideId: id,
+        windHour: selectedHour?.atIso ?? null,
+        windSpeedMs: selectedHour?.windSpeedMs,
+        windDirectionDeg: selectedHour?.windDirectionDeg,
+        temperatureC: selectedHour?.temperatureC,
+        weatherCode: selectedHour?.weatherCode,
+      }),
+    onSuccess: async (token) => {
+      const url = `${window.location.origin}/share/${token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Share link copied to clipboard");
+      } catch {
+        toast.success(url, { description: "Share link created" });
+      }
+    },
+    onError: (mutationError: Error) =>
+      toast.error(mutationError.message || "Could not create a share link"),
+  });
+
+  function handleMapClick(point: { lat: number; lon: number }) {
+    if (!addingNote || !ride) return;
+    const snap = snapToRoute(ride.points, point.lat, point.lon);
+    setAddingNote(false);
+    setPendingNote({ lat: snap.lat, lon: snap.lon, distanceM: snap.progressM });
+  }
+
+  function saveNote() {
+    if (!ride || !pendingNote || !noteText.trim()) return;
+    const note: RideNote = {
+      id: crypto.randomUUID(),
+      distanceM: pendingNote.distanceM,
+      lat: pendingNote.lat,
+      lon: pendingNote.lon,
+      text: noteText.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    const notes = [...(ride.notes ?? []), note].sort((a, b) => a.distanceM - b.distanceM);
+    notesMutation.mutate(notes);
+    setPendingNote(null);
+    setNoteText("");
+  }
+
+  function deleteNote(noteId: string) {
+    if (!ride) return;
+    notesMutation.mutate((ride.notes ?? []).filter((note) => note.id !== noteId));
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -49,11 +301,7 @@ function RideDetail() {
         </Button>
 
         {isLoading && <Skeleton className="mt-6 h-[420px] rounded-2xl" />}
-        {error && (
-          <p className="mt-8 text-sm text-destructive">
-            That route couldn't be loaded.
-          </p>
-        )}
+        {error && <p className="mt-8 text-sm text-destructive">That route couldn't be loaded.</p>}
 
         {ride && (
           <>
@@ -61,24 +309,52 @@ function RideDetail() {
               <div>
                 <h1 className="text-3xl font-extrabold tracking-tight">{ride.name}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Imported {new Date(ride.created_at).toLocaleDateString()}
+                  {ride.is_recorded ? "Recorded" : ride.plan_waypoints ? "Planned" : "Imported"}{" "}
+                  {new Date(ride.created_at).toLocaleDateString()}
                   {ride.source_filename ? ` · ${ride.source_filename}` : ""}
                 </p>
               </div>
-              <Button asChild size="lg" className="glow-ring">
-                <Link to="/rides/$id/nav" params={{ id: ride.id }}>
-                  <Navigation className="size-4" />
-                  Start navigation
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {ride.points.length > 0 && (
+                  <Button asChild variant="secondary" size="lg">
+                    <a
+                      href={directionsUrl(ride.points[0].lat, ride.points[0].lon)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <MapPin className="size-4" />
+                      Directions to start
+                    </a>
+                  </Button>
+                )}
+                {ride.plan_waypoints && ride.plan_waypoints.length >= 2 && (
+                  <Button asChild variant="secondary" size="lg">
+                    <Link to="/plan" search={{ edit: ride.id }}>
+                      <Pencil className="size-4" />
+                      Edit route
+                    </Link>
+                  </Button>
+                )}
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => shareMutation.mutate()}
+                  disabled={shareMutation.isPending}
+                >
+                  <Share2 className="size-4" />
+                  Share
+                </Button>
+                <Button asChild size="lg" className="glow-ring">
+                  <Link to="/rides/$id/nav" params={{ id: ride.id }}>
+                    <Navigation className="size-4" />
+                    Start navigation
+                  </Link>
+                </Button>
+              </div>
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <Stat
-                icon={Ruler}
-                label="Distance"
-                value={formatDistance(ride.distance_m, metric)}
-              />
+              <Stat icon={Ruler} label="Distance" value={formatDistance(ride.distance_m, metric)} />
               <Stat
                 icon={TrendingUp}
                 label="Ascent"
@@ -91,8 +367,98 @@ function RideDetail() {
               />
             </div>
 
-            <div className="surface mt-4 overflow-hidden">
-              <RouteMap points={ride.points} className="h-[380px] w-full" />
+            {windScore && selectedHour && (
+              <div className="mt-4 space-y-3">
+                <WindStatsBar
+                  score={windScore}
+                  windDirectionDeg={selectedHour.windDirectionDeg}
+                  metric={metric}
+                  detail={{
+                    distanceM: ride.distance_m,
+                    elevationM: ride.ascent_m,
+                    temperatureC: selectedHour.temperatureC,
+                    weatherCode: selectedHour.weatherCode,
+                    isDay: isDaytimeHour(selectedHour.atIso),
+                  }}
+                />
+                {days.length > 0 && selectedDay && (
+                  <div className="space-y-2">
+                    <DayTabs
+                      days={days}
+                      value={selectedDay.dateKey}
+                      onChange={(dateKey) => {
+                        setSelectedDayKey(dateKey);
+                        setSelectedHourIso(null);
+                      }}
+                    />
+                    <HourPicker
+                      hours={selectedDay.hours}
+                      value={selectedHour.atIso}
+                      onChange={setSelectedHourIso}
+                      bestAtIso={bestHourIso}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button
+                size="sm"
+                variant={showPois ? "default" : "outline"}
+                onClick={() => setShowPois((value) => !value)}
+              >
+                {poisLoading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Coffee className="size-4" />
+                )}
+                {showPois ? "Hide amenities" : "Show amenities"}
+              </Button>
+              {showPois && (
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                  {POI_CATEGORIES.map((category) => (
+                    <span key={category.value} className="flex items-center gap-1.5">
+                      <span
+                        className="size-2 rounded-full"
+                        style={{ background: `var(${POI_LEGEND_COLOR_VAR[category.value]})` }}
+                        aria-hidden
+                      />
+                      {category.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="surface relative mt-2 overflow-hidden">
+              <RouteMap
+                points={ride.points}
+                className="h-[380px] w-full"
+                notes={(ride.notes ?? []).map((note) => ({
+                  id: note.id,
+                  lat: note.lat,
+                  lon: note.lon,
+                }))}
+                onMapClick={handleMapClick}
+                showFitControl={!addingNote}
+                windSegments={windSegments}
+                pois={showPois ? (pois ?? []) : null}
+              />
+              {addingNote && (
+                <div className="glass-faint pointer-events-none absolute inset-x-3 top-3 z-10 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs">
+                  <span className="pointer-events-none">Tap the map to place a note</span>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="pointer-events-auto h-7 px-2 text-xs"
+                    onClick={() => setAddingNote(false)}
+                  >
+                    <X className="size-3.5" />
+                    Cancel
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="mt-4">
@@ -108,22 +474,202 @@ function RideDetail() {
               </div>
             </div>
 
+            <div className="surface mt-4 p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                Route info
+              </h2>
+              <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                <div>
+                  <span className="flex items-center gap-1.5 text-xs uppercase tracking-widest text-muted-foreground">
+                    <Gauge className="size-3.5" />
+                    Difficulty
+                  </span>
+                  <ToggleGroup
+                    type="single"
+                    value={ride.difficulty ?? ""}
+                    onValueChange={(value) =>
+                      tagsMutation.mutate({ difficulty: (value as RideDifficulty) || null })
+                    }
+                    className="mt-2 flex-wrap justify-start"
+                  >
+                    {DIFFICULTY_OPTIONS.map((option) => (
+                      <ToggleGroupItem
+                        key={option.value}
+                        value={option.value}
+                        variant="outline"
+                        className={cn("px-3", option.toggleClass)}
+                      >
+                        {option.label}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </div>
+                <div>
+                  <span className="flex items-center gap-1.5 text-xs uppercase tracking-widest text-muted-foreground">
+                    <Layers className="size-3.5" />
+                    Surface
+                  </span>
+                  <ToggleGroup
+                    type="single"
+                    value={ride.surface ?? ""}
+                    onValueChange={(value) =>
+                      tagsMutation.mutate({ surface: (value as RideSurface) || null })
+                    }
+                    className="mt-2 flex-wrap justify-start"
+                  >
+                    {SURFACE_OPTIONS.map((option) => (
+                      <ToggleGroupItem
+                        key={option.value}
+                        value={option.value}
+                        variant="outline"
+                        className="px-3"
+                      >
+                        {option.label}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </div>
+              </div>
+            </div>
+
+            <div className="surface mt-4 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                  <ListChecks className="size-3.5" />
+                  Cue sheet
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {ride.source_filename && !hasNamedCues && cueSheet.length > 1 && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => recoverCuesMutation.mutate()}
+                      disabled={recoverCuesMutation.isPending}
+                    >
+                      {recoverCuesMutation.isPending ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Signpost className="size-4" />
+                      )}
+                      Recover street names
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCueSheetOpen(true)}
+                    disabled={cueSheet.length === 0}
+                  >
+                    View {cueSheet.length} step{cueSheet.length === 1 ? "" : "s"}
+                  </Button>
+                </div>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {hasNamedCues
+                  ? "Turn-by-turn directions with street names, kept from when this route was planned."
+                  : "Turn-by-turn directions detected from the route's shape — no street names available yet."}
+              </p>
+            </div>
+
+            <div className="surface mt-4 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                  <StickyNote className="size-3.5" />
+                  Notes
+                </h2>
+                <Button
+                  size="sm"
+                  variant={addingNote ? "default" : "secondary"}
+                  onClick={() => setAddingNote((value) => !value)}
+                >
+                  <MapPinPlus className="size-4" />
+                  {addingNote ? "Tap the map…" : "Add note"}
+                </Button>
+              </div>
+
+              {(ride.notes ?? []).length === 0 ? (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  No notes yet — mark water stops, viewpoints or hazards along the route.
+                </p>
+              ) : (
+                <ul className="mt-4 space-y-2">
+                  {(ride.notes ?? []).map((note) => (
+                    <li
+                      key={note.id}
+                      className="flex items-start gap-3 rounded-xl border border-border p-3"
+                    >
+                      <span className="font-mono text-xs font-semibold text-primary">
+                        {formatDistance(note.distanceM, metric)}
+                      </span>
+                      <p className="min-w-0 flex-1 text-sm">{note.text}</p>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+                        aria-label="Delete note"
+                        onClick={() => deleteNote(note.id)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </>
         )}
       </main>
+
+      <Dialog open={cueSheetOpen} onOpenChange={setCueSheetOpen}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cue sheet</DialogTitle>
+          </DialogHeader>
+          <CueSheet entries={cueSheet} metric={metric} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={pendingNote !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingNote(null);
+            setNoteText("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add a note</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            autoFocus
+            placeholder="e.g. Water fountain here, or watch for gravel"
+            value={noteText}
+            onChange={(event) => setNoteText(event.target.value)}
+            maxLength={280}
+          />
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setPendingNote(null);
+                setNoteText("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={saveNote} disabled={!noteText.trim() || notesMutation.isPending}>
+              Save note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function Stat({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Ruler;
-  label: string;
-  value: string;
-}) {
+function Stat({ icon: Icon, label, value }: { icon: typeof Ruler; label: string; value: string }) {
   return (
     <div className="surface p-4">
       <span className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">

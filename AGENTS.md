@@ -41,6 +41,13 @@ Dockerfile           # Self-hosted (node-server preset) build — see README.md
 docker-compose.yml   # "Self-hosting with Docker" in README.md
 cloudflared/
   config.yml.example # Template; real config.yml + *.json are gitignored
+android/             # Capacitor native Android project — see README.md
+  app/src/main/res/  # Generated icons/splash; source images are assets/*.png
+capacitor.config.ts  # server.url points the Android WebView at the deployed
+                      # site (see "Android app (Capacitor)" in README.md)
+www/                 # Placeholder webDir Capacitor requires to exist; never
+                      # actually shown since server.url is set
+assets/               # Source icon/splash images for `npx @capacitor/assets generate --android`
 ```
 
 ## Things worth knowing before touching certain areas
@@ -58,14 +65,18 @@ cloudflared/
   The production service worker is generated *after* `vite build` — see the
   comment in `vite.config.ts`'s `VitePWA(...)` call for why, and
   `docs/CODE_REVIEW.md` for the full story if it regresses.
-- **SEO metadata.** `src/lib/seo.ts` is the single source of truth for
-  titles, descriptions, OpenGraph/Twitter tags and canonical URLs — build a
-  route's `head` with `seoMeta()`/`canonicalLink()` rather than hand-writing
-  the twelve tags again. `/robots.txt` and `/sitemap.xml` are generated
-  routes (`src/routes/robots[.]txt.tsx`, `sitemap[.]xml.tsx`), not files in
-  `public/`, because their URLs must be absolute and the domain isn't known
-  at build time. A new public page needs an entry in the sitemap's `PAGES`;
-  a new signed-in page needs `robots: noindex`.
+- **SEO metadata is hardcoded to `hodora.app`.** Each public route's
+  `head()` (`src/routes/index.tsx`, `plan.tsx`, `explore.tsx`, `wind.tsx`)
+  sets a `TITLE`/`DESCRIPTION` pair plus a canonical `link` and `og:url`
+  pointing at `https://hodora.app/...`; the `og:image`/`twitter:image` URLs
+  and `og:site_name` in `src/routes/__root.tsx`, and every entry in
+  `public/sitemap.xml`, are hardcoded the same way rather than derived from
+  an env var — see "SEO defaults" in README.md if self-hosting under a
+  different domain. Private/per-user routes (`/auth`, `/reset-password`,
+  `/rides`, `/rides/$id`, `/share/$id`) set
+  `{ name: "robots", content: "noindex, follow" }` in their `head()` meta
+  instead of a canonical — follow that pattern for any new account-gated or
+  user-generated-content route rather than adding it to the sitemap.
 - **Row Level Security.** `rides` and `profiles` are both scoped to
   `auth.uid()` in `supabase/migrations/`. Any new table needs its own RLS
   policy before shipping — don't assume the client can be trusted to filter
@@ -80,6 +91,92 @@ cloudflared/
   automated tests yet — be extra careful with manual verification (a real
   GPX file, a few lat/lon pairs by hand) when touching `parseGpx`,
   `detectTurns`, or `snapToRoute`.
+- **OSM routing** (`src/lib/routing.ts`) is the shared client-side router
+  behind the `/plan` route planner, `src/lib/rejoin.ts` (off-route guidance
+  during navigation), and `src/lib/discover.ts` (Explore's loop generator).
+  It calls the public BRouter/OSRM servers directly from the browser — no
+  keys — and reads `VITE_BROUTER_URL` so self-hosters can point it at their
+  own BRouter instance instead (see `.env.example`). Add new routing
+  call sites on top of `fetchRoute`/`fetchOsrmRoute`/`fetchBrouterRoute`
+  rather than hitting those APIs directly, so the configurable URL and
+  fallback behavior stay in one place.
+- **Vector map style** (`src/lib/cycling-style.ts`) is only used when
+  `VITE_MAPTILER_KEY` is set (`src/components/RouteMap.tsx` falls back to
+  the CARTO raster basemap otherwise). Both light and dark layer sets are
+  baked into one style and toggled via layer `visibility`, not
+  `map.setStyle()` — a full style swap would tear down the route/waypoint
+  layers `RouteMap` adds on top and require re-adding them.
 - **Keep `docs/CODE_REVIEW.md` updated.** When you fix a bug found during a
   review pass, or find a new one, add it there rather than letting findings
   live only in chat history.
+- **Cloud sync (`src/lib/sync/`).** `cloud-sync-engine.server.ts` holds the
+  provider-agnostic lock/mapping/classify/execute logic behind a small
+  `RemoteAdapter` interface; `nextcloud-engine.server.ts`,
+  `google-drive-engine.server.ts`, and `onedrive-engine.server.ts` are thin
+  wrappers that build an adapter from their provider's REST client
+  (`nextcloud-webdav.server.ts`, `google-drive.server.ts`,
+  `onedrive.server.ts`) and call it. Nextcloud auth is a per-connection app
+  password; Google Drive/OneDrive are OAuth — `oauth-state.server.ts` signs
+  the `state` param carried through the authorize → provider → callback
+  redirect, since the callback is a plain browser navigation with no bearer
+  token, and the callback route uses `supabaseAdmin` (not
+  `authenticateRequest()`) to write the connection row as a result. Add a
+  new provider by writing its REST client + engine wrapper and a
+  `src/routes/api/cloud/<provider>/{authorize,callback,status,disconnect,sync}.tsx`
+  set mirroring the existing ones — the generic engine and `classify.ts`
+  shouldn't need to change.
+- **Android app.** `android/` (Capacitor) wraps the deployed site in a
+  WebView rather than bundling a local static build — account deletion and
+  cloud sync need `src/routes/api/`, which can't run offline in an APK. Don't
+  add code that assumes the Android app has a local server; `src/lib/native.ts`
+  is the one place native-vs-web branching happens (`Capacitor.isNativePlatform()`),
+  guarded so it's a no-op on the web build. See "Android app (Capacitor)" in
+  README.md.
+- **Safe-area insets.** Size against `var(--safe-area-inset-top)` (and
+  `-right`/`-bottom`/`-left`), never `env(safe-area-inset-*)` directly. The
+  Android WebView is laid out edge to edge and reports `env(...)` as `0` on
+  most WebView versions; Capacitor's built-in `SystemBars` plugin publishes
+  the real system-bar insets by writing those exact custom properties as
+  inline styles on `<html>`. `styles.css` seeds them from `env()` at `:root`
+  so the web and iOS keep working, and the inline styles win on Android. Use
+  `env()` and the app header ends up drawn on top of the status-bar clock.
+  For the same reason, don't call `StatusBar.setOverlaysWebView()` — it drives
+  the deprecated pre-Android-15 fullscreen flags and fights `SystemBars` for
+  control of the same layout.
+- **Phone navigation.** The header's section links are `hidden sm:inline-flex`,
+  so `MobileTabBar` (rendered by `AppHeader`, plus the landing page, which has
+  its own header) is the only way to reach them on a phone — and the native
+  shell has no browser chrome to fall back on. Its `data-mobile-tabbar`
+  attribute drives the body bottom-padding rule in `styles.css`; a page that
+  renders the bar gets that clearance automatically.
+- **Proximity alerts** (`findProximityAlert` in `src/lib/nav.ts`, wired into
+  `src/routes/rides.$id.nav.tsx`) run on the same foreground
+  `navigator.geolocation.watchPosition` stream every other location feature
+  in this app already uses — a deliberate decision, not an oversight, made so
+  this feature didn't have to wait on evaluating/adding a native
+  background-geolocation Capacitor plugin. Alerts only need to fire while
+  navigation is actively running (tab open, `useWakeLock` holding the screen
+  on), so there's no case that needs location tracking to continue once the
+  rider backgrounds the app or locks the screen. If a future feature actually
+  needs that (e.g. alerts with the app closed), that's a much bigger addition
+  — a foreground Android service, a persistent notification, battery-exemption
+  UX — and deserves its own design pass rather than retrofitting this one.
+- **Background navigation** (turn-by-turn guidance, rain alerts, voice
+  announcements, etc. continuing once the rider backgrounds the app or locks
+  the screen) is out of scope for the same reason as proximity alerts above,
+  and was deliberately not attempted as part of adding voice
+  announcements/rain alerts/ride recording — all of those still only run on
+  the foreground `watchPosition` stream. Every location-driven feature in
+  this app stops when the tab is backgrounded (mobile browsers throttle or
+  fully suspend JS timers/geolocation callbacks once hidden), which
+  `useWakeLock` only papers over by trying to keep the screen itself on.
+  Implementing real background navigation means the same native
+  foreground-service/persistent-notification/battery-exemption work called
+  out above, this time for a screen the rider actively expects to keep
+  guiding them with the phone in a pocket or the screen off — a native
+  Capacitor plugin (custom or e.g. `@capacitor-community/background-geolocation`),
+  new Android manifest permissions (`ACCESS_BACKGROUND_LOCATION`, a
+  foreground service type), and on-device testing this repo's automated
+  tooling can't do. Don't bolt a partial version of this onto the existing
+  web-only nav flow; it needs its own design pass and a real Android device
+  to validate against.

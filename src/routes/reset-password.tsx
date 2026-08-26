@@ -11,13 +11,13 @@ export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
       { title: "Reset password — Hodora" },
-      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content: "Choose a new password for your Hodora account and get back to your routes.",
       },
       { property: "og:title", content: "Reset password — Hodora" },
       { property: "og:description", content: "Choose a new password for your Hodora account." },
+      { name: "robots", content: "noindex, follow" },
     ],
   }),
   component: ResetPassword,

@@ -53,12 +53,15 @@ async function safe<T>(promise: Promise<T>, fallback: T): Promise<T> {
   }
 }
 
-/** Full ride records, saved for offline navigation. */
+/**
+ * Full ride records, saved for offline navigation. Deliberately *not*
+ * wrapped in `safe()` — callers (e.g. `OfflineSaveCard`) tell the rider
+ * their route is "saved for offline use" once this resolves, so a write
+ * failure (quota exceeded, private browsing, storage eviction) must
+ * propagate instead of being silently swallowed into a false success.
+ */
 export async function putOfflineRide(ride: Ride): Promise<void> {
-  await safe(
-    tx(RIDES, "readwrite", (store) => store.put({ ...ride, savedAt: Date.now() })),
-    undefined as unknown as IDBValidKey,
-  );
+  await tx(RIDES, "readwrite", (store) => store.put({ ...ride, savedAt: Date.now() }));
 }
 
 export async function getOfflineRide(id: string): Promise<Ride | null> {

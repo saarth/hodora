@@ -17,6 +17,11 @@ services:
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
         VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
         VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        # Optional — leave unset in .env for the zero-config defaults (public
+        # BRouter, CARTO raster basemap). See .env.example / README.md's
+        # "Route planning & map style" section.
+        VITE_BROUTER_URL: ${VITE_BROUTER_URL}
+        VITE_MAPTILER_KEY: ${VITE_MAPTILER_KEY}
     ports:
       - "3000:3000"
     environment:
@@ -26,6 +31,15 @@ services:
       # Bypasses RLS — runtime env var only, never a build arg (build args
       # can end up visible in image layer history).
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      # Optional — only needed for the "Connections" cloud-sync feature.
+      # Same never-a-build-arg rule applies. See .env.example.
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
+      # Optional — only needed for the Google Drive / OneDrive connections
+      # specifically (Nextcloud doesn't use these). See .env.example.
+      GOOGLE_DRIVE_CLIENT_ID: ${GOOGLE_DRIVE_CLIENT_ID}
+      GOOGLE_DRIVE_CLIENT_SECRET: ${GOOGLE_DRIVE_CLIENT_SECRET}
+      ONEDRIVE_CLIENT_ID: ${ONEDRIVE_CLIENT_ID}
+      ONEDRIVE_CLIENT_SECRET: ${ONEDRIVE_CLIENT_SECRET}
     restart: unless-stopped
 
   # Optional: runs the Cloudflare Tunnel alongside Hodora instead of as a
@@ -37,7 +51,11 @@ services:
   # whole service out if you're running cloudflared some other way (native
   # install, a separate Unraid container, etc.).
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    # Pinned, not `:latest` — this is the one component that terminates
+    # public internet traffic into the self-hosted deployment, so an
+    # unreviewed upstream update shouldn't be able to change its behavior
+    # silently. Bump deliberately: https://github.com/cloudflare/cloudflared/releases
+    image: cloudflare/cloudflared:2026.7.3
     command: tunnel run
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
