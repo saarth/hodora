@@ -1,19 +1,30 @@
 /**
  * Downloads basemap tiles covering a route into the same Cache Storage bucket
  * the service worker serves tiles from, so the map renders with no network.
+ *
+ * These are vector tiles, which changes the arithmetic from the raster
+ * basemap this replaced: one tile serves *both* the light and dark themes
+ * (the cycling style bakes both layer sets into one style), and the top
+ * zoom the providers publish is 14 — MapLibre overzooms from there, so
+ * there is nothing above z14 to fetch. That halves the URL count against
+ * the old two-raster-set approach even after dropping z15. Individual
+ * tiles are much larger though (~100KB against ~50KB for a raster PNG),
+ * hence the lower `MAX_TILES` cap.
  */
+import {
+  OPENFREEMAP_TILEJSON,
+  glyphUrlsForOffline,
+  staticTileTemplate,
+  tileUrlFrom,
+} from "./basemap";
 import type { RidePoint } from "./gpx";
 
 export const TILE_CACHE = "map-tiles";
-const ZOOMS = [11, 12, 13, 14, 15];
-const MAX_TILES = 6000;
+const ZOOMS = [11, 12, 13, 14];
+const MAX_TILES = 1500;
 
-const TILE_URLS = [
-  (z: number, x: number, y: number) =>
-    `https://basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}@2x.png`,
-  (z: number, x: number, y: number) =>
-    `https://basemaps.cartocdn.com/dark_all/${z}/${x}/${y}@2x.png`,
-];
+/** Rough average bytes per vector tile, for the size estimate the save UI shows. */
+export const APPROX_TILE_BYTES = 100 * 1024;
 
 function lonToX(lon: number, z: number) {
   return Math.floor(((lon + 180) / 360) * 2 ** z);
@@ -25,12 +36,17 @@ function latToY(lat: number, z: number) {
 }
 
 /**
- * Every tile URL a route would need, uncapped. Shared by `tileUrlsForRoute`
+ * Every `z/x/y` a route would need, uncapped. Shared by `tileKeysForRoute`
  * (which applies the `MAX_TILES` cap) and `isRouteTileSetTruncated` (which
  * needs to know whether that cap actually cut anything) so both agree on
  * exactly the same set instead of two independently-drifting computations.
+ *
+ * Deliberately returns keys rather than URLs: the count and the truncation
+ * check don't depend on which provider is serving tiles, which keeps them
+ * synchronous for render-time callers even though resolving a URL can
+ * require a network round trip (see `resolveTileTemplate`).
  */
-function allTileUrlsForRoute(points: RidePoint[]): string[] {
+function allTileKeysForRoute(points: RidePoint[]): string[] {
   const keys = new Set<string>();
 
   for (const zoom of ZOOMS) {
@@ -48,27 +64,86 @@ function allTileUrlsForRoute(points: RidePoint[]): string[] {
     for (const key of seen) keys.add(key);
   }
 
-  const urls: string[] = [];
-  for (const key of keys) {
+  return [...keys].filter((key) => {
     const [z, x, y] = key.split("/").map(Number);
-    if (x < 0 || y < 0 || x >= 2 ** z || y >= 2 ** z) continue;
-    for (const build of TILE_URLS) urls.push(build(z, x, y));
-  }
-  return urls;
+    return x >= 0 && y >= 0 && x < 2 ** z && y < 2 ** z;
+  });
 }
 
-/** Tile URLs (both light and dark basemaps) needed for a route, capped at `MAX_TILES`. */
-export function tileUrlsForRoute(points: RidePoint[]): string[] {
-  return allTileUrlsForRoute(points).slice(0, MAX_TILES);
+/** Tile keys needed for a route, capped at `MAX_TILES`. */
+export function tileKeysForRoute(points: RidePoint[]): string[] {
+  return allTileKeysForRoute(points).slice(0, MAX_TILES);
 }
 
 export function estimateTileCount(points: RidePoint[]): number {
-  return tileUrlsForRoute(points).length;
+  return tileKeysForRoute(points).length;
 }
 
-/** True when a route is long enough that `tileUrlsForRoute` had to cut tiles to stay under `MAX_TILES` — the offline map will have gaps outside whatever got queued. */
+/** True once a route needs more tiles than the `MAX_TILES` cap — the offline map will have gaps outside whatever got queued. */
 export function isRouteTileSetTruncated(points: RidePoint[]): boolean {
-  return allTileUrlsForRoute(points).length > MAX_TILES;
+  return allTileKeysForRoute(points).length > MAX_TILES;
+}
+
+/**
+ * The `{z}/{x}/{y}` template to fetch tiles from.
+ *
+ * MapTiler's is static. OpenFreeMap versions each planet build behind a
+ * dated path and only advertises the current one via its TileJSON, so that
+ * has to be fetched — and it has to be fetched *the same way* the live map
+ * gets it, or the URLs downloaded here would never match the ones MapLibre
+ * later asks for. The cached copy is consulted first so this still resolves
+ * with no network, which is exactly the situation `isRouteMapSaved` runs in
+ * when a rider opens a saved route offline.
+ *
+ * When OpenFreeMap publishes a new planet the template changes, previously
+ * downloaded tiles stop matching, and `isRouteMapSaved` correctly reports
+ * the route as no longer saved so the UI can offer a re-download.
+ */
+async function resolveTileTemplate(cache: Cache): Promise<string | null> {
+  if (staticTileTemplate) return staticTileTemplate;
+
+  const cached = await cache.match(OPENFREEMAP_TILEJSON);
+  if (cached) {
+    try {
+      const tiles = (await cached.clone().json())?.tiles;
+      if (Array.isArray(tiles) && tiles[0]) return tiles[0] as string;
+    } catch {
+      /* fall through to the network */
+    }
+  }
+
+  try {
+    const response = await fetch(OPENFREEMAP_TILEJSON, { mode: "cors", credentials: "omit" });
+    if (!response.ok) return null;
+    await cache.put(OPENFREEMAP_TILEJSON, response.clone());
+    const tiles = (await response.json())?.tiles;
+    return Array.isArray(tiles) && tiles[0] ? (tiles[0] as string) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Every URL a route needs offline: its vector tiles plus the glyphs labels are drawn from. */
+async function routeUrls(cache: Cache, points: RidePoint[]): Promise<string[]> {
+  const template = await resolveTileTemplate(cache);
+  if (!template) return [];
+  const tiles = tileKeysForRoute(points).map((key) => {
+    const [z, x, y] = key.split("/").map(Number);
+    return tileUrlFrom(template, z, x, y);
+  });
+  return [...tiles, ...glyphUrlsForOffline()];
+}
+
+/**
+ * Every URL a route needs offline. Async because resolving OpenFreeMap's
+ * versioned tile template can require fetching its TileJSON; use
+ * `estimateTileCount` / `isRouteTileSetTruncated` for the synchronous
+ * count and truncation checks that render-time callers need.
+ */
+export async function tileUrlsForRoute(points: RidePoint[]): Promise<string[]> {
+  if (typeof caches === "undefined") return [];
+  const cache = await caches.open(TILE_CACHE);
+  return routeUrls(cache, points);
 }
 
 /**
@@ -83,7 +158,7 @@ export async function isRouteMapSaved(points: RidePoint[]): Promise<boolean> {
   if (typeof caches === "undefined" || points.length === 0) return false;
   try {
     const cache = await caches.open(TILE_CACHE);
-    const urls = tileUrlsForRoute(points);
+    const urls = await routeUrls(cache, points);
     if (urls.length === 0) return false;
     const hits = await Promise.all(urls.map((url) => cache.match(url)));
     return hits.every(Boolean);
@@ -103,7 +178,12 @@ export async function downloadRouteTiles(
   if (typeof caches === "undefined") throw new Error("Offline maps aren't supported here");
 
   const cache = await caches.open(TILE_CACHE);
-  const urls = tileUrlsForRoute(points);
+  const urls = await routeUrls(cache, points);
+  // No template means the tile provider couldn't be reached at all, so
+  // there is nothing to download — report it as a total failure rather
+  // than a vacuous success over an empty URL list.
+  if (urls.length === 0) return { saved: 0, total: 0 };
+
   let done = 0;
   let saved = 0;
   const concurrency = 8;
@@ -151,7 +231,7 @@ export function describeTileSaveResult(
   saved: number,
   total: number,
 ): { ok: true; message: string } | { ok: false; message: string } {
-  if (saved >= total) {
+  if (total > 0 && saved >= total) {
     return { ok: true, message: "Route and maps saved for offline use" };
   }
   if (saved > 0) {
@@ -169,6 +249,9 @@ export function describeTileSaveResult(
 export async function removeRouteTiles(points: RidePoint[]): Promise<void> {
   if (typeof caches === "undefined") return;
   const cache = await caches.open(TILE_CACHE);
-  const urls = tileUrlsForRoute(points);
-  await Promise.all(urls.map((url) => cache.delete(url)));
+  const urls = await routeUrls(cache, points);
+  // The glyphs and the TileJSON are shared by every saved route, so only
+  // this route's own tiles come out.
+  const shared = new Set(glyphUrlsForOffline());
+  await Promise.all(urls.filter((url) => !shared.has(url)).map((url) => cache.delete(url)));
 }

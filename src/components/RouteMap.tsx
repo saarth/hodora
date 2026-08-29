@@ -8,11 +8,9 @@ import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { windSegmentsToGeoJSON, type WindSegment } from "@/lib/windScore";
 
-// Optional: set VITE_MAPTILER_KEY to swap the default raster CARTO basemap
-// for a custom cycling-focused vector style (see src/lib/cycling-style.ts).
-// Leaving it unset keeps the app's zero-config, self-hosting-friendly default.
-const maptilerKey = (import.meta.env.VITE_MAPTILER_KEY as string | undefined)?.trim();
-const useVectorBasemap = Boolean(maptilerKey);
+// The basemap is always the cycling vector style (src/lib/cycling-style.ts).
+// Which provider serves its tiles — keyless OpenFreeMap by default, MapTiler
+// when VITE_MAPTILER_KEY is set — is decided in src/lib/basemap.ts.
 
 type LivePosition = {
   lat: number;
@@ -65,11 +63,6 @@ type RouteMapProps = {
   /** nearby points of interest (cafes, water, bike shops, toilets) — tap a marker for its name */
   pois?: Poi[] | null;
 };
-
-const basemap = (theme: "light" | "dark") =>
-  theme === "dark"
-    ? "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
-    : "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png";
 
 function parsePercentOrNumber(value: string, hundredPercent: number): number {
   return value.endsWith("%") ? (parseFloat(value) / 100) * hundredPercent : Number(value);
@@ -319,21 +312,7 @@ export function RouteMap({
       const initialTheme = highContrast ? "dark" : theme;
       const map = new maplibre.Map({
         container: containerRef.current,
-        style: useVectorBasemap
-          ? buildCyclingStyle(initialTheme, maptilerKey!)
-          : {
-              version: 8,
-              sources: {
-                basemap: {
-                  type: "raster",
-                  tiles: [basemap(initialTheme)],
-                  tileSize: 256,
-                  attribution:
-                    '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
-                },
-              },
-              layers: [{ id: "basemap", type: "raster", source: "basemap" }],
-            },
+        style: buildCyclingStyle(initialTheme),
         center: [
           points[0]?.lon ?? initialCenter?.lon ?? 0,
           points[0]?.lat ?? initialCenter?.lat ?? 0,
@@ -408,18 +387,12 @@ export function RouteMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Swap basemap tiles/layers and re-resolve route/endpoint colors when the
-  // theme (or the nav-only high-contrast override) changes.
+  // Swap basemap layers and re-resolve route/endpoint colors when the theme
+  // (or the nav-only high-contrast override) changes.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
-    const effectiveTheme = highContrast ? "dark" : theme;
-    if (useVectorBasemap) {
-      setVectorBasemapTheme(map, effectiveTheme);
-    } else {
-      const source = map.getSource("basemap");
-      if (source?.setTiles) source.setTiles([basemap(effectiveTheme)]);
-    }
+    setVectorBasemapTheme(map, highContrast ? "dark" : theme);
     applyThemeColors(map, mapThemeColors());
   }, [theme, highContrast]);
 

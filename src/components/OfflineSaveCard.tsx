@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { getOfflineRide } from "@/lib/offline-db";
 import {
   describeTileSaveResult,
+  APPROX_TILE_BYTES,
   downloadRouteTiles,
   estimateTileCount,
   isRouteMapSaved,
@@ -43,7 +44,7 @@ export function OfflineSaveCard({ ride }: { ride: Ride }) {
 
   const saved = Boolean(status?.route && status?.tiles);
   const tileCount = estimateTileCount(ride.points);
-  const approxMb = Math.max(1, Math.round((tileCount * 22) / 1024));
+  const approxMb = Math.max(1, Math.round((tileCount * APPROX_TILE_BYTES) / 1024 / 1024));
   const truncated = isRouteTileSetTruncated(ride.points);
 
   async function handleSave() {

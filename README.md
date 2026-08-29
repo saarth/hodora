@@ -23,9 +23,9 @@ Hodora is a modern, open-source GPX bike navigation app built for club rides, sp
 - [TanStack Start](https://tanstack.com/start) — full-stack React framework
 - [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
 - [Tailwind CSS](https://tailwindcss.com/) — styling
-- [MapLibre GL](https://maplibre.org/) — maps, with a CARTO raster basemap by
-  default or an optional custom cycling-focused vector style (see
-  "Route planning & map style" below)
+- [MapLibre GL](https://maplibre.org/) — maps, drawn with a custom
+  cycling-focused vector style over keyless [OpenFreeMap](https://openfreemap.org/)
+  tiles by default (see "Route planning & map style" below)
 - [BRouter](https://brouter.de/) / [OSRM](https://routing.openstreetmap.de/) — OSM-based bike routing for route planning and on-route rejoin guidance
 - [Open-Meteo](https://open-meteo.com/) — free, no-key weather API for live conditions during navigation
 - [Supabase](https://supabase.com/) — auth, database, and storage
@@ -293,17 +293,27 @@ self-hosting your own BRouter instance (or a BRouter-compatible server), set
 `VITE_BROUTER_URL` to its base URL instead. It's a client-visible `VITE_`
 variable since routing requests are made straight from the rider's browser.
 
-**Map style** defaults to a raster basemap from CARTO (also free, no key).
-Set `VITE_MAPTILER_KEY` to switch to a custom, cycling-focused **vector**
-style instead (`src/lib/cycling-style.ts`) — dedicated cycleways get their
-own color, unpaved tracks/paths are dashed, inspired by
+**Map style** is a custom, cycling-focused **vector** style
+(`src/lib/cycling-style.ts`) — dedicated cycleways get their own color,
+unpaved tracks/paths are dashed, inspired by
 [CyclOSM](https://www.cyclosm.org/)'s visual language. (CyclOSM itself is a
 Mapnik/CartoCSS raster style with no vector equivalent, so this is a custom
-style built for MapLibre against [MapTiler](https://www.maptiler.com/)'s
-vector tiles, not a port.) Get a free API key at
-[cloud.maptiler.com](https://cloud.maptiler.com/account/keys/) — the free
-tier is generous enough for personal/small-group self-hosting. Leave it
-unset to keep the raster basemap.
+style built for MapLibre against OpenMapTiles-schema vector tiles, not a
+port.)
+
+Its tiles come from [OpenFreeMap](https://openfreemap.org/) by default —
+free, no signup, **no API key**, so the map works out of the box. Note that
+OpenFreeMap is donation-funded and offers no uptime guarantee, so if you're
+running an instance that needs an SLA, set `VITE_MAPTILER_KEY` to serve the
+same style from [MapTiler](https://www.maptiler.com/) instead (free key at
+[cloud.maptiler.com](https://cloud.maptiler.com/account/keys/); the free
+tier is generous enough for personal/small-group self-hosting). Only the
+tile host changes — the style itself is identical, since both providers
+serve the same OpenMapTiles schema.
+
+> Hodora used a CARTO raster basemap as its keyless default until CARTO
+> ended keyless access to `basemaps.cartocdn.com` and began stamping
+> "API KEY REQUIRED" across every tile served without one.
 
 ### SEO defaults
 

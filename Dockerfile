@@ -14,7 +14,7 @@ ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PROJECT_ID
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
 # Optional — route planning/map style. Leave unset for the zero-config
-# defaults (public BRouter, CARTO raster basemap). See .env.example.
+# defaults (public BRouter, keyless OpenFreeMap tiles). See .env.example.
 ARG VITE_BROUTER_URL
 ARG VITE_MAPTILER_KEY
 ENV VITE_SITE_URL=$VITE_SITE_URL \

@@ -102,9 +102,13 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   call sites on top of `fetchRoute`/`fetchOsrmRoute`/`fetchBrouterRoute`
   rather than hitting those APIs directly, so the configurable URL and
   fallback behavior stay in one place.
-- **Vector map style** (`src/lib/cycling-style.ts`) is only used when
-  `VITE_MAPTILER_KEY` is set (`src/components/RouteMap.tsx` falls back to
-  the CARTO raster basemap otherwise). Both light and dark layer sets are
+- **Vector map style** (`src/lib/cycling-style.ts`) is the only basemap.
+  Which provider serves its OpenMapTiles-schema tiles is decided in
+  `src/lib/basemap.ts` — keyless OpenFreeMap by default, MapTiler when
+  `VITE_MAPTILER_KEY` is set — and everything that needs to know where
+  tiles come from (the style, `src/lib/offline-tiles.ts`, the service
+  worker rules in `pwa-config.mjs`) goes through there rather than
+  hardcoding a host. Both light and dark layer sets are
   baked into one style and toggled via layer `visibility`, not
   `map.setStyle()` — a full style swap would tear down the route/waypoint
   layers `RouteMap` adds on top and require re-adding them.

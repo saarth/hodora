@@ -1,6 +1,8 @@
 /**
- * Custom cycling-focused MapLibre vector style, built against MapTiler's
- * OpenMapTiles-schema vector tiles. Inspired by CyclOSM's visual language
+ * Custom cycling-focused MapLibre vector style, built against
+ * OpenMapTiles-schema vector tiles (served by OpenFreeMap by default, or by
+ * MapTiler when VITE_MAPTILER_KEY is set — see `basemap.ts`, which owns the
+ * provider choice). Inspired by CyclOSM's visual language
  * (dedicated cycle infrastructure gets its own color, unpaved tracks/paths
  * are dashed, the base map stays muted) — not a port of CyclOSM itself,
  * since CyclOSM is a Mapnik/CartoCSS raster style and has no vector
@@ -18,10 +20,9 @@
  * `Map` instance itself.
  */
 
-export type MapTheme = "light" | "dark";
+import { glyphsUrl, vectorSource } from "./basemap";
 
-const ATTRIBUTION =
-  '© <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors';
+export type MapTheme = "light" | "dark";
 
 type Palette = {
   background: string;
@@ -466,17 +467,12 @@ function themeLayers(theme: MapTheme, visible: boolean): any[] {
 }
 
 /** Builds the full style: both themes' layers baked in, only one set visible. */
-export function buildCyclingStyle(theme: MapTheme, maptilerKey: string): any {
+export function buildCyclingStyle(theme: MapTheme): any {
   return {
     version: 8,
-    glyphs: `https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=${maptilerKey}`,
+    glyphs: glyphsUrl,
     sources: {
-      openmaptiles: {
-        type: "vector",
-        tiles: [`https://api.maptiler.com/tiles/v3/{z}/{x}/{y}.pbf?key=${maptilerKey}`],
-        maxzoom: 14,
-        attribution: ATTRIBUTION,
-      },
+      openmaptiles: vectorSource(),
     },
     layers: [...themeLayers("light", theme === "light"), ...themeLayers("dark", theme === "dark")],
   };
