@@ -40,12 +40,30 @@ export const workboxConfig = {
       },
     },
     {
-      // Basemap raster tiles — also filled by the explicit route download.
-      urlPattern: /^https:\/\/basemaps\.cartocdn\.com\/.*/i,
+      // Basemap vector tiles, glyphs (fonts) and the TileJSON the cycling
+      // style (src/lib/cycling-style.ts) requests — from OpenFreeMap by
+      // default, or MapTiler when VITE_MAPTILER_KEY is set. Both hosts are
+      // listed unconditionally: this file is build-time config and can't
+      // read the provider choice out of src/lib/basemap.ts.
+      //
+      // The cache name must stay in sync with `TILE_CACHE` in
+      // src/lib/offline-tiles.ts — the explicit "save for offline" download
+      // writes into this same bucket, and the service worker is what reads
+      // it back. (Vector pbfs are larger than the raster PNGs this
+      // replaced, but one tile now covers both light and dark themes and
+      // every zoom above 14, so a route needs far fewer of them.)
+      //
+      // CacheFirst on the TileJSON matters as well as on the tiles:
+      // OpenFreeMap versions each planet build behind a dated path, so
+      // pinning the TileJSON keeps the live map asking for the exact tile
+      // URLs the offline download already stored. When it does expire and
+      // a newer planet is published, `isRouteMapSaved` sees the mismatch
+      // and reports the route as needing a re-download.
+      urlPattern: /^https:\/\/(tiles\.openfreemap\.org|api\.maptiler\.com)\/.*/i,
       handler: "CacheFirst",
       options: {
         cacheName: "map-tiles",
-        expiration: { maxEntries: 12000, maxAgeSeconds: 60 * 60 * 24 * 120 },
+        expiration: { maxEntries: 20000, maxAgeSeconds: 60 * 60 * 24 * 120 },
         cacheableResponse: { statuses: [0, 200] },
       },
     },
@@ -55,21 +73,6 @@ export const workboxConfig = {
       options: {
         cacheName: "google-fonts",
         expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 365 },
-        cacheableResponse: { statuses: [0, 200] },
-      },
-    },
-    {
-      // MapTiler vector tiles, glyphs (fonts) and any sprite the cycling
-      // vector style (src/lib/cycling-style.ts) requests — only reached
-      // when VITE_MAPTILER_KEY is set. Vector tiles/pbfs are far smaller
-      // than the raster basemap's PNGs, so a much higher entry cap costs
-      // little; glyphs in particular are effectively static, hence the
-      // long max age.
-      urlPattern: /^https:\/\/api\.maptiler\.com\/.*/i,
-      handler: "CacheFirst",
-      options: {
-        cacheName: "maptiler-vector",
-        expiration: { maxEntries: 20000, maxAgeSeconds: 60 * 60 * 24 * 180 },
         cacheableResponse: { statuses: [0, 200] },
       },
     },

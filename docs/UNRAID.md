@@ -61,8 +61,9 @@ Keep these handy — you'll paste them in below.
    `SUPABASE_SERVICE_ROLE_KEY`. Save with `Ctrl+O`, `Enter`, then exit with
    `Ctrl+X`.
 
-   Optional: also set `VITE_MAPTILER_KEY` here if you want the custom
-   cycling-focused vector map style instead of the default raster basemap
+   Optional: also set `VITE_MAPTILER_KEY` here to serve the map style from
+   MapTiler instead of the default keyless OpenFreeMap tiles — worth doing if
+   you want an uptime guarantee
    (free key at [cloud.maptiler.com](https://cloud.maptiler.com/account/keys/)),
    and/or `VITE_BROUTER_URL` if you're running your own BRouter instance
    instead of the public one. See README.md's "Route planning & map style"
