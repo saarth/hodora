@@ -135,7 +135,7 @@ export function OfflineSaveCard({ ride }: { ride: Ride }) {
       {downloading && (
         <div className="mt-4">
           <Progress value={progress ?? 0} />
-          <p className="mt-2 font-mono text-xs text-muted-foreground">
+          <p className="mt-2 metric text-xs text-muted-foreground">
             {progress}% · downloading map tiles
           </p>
         </div>

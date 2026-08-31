@@ -342,7 +342,7 @@ function PlanPage() {
                 </p>
               ) : (
                 <>
-                  <p className="font-mono text-sm">
+                  <p className="metric text-sm">
                     {waypoints.length} point{waypoints.length === 1 ? "" : "s"}
                     {routed ? (
                       <>
@@ -392,7 +392,7 @@ function PlanPage() {
                     className="size-8 text-primary"
                   />
                   <div className="min-w-0">
-                    <p className="font-mono text-lg font-bold leading-none">
+                    <p className="metric text-lg font-bold leading-none">
                       {formatTemperature(departureHour.temperatureC, true)}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">

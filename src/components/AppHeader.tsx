@@ -72,7 +72,18 @@ export function AppHeader() {
 
   return (
     <>
-      <header className="sticky top-[var(--safe-area-inset-top)] z-30 border-b border-border bg-background/80 backdrop-blur-xl">
+      {/*
+       * `top-0` + a top safe-area *padding* (rather than `top-[inset]`) so the
+       * header box itself covers the status-bar strip: pinned, it paints all
+       * the way to the viewport edge instead of leaving a gap that scrolled
+       * page content shows through. `data-app-header` tells styles.css to drop
+       * the body's own top inset on pages that render this — the header owns
+       * it here, and doubling the two would push everything down twice.
+       */}
+      <header
+        data-app-header
+        className="sticky top-0 z-30 border-b border-border bg-background/80 pt-[var(--safe-area-inset-top)] backdrop-blur-xl"
+      >
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4">
           <div className="flex min-w-0 items-center gap-1">
             {/*

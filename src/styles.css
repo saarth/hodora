@@ -8,7 +8,7 @@
  * Hodora design system — racing green & parchment, rust/brass accents.
  * Brand construction: a blueprint-precise cursive "h" (see HodoraMark),
  * paired with a workshop type system — Space Grotesk for structure,
- * Fraunces italic for voice, IBM Plex Mono for spec/utility text.
+ * Fraunces italic for voice, Roboto Mono for metrics and spec/utility text.
  * All colors are oklch tokens. Never hardcode colors in components.
  */
 
@@ -24,7 +24,13 @@
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Fraunces", ui-serif, Georgia, serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  /*
+   * Metrics font. Deliberately a neutral grotesque mono: monospaced so digits
+   * stay column-aligned as values tick over, but without the slabs and
+   * typewriter quirks of a display mono, which read as decoration next to the
+   * numbers they're supposed to be getting out of the way of.
+   */
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, monospace;
 
   --color-rust: var(--brand-rust);
   --color-brass: var(--brand-brass);
@@ -289,6 +295,18 @@
   box-shadow: var(--shadow-card);
 }
 
+/*
+ * Numeric readouts — distances, speeds, elevation, scores. `tabular-nums` on
+ * top of the mono family covers the fallback stack too (a proportional system
+ * fallback would otherwise reflow the row on every digit change), and the
+ * slight negative tracking pulls mono's wide default spacing back in.
+ */
+@utility metric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
 @utility stat-figure {
   font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
@@ -392,6 +410,18 @@
  */
 body:has(nav[data-mobile-tabbar]) {
   padding-bottom: calc(var(--safe-area-inset-bottom) + 3.75rem);
+}
+
+/*
+ * Top safe-area clearance is the *header's* job on any page that renders one:
+ * body padding scrolls away with the content, so a sticky header pinned below
+ * it leaves a live strip of page content showing through under the status bar.
+ * AppHeader instead pins to the viewport edge and pads itself by the inset, so
+ * it paints that strip — which only works if the body stops reserving it too.
+ * Headerless full-bleed pages (landing, auth, nav) keep the body padding.
+ */
+body:has(header[data-app-header]) {
+  padding-top: 0;
 }
 
 @media (min-width: 40rem) {

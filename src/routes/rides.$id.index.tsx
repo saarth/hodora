@@ -598,7 +598,7 @@ function RideDetail() {
                       key={note.id}
                       className="flex items-start gap-3 rounded-xl border border-border p-3"
                     >
-                      <span className="font-mono text-xs font-semibold text-primary">
+                      <span className="metric text-xs font-semibold text-primary">
                         {formatDistance(note.distanceM, metric)}
                       </span>
                       <p className="min-w-0 flex-1 text-sm">{note.text}</p>
@@ -676,7 +676,7 @@ function Stat({ icon: Icon, label, value }: { icon: typeof Ruler; label: string;
         <Icon className="size-3.5" />
         {label}
       </span>
-      <p className="mt-2 font-mono text-2xl font-bold">{value}</p>
+      <p className="mt-2 metric text-2xl font-bold">{value}</p>
     </div>
   );
 }

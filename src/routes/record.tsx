@@ -347,7 +347,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate font-mono text-lg font-bold">{value}</p>
+      <p className="mt-1 truncate metric text-lg font-bold">{value}</p>
     </div>
   );
 }

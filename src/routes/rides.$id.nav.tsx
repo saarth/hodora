@@ -466,10 +466,10 @@ function NavigatePage() {
                 icon={weatherInfo(weather.weatherCode, weather.isDay).icon}
                 className="size-4 shrink-0 text-primary"
               />
-              <span className="font-mono font-semibold leading-none">
+              <span className="metric font-semibold leading-none">
                 {formatTemperature(weather.temperatureC, metric)}
               </span>
-              <span className="flex items-center gap-1 whitespace-nowrap font-mono leading-none text-muted-foreground">
+              <span className="flex items-center gap-1 whitespace-nowrap metric leading-none text-muted-foreground">
                 <Wind className="size-3.5 shrink-0" aria-hidden />
                 {formatWindSpeed(weather.windSpeedMs, metric)}{" "}
                 {compassAbbrev(weather.windDirectionDeg)}
@@ -775,7 +775,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate font-mono text-sm font-bold">{value}</p>
+      <p className="mt-1 truncate metric text-sm font-bold">{value}</p>
     </div>
   );
 }
