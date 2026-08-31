@@ -64,7 +64,7 @@ export function RouteCard({
             <p className="truncate font-semibold">{name}</p>
             {windScore !== null && <Badge variant="outline">{windScore}</Badge>}
           </div>
-          <p className="mt-1 flex items-center gap-1 font-mono text-xs text-muted-foreground">
+          <p className="mt-1 flex items-center gap-1 metric text-xs text-muted-foreground">
             <Ruler className="size-3" />
             {formatDistance(distanceM, metric)} · {formatElevation(elevationM, metric)}
           </p>

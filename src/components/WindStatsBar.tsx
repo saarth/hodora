@@ -184,9 +184,7 @@ function StatCell({
       {/* Fixed-height slot so the score cell (which has no icon) still lines its
           value and label up with the cells that do. */}
       <span className="flex h-4 items-center justify-center">{icon}</span>
-      <span
-        className={cn("w-full truncate font-mono text-lg font-bold leading-none", valueClassName)}
-      >
+      <span className={cn("w-full truncate metric text-lg font-bold leading-none", valueClassName)}>
         {value}
       </span>
       <span className="mt-auto w-full truncate text-[10px] uppercase leading-none tracking-wider text-muted-foreground sm:tracking-widest">
@@ -211,7 +209,7 @@ function DetailRow({
         <Icon className="size-3.5 shrink-0" />
         {label}
       </span>
-      <span className="min-w-0 text-right font-mono text-sm font-semibold">{value}</span>
+      <span className="min-w-0 text-right metric text-sm font-semibold">{value}</span>
     </div>
   );
 }
@@ -223,7 +221,7 @@ function ConditionsRow({ icon, label }: { icon: WeatherIconKey; label: string })
         <WeatherGlyph icon={icon} className="size-3.5 shrink-0" />
         Conditions
       </span>
-      <span className="min-w-0 text-right font-mono text-sm font-semibold">{label}</span>
+      <span className="min-w-0 text-right metric text-sm font-semibold">{label}</span>
     </div>
   );
 }

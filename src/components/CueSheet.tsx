@@ -70,7 +70,7 @@ export function CueSheet({
             </span>
             <span className="min-w-0 flex-1 truncate">{entry.text}</span>
             {index > 0 && (
-              <span className="shrink-0 font-mono text-xs text-muted-foreground">
+              <span className="shrink-0 metric text-xs text-muted-foreground">
                 {formatDistance(entry.legM, metric)}
               </span>
             )}

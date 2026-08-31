@@ -290,7 +290,7 @@ function ExplorePage() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{route.name}</span>
-                        <span className="mt-1 block font-mono text-xs text-muted-foreground">
+                        <span className="mt-1 block metric text-xs text-muted-foreground">
                           {formatDistance(route.distanceM)}
                           {route.ascentM > 0
                             ? ` · ${formatElevation(route.ascentM)} up`

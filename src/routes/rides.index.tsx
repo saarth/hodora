@@ -402,7 +402,7 @@ function RidesPage() {
                   {ride.difficulty && <DifficultyBadge value={ride.difficulty} />}
                 </span>
 
-                <p className="mt-1 font-mono text-xs text-muted-foreground">
+                <p className="mt-1 metric text-xs text-muted-foreground">
                   {formatDistance(ride.distance_m, metric)} ·{" "}
                   {formatElevation(ride.ascent_m, metric)} up ·{" "}
                   {new Date(ride.created_at).toLocaleDateString()}
