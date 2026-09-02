@@ -6,6 +6,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       className="toaster group"
+      /*
+       * Toasts are `fixed`, so the body's safe-area padding never applied to
+       * them and a top-positioned toast landed under the status bar in the
+       * native shell. Sonner's own defaults (24px desktop, 16px mobile) are
+       * kept and the inset is added on top; omitted sides keep their defaults.
+       */
+      offset={{ top: "calc(24px + var(--safe-area-inset-top))" }}
+      mobileOffset={{ top: "calc(16px + var(--safe-area-inset-top))" }}
       toastOptions={{
         classNames: {
           toast:
