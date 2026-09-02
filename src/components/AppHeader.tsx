@@ -84,7 +84,19 @@ export function AppHeader() {
         data-app-header
         className="sticky top-0 z-30 border-b border-border bg-background/80 pt-[var(--safe-area-inset-top)] backdrop-blur-xl"
       >
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4">
+        {/*
+         * The bar itself stays translucent — content blurring past under it is
+         * the intended effect — but the status-bar strip above it does not:
+         * behind the clock and signal icons, 80% opacity still ghosts whatever
+         * is scrolling underneath. This paints that strip alone opaque. Zero
+         * height (so invisible) wherever there's no top inset, i.e. the web.
+         */}
+        <div
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-[var(--safe-area-inset-top)] bg-background"
+        />
+
+        <div className="relative mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4">
           <div className="flex min-w-0 items-center gap-1">
             {/*
              * There is no browser chrome in the native shell and no visible
