@@ -213,20 +213,57 @@ function BikeNavigationAppPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-6 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Riding with a group? See how it handles{" "}
-            <Link to="/club-rides" className="underline underline-offset-2 hover:text-foreground">
-              bike navigation for club rides
-            </Link>
-            . Just want to track the ride? Hodora also works as a{" "}
-            <Link
-              to="/gps-cycling-app"
-              className="underline underline-offset-2 hover:text-foreground"
-            >
-              free GPS app for cycling
-            </Link>
-            .
-          </p>
+          <div className="mt-6 max-w-2xl space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              Each of those has a page of its own:{" "}
+              <Link
+                to="/turn-by-turn-navigation"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                turn-by-turn navigation
+              </Link>
+              ,{" "}
+              <Link
+                to="/offline-navigation"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                offline navigation
+              </Link>
+              ,{" "}
+              <Link
+                to="/elevation-tracking"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                elevation tracking
+              </Link>{" "}
+              and{" "}
+              <Link to="/gpx-routes" className="underline underline-offset-2 hover:text-foreground">
+                GPX route management
+              </Link>
+              .
+            </p>
+            <p>
+              Weighing it against a head unit? Read the{" "}
+              <Link
+                to="/bike-computer-alternative"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                bike computer alternative
+              </Link>{" "}
+              comparison. Riding with a group? See{" "}
+              <Link to="/club-rides" className="underline underline-offset-2 hover:text-foreground">
+                bike navigation for club rides
+              </Link>
+              . Just want to track the ride? Hodora also works as a{" "}
+              <Link
+                to="/gps-cycling-app"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                free GPS app for cycling
+              </Link>
+              .
+            </p>
+          </div>
         </section>
 
         <FaqSection heading="Bike navigation app FAQ" items={FAQS} />

@@ -58,9 +58,20 @@ export const Route = createFileRoute("/llms.txt")({
 - GPX import from Komoot, Strava, Ride with GPS, Garmin Connect or any other
   source that exports standard GPX.
 - Turn-by-turn navigation: distance to the next turn, turn prompts, current
-  grade, full cue sheet, optional spoken announcements.
+  grade, full cue sheet, optional spoken announcements. Turns come from router
+  step data (with street names) on routes planned in-app, or are detected from
+  the track's own geometry for an imported GPX.
 - Off-route alerts with routed rejoin guidance back to the course.
-- Offline maps and offline route storage.
+- Elevation: profile per route, total ascent/descent (smoothed, with a 0.5 m
+  noise threshold), live average grade over the next 200 m, and climbing
+  remaining while navigating.
+- Offline maps and offline route storage: the route corridor's map tiles and
+  the route itself are saved on the device, so navigation, the cue sheet and
+  the elevation profile work in airplane mode. Live weather, place search and
+  routed rejoin guidance are the parts that still need a connection.
+- GPX route management: import from any planner, a searchable library with
+  difficulty/surface tags and offline/recorded filters, share links that offer
+  a GPX download, and optional sync to Nextcloud, Google Drive or OneDrive.
 - Bike route planner with elevation profile and departure-time weather.
 - Live weather during navigation, including a headwind/tailwind call-out and a
   warning before rain arrives.
@@ -76,6 +87,20 @@ export const Route = createFileRoute("/llms.txt")({
   steps, and why a phone works in place of a bike computer.
 - [Bike navigation app](${SITE_URL}/bike-navigation-app): what to look for in a
   bike navigation app and how Hodora meets each criterion.
+- [Turn-by-turn navigation](${SITE_URL}/turn-by-turn-navigation): what is on
+  screen while riding, how turn instructions are derived from a plain GPX, and
+  how off-route alerts and rejoin guidance work.
+- [Offline navigation](${SITE_URL}/offline-navigation): how offline maps and
+  offline routes are stored, and precisely what does and does not work without
+  a mobile signal.
+- [Bike computer alternative](${SITE_URL}/bike-computer-alternative): honest
+  comparison of a phone against a dedicated head unit, in both directions, plus
+  how to set a phone up for the bars.
+- [GPX route management](${SITE_URL}/gpx-routes): importing, viewing, tagging,
+  searching, sharing and exporting GPX routes, and where they are stored.
+- [Elevation tracking](${SITE_URL}/elevation-tracking): elevation profile,
+  total ascent, live gradient, and how elevation gain is smoothed and
+  thresholded so GPS noise doesn't inflate it.
 - [Bike navigation for club rides](${SITE_URL}/club-rides): step-by-step guide
   for riders following a club or event GPX, plus guidance for ride leaders.
 - [Free GPS app for cycling](${SITE_URL}/gps-cycling-app): ride recording,

@@ -10,7 +10,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FaqSection } from "@/components/FaqSection";
-import { AndroidIcon, ANDROID_RELEASES_URL, MarketingLayout } from "@/components/MarketingLayout";
+import {
+  AndroidIcon,
+  ANDROID_RELEASES_URL,
+  GUIDES,
+  MarketingLayout,
+} from "@/components/MarketingLayout";
 import { useUser } from "@/hooks/use-user";
 import { absoluteUrl, appJsonLd, canonicalLink, faqJsonLd, type FaqItem } from "@/lib/seo";
 
@@ -307,6 +312,28 @@ function Landing() {
             from OpenStreetMap, or generate a loop ride of any distance to discover new roads.
           </p>
         </div>
+      </section>
+
+      <section className="mt-20" aria-labelledby="guides">
+        <h2 id="guides" className="text-2xl font-bold sm:text-3xl">
+          Guides
+        </h2>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Longer answers on the parts riders ask about most.
+        </p>
+        <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {GUIDES.map((guide) => (
+            <li key={guide.to}>
+              <Link
+                to={guide.to}
+                className="surface flex h-full items-center justify-between gap-3 p-4 text-sm font-semibold transition-colors hover:text-primary"
+              >
+                {guide.label}
+                <ArrowRight className="size-4 shrink-0 text-rust" />
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <FaqSection heading="Bike navigation questions, answered" items={FAQS} />

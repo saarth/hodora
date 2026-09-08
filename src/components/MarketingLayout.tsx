@@ -51,6 +51,24 @@ function MarketingNav() {
 }
 
 /**
+ * The indexable topic pages, in one list.
+ *
+ * Exported because the landing page renders the same set as a visible section:
+ * a guide reachable only from a footer is one click deeper than it needs to be,
+ * and this way adding a page updates both places at once.
+ */
+export const GUIDES = [
+  { to: "/bike-navigation-app", label: "Bike navigation app" },
+  { to: "/turn-by-turn-navigation", label: "Turn-by-turn navigation" },
+  { to: "/offline-navigation", label: "Offline navigation" },
+  { to: "/bike-computer-alternative", label: "Bike computer alternative" },
+  { to: "/gpx-routes", label: "GPX route management" },
+  { to: "/elevation-tracking", label: "Elevation tracking" },
+  { to: "/club-rides", label: "Navigation for club rides" },
+  { to: "/gps-cycling-app", label: "Free GPS app for cycling" },
+] as const;
+
+/**
  * Site-wide internal linking, in one place.
  *
  * Every marketing page carries the same footer so the topic pages
@@ -93,23 +111,15 @@ function MarketingFooter() {
           </ul>
         </div>
         <div>
-          <h2 className="text-sm font-bold">Learn more</h2>
+          <h2 className="text-sm font-bold">Guides</h2>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            <li>
-              <Link to="/bike-navigation-app" className="hover:text-foreground">
-                Bike navigation app
-              </Link>
-            </li>
-            <li>
-              <Link to="/club-rides" className="hover:text-foreground">
-                Navigation for club rides
-              </Link>
-            </li>
-            <li>
-              <Link to="/gps-cycling-app" className="hover:text-foreground">
-                Free GPS app for cycling
-              </Link>
-            </li>
+            {GUIDES.map((guide) => (
+              <li key={guide.to}>
+                <Link to={guide.to} className="hover:text-foreground">
+                  {guide.label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
         <div>

@@ -88,7 +88,7 @@ const FAQS: FaqItem[] = [
   {
     question: "Can I export the rides I record?",
     answer:
-      "Yes. Recorded rides are saved as routes in your library, and can be exported as GPX to use in any other tool, uploaded to a training platform, or shared with the riders you were out with.",
+      "Yes. Recorded rides are saved as routes in your library, and creating a share link for one gives you a page that offers the track as a standard GPX download — to hand to the riders you were out with, load onto a head unit, or take into any other tool.",
   },
 ];
 
