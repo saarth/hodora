@@ -84,26 +84,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "Hodora — GPX navigation for club rides & bike events" },
+      { title: "Hodora — Free bike navigation app for club rides" },
       {
         name: "description",
         content:
-          "Free GPX bike navigation for club rides and cycling events. No dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
+          "Free bike navigation app and GPS for cycling. Import a club-ride GPX and follow it turn by turn — no bike computer, no subscription, offline maps included.",
       },
-      { property: "og:title", content: "Hodora — GPX navigation for club rides & bike events" },
+      { property: "og:title", content: "Hodora — Free bike navigation app for club rides" },
       {
         property: "og:description",
         content:
-          "Free GPX bike navigation for club rides and cycling events. No dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
+          "Free bike navigation app and GPS for cycling. Import a club-ride GPX and follow it turn by turn — no bike computer, no subscription, offline maps included.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Hodora" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Hodora — GPX navigation for club rides & bike events" },
+      { name: "twitter:title", content: "Hodora — Free bike navigation app for club rides" },
       {
         name: "twitter:description",
         content:
-          "Free GPX bike navigation for club rides and cycling events. No dedicated bike computer, no subscription. Live turn-by-turn navigation and off-route alerts.",
+          "Free bike navigation app and GPS for cycling. Import a club-ride GPX and follow it turn by turn — no bike computer, no subscription, offline maps included.",
       },
       { property: "og:image", content: absoluteUrl("/og-image.png") },
       { name: "twitter:image", content: absoluteUrl("/og-image.png") },

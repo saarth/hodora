@@ -1,35 +1,81 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Compass, Mountain, Upload } from "lucide-react";
+import {
+  ArrowRight,
+  BatteryCharging,
+  Compass,
+  DollarSign,
+  Mountain,
+  Upload,
+  WifiOff,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FaqSection } from "@/components/FaqSection";
+import { AndroidIcon, ANDROID_RELEASES_URL, MarketingLayout } from "@/components/MarketingLayout";
 import { useUser } from "@/hooks/use-user";
-import { useTheme } from "@/lib/theme";
-import { HodoraLogo } from "@/components/HodoraLogo";
-import { MobileTabBar } from "@/components/MobileTabBar";
-import { Moon, Sun } from "lucide-react";
-import { absoluteUrl, canonicalLink } from "@/lib/seo";
+import { absoluteUrl, appJsonLd, canonicalLink, faqJsonLd, type FaqItem } from "@/lib/seo";
 
-const GITHUB_URL = "https://github.com/saarth/hodora";
-const ANDROID_RELEASES_URL = `${GITHUB_URL}/releases`;
-
-function GithubIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M12 .5C5.73.5.5 5.73.5 12c0 5.09 3.29 9.4 7.86 10.93.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.17.08 1.78 1.2 1.78 1.2 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.68 0-1.25.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.8 1.19 1.83 1.19 3.08 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.07.78 2.15 0 1.55-.01 2.8-.01 3.18 0 .3.2.66.79.55A10.52 10.52 0 0 0 23.5 12c0-6.27-5.23-11.5-11.5-11.5Z" />
-    </svg>
-  );
-}
-
-function AndroidIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M17.6 9.48l1.84-3.18a.42.42 0 00-.15-.57.42.42 0 00-.57.15l-1.86 3.22a11.5 11.5 0 00-9.72 0L5.28 5.88a.42.42 0 00-.57-.15.42.42 0 00-.15.57L6.4 9.48C3.94 11.02 2.28 13.6 2 16.6h20c-.28-3-1.94-5.58-4.4-7.12zM7 14.4a1.2 1.2 0 110-2.4 1.2 1.2 0 010 2.4zm10 0a1.2 1.2 0 110-2.4 1.2 1.2 0 010 2.4z" />
-    </svg>
-  );
-}
-
-const TITLE = "Hodora — Free GPX Navigation for Club Rides & Bike Events";
+const TITLE = "Free Bike Navigation App for Club Rides & GPX Routes | Hodora";
 const DESCRIPTION =
-  "Free GPX bike navigation for club rides and cycling events. No dedicated bike computer, no subscription. Import routes, plan them on the map, and ride turn-by-turn, even offline.";
+  "A free bike navigation app and GPS for cycling. Import a club-ride GPX, plan a route on the map, and follow turn-by-turn directions offline — no bike computer, no subscription.";
+
+const FEATURES = [
+  "GPX bike navigation",
+  "Turn-by-turn cycling directions with voice announcements",
+  "Off-route alerts and automatic rejoin guidance",
+  "Bike route planner over OpenStreetMap roads and paths",
+  "GPS ride recording — distance, speed, elevation gain",
+  "Offline maps and routes",
+  "Live weather, headwind and rain alerts",
+  "Free and open source — no subscription, no ads, no tracking",
+];
+
+/**
+ * Answers written to stand on their own out of context: an LLM quoting one of
+ * these in a "best bike navigation app" answer will lift the sentence, not the
+ * page around it, so each one names Hodora and what it actually does.
+ */
+const FAQS: FaqItem[] = [
+  {
+    question: "What is the best bike navigation app for club rides?",
+    answer:
+      "The one that opens the file your ride leader actually sends. Club rides, sportives and gran fondos are shared as a GPX file, so the practical test for a bike navigation app is whether you can import that GPX in a few seconds and follow it turn by turn without a subscription. Hodora is built for exactly that case: import the organiser's GPX, save it for offline use before you leave, and ride it with turn prompts, a cue sheet and off-route alerts.",
+  },
+  {
+    question: "Is there a free GPS app for cycling?",
+    answer:
+      "Yes. Hodora is a free, open-source GPS app for cycling with no subscription tier and no paid unlock — turn-by-turn navigation, offline maps, route planning and ride recording are all included. It runs in your phone's browser or as an installable app, and the source is on GitHub under the MIT licence.",
+  },
+  {
+    question: "Do I need a bike computer to navigate a route?",
+    answer:
+      "No. A modern phone has the same GPS receiver, a far better screen and a bigger battery than most entry-level head units. Hodora turns that phone into a bike navigation device: mount it on the bars, load the route, and it gives you distance to the next turn, the grade of the climb ahead and an alert the moment you drift off course.",
+  },
+  {
+    question: "Does bike navigation work offline?",
+    answer:
+      "Yes. Save a route for offline use before you set off and Hodora stores the GPX and the map tiles around it on your device. Navigation, the elevation profile and the cue sheet all keep working with no signal, which matters on the parts of a club run where coverage disappears.",
+  },
+  {
+    question: "Which route planners can I import GPX files from?",
+    answer:
+      "Any of them. Hodora reads standard GPX tracks and routes, so files exported from Komoot, Strava, Ride with GPS, Garmin Connect, Cycle.travel or a club's own website all work the same way. You can also plan a route inside Hodora and skip the export step.",
+  },
+  {
+    question: "Does it use my phone's battery quickly?",
+    answer:
+      "Navigation uses GPS continuously, which costs battery on any cycling GPS app. Hodora has a low-power mode that dims the map, reduces redraws and keeps the essentials on screen for long rides, and because routes and tiles can be stored offline it isn't spending power on mobile data the whole way round.",
+  },
+  {
+    question: "Do I need an account to use it?",
+    answer:
+      "No. You can import a GPX and start navigating without signing up — routes are stored on your device. An account only exists so your routes sync between your phone, tablet and desktop, and you can optionally sync them to your own Nextcloud, Google Drive or OneDrive instead.",
+  },
+  {
+    question: "Is Hodora available on Android and iPhone?",
+    answer:
+      "Both. There is an Android app you can install from GitHub Releases, and on iPhone or any other device you can add the web app to your home screen as a PWA, which gives you the same offline-capable app without an app store.",
+  },
+];
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,25 +86,13 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: DESCRIPTION },
       { property: "og:url", content: absoluteUrl("/") },
       {
-        "script:ld+json": {
-          "@context": "https://schema.org",
-          "@type": "WebApplication",
-          name: "Hodora",
-          url: absoluteUrl("/"),
+        "script:ld+json": appJsonLd({
+          path: "/",
           description: DESCRIPTION,
-          applicationCategory: "TravelApplication",
-          operatingSystem: "Web, Android",
-          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-          featureList: [
-            "GPX viewer",
-            "Bike route planner",
-            "Cycle route planner",
-            "Turn-by-turn navigation",
-            "Offline maps and routes",
-            "No dedicated bike computer or subscription required",
-          ],
-        },
+          featureList: FEATURES,
+        }),
       },
+      { "script:ld+json": faqJsonLd(FAQS) },
     ],
     links: canonicalLink("/"),
   }),
@@ -69,155 +103,213 @@ const features = [
   {
     icon: Upload,
     title: "Drop in a GPX",
-    body: "Import the route your club or event organiser sent, whether it's from Komoot, Strava or RideWithGPS. It parses on your phone in a second.",
+    body: "Import the route your club or event organiser sent, whether it came from Komoot, Strava, Ride with GPS or Garmin. It parses on your phone in a second — no upload, no account.",
   },
   {
     icon: Mountain,
     title: "Know the climb",
-    body: "Elevation profile, total ascent and descent, and the grade of what's coming next.",
+    body: "Elevation profile, total ascent and descent, and the grade of what's coming next, so you know whether to save something for the last 10 km.",
   },
   {
     icon: Compass,
     title: "Turn-by-turn",
-    body: "Live GPS following with turn prompts, distance to go, and an alert the moment you drift off route. It does everything a bike computer does, for free.",
+    body: "Live GPS following with spoken turn prompts, distance to go and an alert the moment you drift off route. Everything a bike computer does, for free.",
+  },
+];
+
+const STEPS = [
+  {
+    title: "Get the GPX",
+    body: "Download the file your ride leader, club or event organiser sent — from an email, a WhatsApp group or the event website.",
+  },
+  {
+    title: "Import it",
+    body: "Open Hodora and drop the file in. You get the route on a cycling map with distance, climbing and an elevation profile straight away.",
+  },
+  {
+    title: "Save it offline",
+    body: "Tap save-for-offline the night before. The route and the map around it live on your phone, so a dead zone mid-ride doesn't cost you the navigation.",
+  },
+  {
+    title: "Ride it",
+    body: "Start navigation at the meeting point and follow turn prompts, the cue sheet and off-route alerts all the way round.",
+  },
+];
+
+const ADVANTAGES = [
+  {
+    icon: DollarSign,
+    title: "No hardware, no subscription",
+    body: "A head unit plus a routing subscription is a few hundred up front and a renewal every year. Hodora is free and open source, and the phone is already in your jersey pocket.",
+  },
+  {
+    icon: WifiOff,
+    title: "Works without signal",
+    body: "Routes and map tiles are stored on the device, so navigation carries on through valleys, forests and the parts of the club run where the bars disappear.",
+  },
+  {
+    icon: BatteryCharging,
+    title: "Built for long days",
+    body: "Low-power mode trims the map and the redraws for all-day rides, and light and dark themes keep the screen readable in bright sun and at dusk.",
   },
 ];
 
 function Landing() {
-  const { user, loading } = useUser();
-  const { theme, toggle } = useTheme();
+  const { user } = useUser();
 
   return (
-    <main className="hero-surface min-h-screen">
-      {/* The landing page is the tab bar's Home destination, so it carries
-          one too — otherwise the bar vanishes the moment you tap Home. */}
-      <MobileTabBar />
-      <div className="mx-auto w-full max-w-6xl px-5 pb-24">
-        <nav className="flex h-20 items-center justify-between">
-          <HodoraLogo textClassName="text-xl font-extrabold" />
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
-              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            </Button>
-            {!loading && (
-              <Button asChild variant={user ? "default" : "secondary"}>
-                <Link to={user ? "/rides" : "/auth"}>{user ? "My rides" : "Sign in"}</Link>
-              </Button>
-            )}
-          </div>
-        </nav>
+    <MarketingLayout>
+      <section className="pt-16 sm:pt-24">
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-rust">
+          Bike navigation app &middot; Cycling GPS &middot; Free &amp; open source
+        </p>
+        <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[1.05] sm:text-6xl">
+          Free bike navigation,{" "}
+          <span className="font-serif font-normal italic text-rust">built for club rides</span>.
+        </h1>
+        <p className="mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg">
+          Hodora is a free GPS app for cycling that turns your phone into a bike computer. Drop in
+          the GPX for your club ride, sportive or next event and follow it with turn-by-turn
+          directions — offline if you need to, with no bike computer to buy and no subscription to
+          pay for.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <Button asChild size="lg" className="glow-ring">
+            <Link to="/rides">
+              <span className="sm:hidden">{user ? "Open my rides" : "Start riding"}</span>
+              <span className="hidden sm:inline">
+                {user ? "Open my rides" : "Start riding — no account needed"}
+              </span>
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="secondary">
+            <Link to="/explore">Explore routes near me</Link>
+          </Button>
+          <Button asChild size="lg" variant="outline">
+            <a href={ANDROID_RELEASES_URL} target="_blank" rel="noreferrer">
+              <AndroidIcon className="size-4" />
+              Get the Android app
+            </a>
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {user
+              ? "Your rides stay private."
+              : "Sign in later to sync your routes across devices."}
+          </span>
+        </div>
+      </section>
 
-        <section className="pt-16 sm:pt-24">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-rust">
-            For club rides &amp; bike events
-          </p>
-          <h1 className="mt-5 max-w-2xl text-4xl font-extrabold leading-[1.05] sm:text-6xl">
-            Your club ride,{" "}
-            <span className="font-serif font-normal italic text-rust">navigated properly</span>.
-          </h1>
-          <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
-            Drop in the GPX for your club ride or next event and follow it with turn-by-turn
-            directions on your phone. No bike computer to buy, no subscription to pay for, and it's
-            free and open source.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button asChild size="lg" className="glow-ring">
-              <Link to="/rides">
-                <span className="sm:hidden">{user ? "Open my rides" : "Start riding"}</span>
-                <span className="hidden sm:inline">
-                  {user ? "Open my rides" : "Start riding — no account needed"}
-                </span>
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="secondary">
-              <Link to="/explore">Explore routes near me</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <a href={ANDROID_RELEASES_URL} target="_blank" rel="noreferrer">
-                <AndroidIcon className="size-4" />
-                Get the Android app
-              </a>
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              {user
-                ? "Your rides stay private."
-                : "Sign in later to sync your routes across devices."}
-            </span>
-          </div>
-        </section>
-
-        <section className="mt-20 grid gap-4 sm:grid-cols-3">
+      <section className="mt-20" aria-labelledby="what-it-does">
+        <h2 id="what-it-does" className="sr-only">
+          What Hodora does
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
           {features.map((feature) => (
             <article key={feature.title} className="surface p-6">
               <feature.icon className="size-5 text-primary" />
-              <h2 className="mt-4 text-base font-bold">{feature.title}</h2>
+              <h3 className="mt-4 text-base font-bold">{feature.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{feature.body}</p>
             </article>
           ))}
-        </section>
+        </div>
+      </section>
 
-        <section className="mt-20 grid gap-8 sm:grid-cols-3">
-          <div>
-            <h2 className="text-lg font-bold">A free GPX viewer, built for club rides</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Import the organiser's GPX for your next club ride, sportive or event, and Hodora
-              shows you the route on an interactive map, with distance, elevation and total climbing
-              at a glance. No bike computer required.
-            </p>
-          </div>
-          <div>
-            <h2 className="text-lg font-bold">
-              <Link to="/plan" className="hover:text-primary">
-                Bike route planner
-              </Link>
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Tap the map to{" "}
-              <Link to="/plan" className="underline underline-offset-2 hover:text-primary">
-                plan a cycle route
-              </Link>
-              , routed over real roads and paths with OpenStreetMap data, then save it and ride it
-              turn by turn.
-            </p>
-          </div>
-          <div>
-            <h2 className="text-lg font-bold">
-              <Link to="/explore" className="hover:text-primary">
-                Cycle routes near you
-              </Link>
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              <Link to="/explore" className="underline underline-offset-2 hover:text-primary">
-                Explore bike trails and mountain bike routes near me
-              </Link>{" "}
-              from OpenStreetMap, or generate a loop ride of any distance to discover new roads.
-            </p>
-          </div>
-        </section>
+      <section className="mt-20" aria-labelledby="how-it-works">
+        <h2 id="how-it-works" className="text-2xl font-bold sm:text-3xl">
+          How to navigate a club ride GPX on your phone
+        </h2>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Four steps, and the only thing you need is the file the organiser already sent you.
+        </p>
+        <ol className="mt-8 grid gap-4 sm:grid-cols-4">
+          {STEPS.map((step, index) => (
+            <li key={step.title} className="surface p-6">
+              <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-rust">
+                Step {index + 1}
+              </span>
+              <h3 className="mt-3 text-base font-bold">{step.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-6 text-sm text-muted-foreground">
+          There's a longer walkthrough, plus tips for ride leaders, on{" "}
+          <Link to="/club-rides" className="underline underline-offset-2 hover:text-foreground">
+            bike navigation for club rides
+          </Link>
+          .
+        </p>
+      </section>
 
-        <footer className="mt-24 border-t border-border pt-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <p className="max-w-md text-sm text-muted-foreground">
-              Hodora is a free, open-source GPX bike navigation app for club rides and cycling
-              events. No ads, no tracking, no subscription. It's a learn-by-doing project, so
-              feedback and contributions are very welcome.
-            </p>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <a
-                href={GITHUB_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 hover:text-foreground"
-              >
-                <GithubIcon className="size-4" />
-                GitHub
-              </a>
-              <span>MIT licensed</span>
-            </div>
-          </div>
-        </footer>
-      </div>
-    </main>
+      <section className="mt-20" aria-labelledby="phone-vs-computer">
+        <h2 id="phone-vs-computer" className="text-2xl font-bold sm:text-3xl">
+          Why a phone beats a bike computer for most riders
+        </h2>
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          {ADVANTAGES.map((advantage) => (
+            <article key={advantage.title} className="surface p-6">
+              <advantage.icon className="size-5 text-primary" />
+              <h3 className="mt-4 text-base font-bold">{advantage.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{advantage.body}</p>
+            </article>
+          ))}
+        </div>
+        <p className="mt-6 text-sm text-muted-foreground">
+          More on what to look for in a{" "}
+          <Link
+            to="/bike-navigation-app"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            bike navigation app
+          </Link>
+          , and how Hodora compares.
+        </p>
+      </section>
+
+      <section className="mt-20 grid gap-8 sm:grid-cols-3" aria-labelledby="more-ways">
+        <h2 id="more-ways" className="sr-only">
+          More ways to use Hodora
+        </h2>
+        <div>
+          <h3 className="text-lg font-bold">A free GPX viewer, built for club rides</h3>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Import the organiser's GPX for your next club ride, sportive or event and Hodora shows
+            the route on an interactive cycling map, with distance, elevation and total climbing at
+            a glance. No bike computer required.
+          </p>
+        </div>
+        <div>
+          <h3 className="text-lg font-bold">
+            <Link to="/plan" className="hover:text-primary">
+              Bike route planner
+            </Link>
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Tap the map to{" "}
+            <Link to="/plan" className="underline underline-offset-2 hover:text-primary">
+              plan a cycle route
+            </Link>
+            , routed over real roads and paths with OpenStreetMap data, then save it and ride it
+            turn by turn.
+          </p>
+        </div>
+        <div>
+          <h3 className="text-lg font-bold">
+            <Link to="/explore" className="hover:text-primary">
+              Cycle routes near you
+            </Link>
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            <Link to="/explore" className="underline underline-offset-2 hover:text-primary">
+              Explore bike trails and mountain bike routes near me
+            </Link>{" "}
+            from OpenStreetMap, or generate a loop ride of any distance to discover new roads.
+          </p>
+        </div>
+      </section>
+
+      <FaqSection heading="Bike navigation questions, answered" items={FAQS} />
+    </MarketingLayout>
   );
 }

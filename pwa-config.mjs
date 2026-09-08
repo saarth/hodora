@@ -27,7 +27,14 @@ export const pwaManifest = {
 export const workboxConfig = {
   globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
   navigateFallback: "/",
-  navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/robots\.txt$/, /^\/sitemap\.xml$/],
+  navigateFallbackDenylist: [
+    /^\/~oauth/,
+    /^\/api\//,
+    /^\/robots\.txt$/,
+    /^\/sitemap\.xml$/,
+    // Plain-text crawler routes: the SPA shell is not a valid answer for them.
+    /^\/llms\.txt$/,
+  ],
   cleanupOutdatedCaches: true,
   runtimeCaching: [
     {

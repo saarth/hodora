@@ -12,7 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as BikeNavigationAppRouteImport } from './routes/bike-navigation-app'
+import { Route as ClubRidesRouteImport } from './routes/club-rides'
 import { Route as ExploreRouteImport } from './routes/explore'
+import { Route as GpsCyclingAppRouteImport } from './routes/gps-cycling-app'
+import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as PlanRouteImport } from './routes/plan'
 import { Route as RecordRouteImport } from './routes/record'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -56,9 +60,29 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BikeNavigationAppRoute = BikeNavigationAppRouteImport.update({
+  id: '/bike-navigation-app',
+  path: '/bike-navigation-app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClubRidesRoute = ClubRidesRouteImport.update({
+  id: '/club-rides',
+  path: '/club-rides',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExploreRoute = ExploreRouteImport.update({
   id: '/explore',
   path: '/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GpsCyclingAppRoute = GpsCyclingAppRouteImport.update({
+  id: '/gps-cycling-app',
+  path: '/gps-cycling-app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
+  id: '/llms.txt',
+  path: '/llms.txt',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlanRoute = PlanRouteImport.update({
@@ -214,7 +238,11 @@ const ApiCloudOnedriveSyncRoute = ApiCloudOnedriveSyncRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/bike-navigation-app': typeof BikeNavigationAppRoute
+  '/club-rides': typeof ClubRidesRoute
   '/explore': typeof ExploreRoute
+  '/gps-cycling-app': typeof GpsCyclingAppRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/plan': typeof PlanRoute
   '/record': typeof RecordRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -247,7 +275,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/bike-navigation-app': typeof BikeNavigationAppRoute
+  '/club-rides': typeof ClubRidesRoute
   '/explore': typeof ExploreRoute
+  '/gps-cycling-app': typeof GpsCyclingAppRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/plan': typeof PlanRoute
   '/record': typeof RecordRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -282,7 +314,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/bike-navigation-app': typeof BikeNavigationAppRoute
+  '/club-rides': typeof ClubRidesRoute
   '/explore': typeof ExploreRoute
+  '/gps-cycling-app': typeof GpsCyclingAppRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/plan': typeof PlanRoute
   '/record': typeof RecordRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -317,7 +353,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/bike-navigation-app'
+    | '/club-rides'
     | '/explore'
+    | '/gps-cycling-app'
+    | '/llms.txt'
     | '/plan'
     | '/record'
     | '/reset-password'
@@ -350,7 +390,11 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/bike-navigation-app'
+    | '/club-rides'
     | '/explore'
+    | '/gps-cycling-app'
+    | '/llms.txt'
     | '/plan'
     | '/record'
     | '/reset-password'
@@ -384,7 +428,11 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/bike-navigation-app'
+    | '/club-rides'
     | '/explore'
+    | '/gps-cycling-app'
+    | '/llms.txt'
     | '/plan'
     | '/record'
     | '/reset-password'
@@ -419,7 +467,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  BikeNavigationAppRoute: typeof BikeNavigationAppRoute
+  ClubRidesRoute: typeof ClubRidesRoute
   ExploreRoute: typeof ExploreRoute
+  GpsCyclingAppRoute: typeof GpsCyclingAppRoute
+  LlmsDottxtRoute: typeof LlmsDottxtRoute
   PlanRoute: typeof PlanRoute
   RecordRoute: typeof RecordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -472,11 +524,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bike-navigation-app': {
+      id: '/bike-navigation-app'
+      path: '/bike-navigation-app'
+      fullPath: '/bike-navigation-app'
+      preLoaderRoute: typeof BikeNavigationAppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/club-rides': {
+      id: '/club-rides'
+      path: '/club-rides'
+      fullPath: '/club-rides'
+      preLoaderRoute: typeof ClubRidesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/explore': {
       id: '/explore'
       path: '/explore'
       fullPath: '/explore'
       preLoaderRoute: typeof ExploreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gps-cycling-app': {
+      id: '/gps-cycling-app'
+      path: '/gps-cycling-app'
+      fullPath: '/gps-cycling-app'
+      preLoaderRoute: typeof GpsCyclingAppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/llms.txt': {
+      id: '/llms.txt'
+      path: '/llms.txt'
+      fullPath: '/llms.txt'
+      preLoaderRoute: typeof LlmsDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plan': {
@@ -693,7 +773,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  BikeNavigationAppRoute: BikeNavigationAppRoute,
+  ClubRidesRoute: ClubRidesRoute,
   ExploreRoute: ExploreRoute,
+  GpsCyclingAppRoute: GpsCyclingAppRoute,
+  LlmsDottxtRoute: LlmsDottxtRoute,
   PlanRoute: PlanRoute,
   RecordRoute: RecordRoute,
   ResetPasswordRoute: ResetPasswordRoute,

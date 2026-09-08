@@ -3,16 +3,19 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SITE_URL } from "@/lib/seo";
 
 /**
- * The public, indexable routes — the same four that public/sitemap.xml listed
- * before this became a route, with the same priorities and lastmod dates.
- * Account-gated and per-user routes (/auth, /rides, /share/$id) are marked
- * `noindex` in their own head() and deliberately absent here.
+ * The public, indexable routes. Account-gated and per-user routes (/auth,
+ * /rides, /share/$id) are marked `noindex` in their own head() and
+ * deliberately absent here.
  *
  * `lastmod` is a fixed date per page rather than "today": a date that advances
- * on every request tells crawlers the content changed when it didn't.
+ * on every request tells crawlers the content changed when it didn't. Bump a
+ * page's date by hand when you actually rewrite its content.
  */
 const PAGES = [
-  { path: "/", lastmod: "2026-08-18", changefreq: "weekly", priority: "1.0" },
+  { path: "/", lastmod: "2026-09-08", changefreq: "weekly", priority: "1.0" },
+  { path: "/bike-navigation-app", lastmod: "2026-09-08", changefreq: "monthly", priority: "0.9" },
+  { path: "/club-rides", lastmod: "2026-09-08", changefreq: "monthly", priority: "0.9" },
+  { path: "/gps-cycling-app", lastmod: "2026-09-08", changefreq: "monthly", priority: "0.9" },
   { path: "/plan", lastmod: "2026-08-18", changefreq: "monthly", priority: "0.8" },
   { path: "/explore", lastmod: "2026-08-18", changefreq: "monthly", priority: "0.8" },
   { path: "/wind", lastmod: "2026-08-18", changefreq: "monthly", priority: "0.5" },
