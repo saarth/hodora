@@ -33,6 +33,18 @@ function requireEnv(name: "GOOGLE_DRIVE_CLIENT_ID" | "GOOGLE_DRIVE_CLIENT_SECRET
   return value;
 }
 
+/**
+ * Whether this deployment has Drive OAuth credentials at all. The status
+ * endpoint reports it so the Connections UI can offer the card only when it
+ * can work: letting someone click Connect and handing them a raw
+ * "Missing GOOGLE_DRIVE_CLIENT_ID" toast is a worse answer than not
+ * offering the button. Deliberately reads the same two variables
+ * `requireEnv` does, so the check can't drift from what the flow needs.
+ */
+export function isConfigured(): boolean {
+  return Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID && process.env.GOOGLE_DRIVE_CLIENT_SECRET);
+}
+
 /** Escapes a value for use inside a single-quoted Drive `q` string literal. */
 function escapeQueryValue(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");

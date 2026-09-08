@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { __test__, buildAuthUrl } from "./google-drive.server";
+import { __test__, buildAuthUrl, isConfigured } from "./google-drive.server";
 
 const { escapeQueryValue } = __test__;
 
@@ -45,5 +45,44 @@ describe("buildAuthUrl", () => {
     expect(() => buildAuthUrl("https://example.com/callback", "state")).toThrow(
       /GOOGLE_DRIVE_CLIENT_ID/,
     );
+  });
+});
+
+describe("isConfigured", () => {
+  const original = {
+    id: process.env.GOOGLE_DRIVE_CLIENT_ID,
+    secret: process.env.GOOGLE_DRIVE_CLIENT_SECRET,
+  };
+
+  afterEach(() => {
+    for (const [name, value] of [
+      ["GOOGLE_DRIVE_CLIENT_ID", original.id],
+      ["GOOGLE_DRIVE_CLIENT_SECRET", original.secret],
+    ] as const) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
+
+  it("is true only when both the client id and secret are present", () => {
+    process.env.GOOGLE_DRIVE_CLIENT_ID = "id";
+    process.env.GOOGLE_DRIVE_CLIENT_SECRET = "secret";
+    expect(isConfigured()).toBe(true);
+  });
+
+  it("is false when either half is missing — a half-configured deployment can't complete the flow", () => {
+    process.env.GOOGLE_DRIVE_CLIENT_ID = "id";
+    delete process.env.GOOGLE_DRIVE_CLIENT_SECRET;
+    expect(isConfigured()).toBe(false);
+
+    delete process.env.GOOGLE_DRIVE_CLIENT_ID;
+    process.env.GOOGLE_DRIVE_CLIENT_SECRET = "secret";
+    expect(isConfigured()).toBe(false);
+  });
+
+  it("is false when an empty string is set, not just when the variable is absent", () => {
+    process.env.GOOGLE_DRIVE_CLIENT_ID = "";
+    process.env.GOOGLE_DRIVE_CLIENT_SECRET = "";
+    expect(isConfigured()).toBe(false);
   });
 });

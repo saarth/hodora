@@ -34,6 +34,15 @@ function requireEnv(name: "ONEDRIVE_CLIENT_ID" | "ONEDRIVE_CLIENT_SECRET"): stri
   return value;
 }
 
+/**
+ * Whether this deployment has OneDrive OAuth credentials at all. See the
+ * matching helper in `google-drive.server.ts` — the Connections UI hides the
+ * card rather than letting Connect fail with a raw env-var error.
+ */
+export function isConfigured(): boolean {
+  return Boolean(process.env.ONEDRIVE_CLIENT_ID && process.env.ONEDRIVE_CLIENT_SECRET);
+}
+
 function encodeItemPath(segments: string[]): string {
   return segments.join("/").split("/").filter(Boolean).map(encodeURIComponent).join("/");
 }
