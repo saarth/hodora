@@ -95,7 +95,11 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   things that _don't_ work offline included — so check the code before
   changing a claim, and keep the honest limitations (foreground-only
   navigation, no sensor pairing, rejoin needing a network) rather than
-  quietly dropping them. Their FAQs use
+  quietly dropping them. `src/marketing-claims.test.ts` is the tripwire for
+  exactly that: it pins each quoted number and behaviour to the function
+  that implements it, and every test names the page and sentence it
+  protects. If it fails because the code changed on purpose, update the page
+  copy first and the test second — don't just move the expected value. Their FAQs use
   `src/components/FaqSection.tsx` and pass the _same_ array to
   `faqJsonLd(...)` in `head()`; keep those in sync (structured data whose
   answers aren't on the page is what rich-result validation rejects) and keep
@@ -191,7 +195,7 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   scrolls; anything that can overflow goes in `MapPanel`, which scrolls
   inside itself. Second, `data-map-screen` makes `styles.css` drop the body
   bottom padding that normally clears `MobileTabBar`, because the map is
-  meant to run *under* the bar — `MapOverlay` re-applies that clearance to
+  meant to run _under_ the bar — `MapOverlay` re-applies that clearance to
   the floating panels instead, so keep new floating chrome inside it rather
   than positioning it against the viewport. Pass `showFitControl={false}`
   and `showZoomControl={false}` to `RouteMap` on these screens: its built-in
