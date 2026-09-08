@@ -3,9 +3,30 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Crosshair, Loader2, MapPin, Redo2, Route as RouteIcon, Save, Undo2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Crosshair,
+  Loader2,
+  MapPin,
+  Maximize2,
+  Route as RouteIcon,
+  Save,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
+import {
+  MapCard,
+  MapOverlay,
+  MapPanel,
+  MapRail,
+  MapRailButton,
+  MapScreen,
+  MapStage,
+  MapToolbar,
+} from "@/components/MapScreen";
 import { ElevationChart } from "@/components/ElevationChart";
 import { PlaceSearch } from "@/components/PlaceSearch";
 import { DayTabs } from "@/components/DayTabs";
@@ -76,6 +97,13 @@ function PlanPage() {
   const [routed, setRouted] = useState<RoutedPath | null>(null);
   const [routing, setRouting] = useState(false);
   const [name, setName] = useState("");
+  const [panelOpen, setPanelOpen] = useState(true);
+  // Bumped to re-frame the camera around the whole route; the map only reacts
+  // to a new `nonce`, so re-fitting the same coords still works.
+  const [fitTo, setFitTo] = useState<{
+    coords: { lat: number; lon: number }[];
+    nonce: number;
+  } | null>(null);
 
   const {
     data: editRide,
@@ -224,240 +252,280 @@ function PlanPage() {
       toast.error(error instanceof Error ? error.message : "Could not save that route"),
   });
 
+  const fitRoute = () => {
+    if (points.length < 2) return;
+    setFitTo({
+      coords: points.map((point) => ({ lat: point.lat, lon: point.lon })),
+      nonce: Date.now(),
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <MapScreen>
       <AppHeader />
-      <main className="mx-auto w-full max-w-6xl px-4 pb-20 pt-8">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">
-              {activeEditRide ? `Edit ${activeEditRide.name}` : "Plan a route"}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {activeEditRide
-                ? "Move, add or remove points, then save — notes and offline downloads on this route may need re-checking afterwards."
-                : "Tap the map to add points — Hodora routes between them over real roads and paths."}
-            </p>
-          </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/rides">
-              <RouteIcon className="size-4" />
-              My rides
-            </Link>
-          </Button>
-        </div>
 
-        {editId && editLoading && (
-          <p className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Loading route to edit…
-          </p>
-        )}
-
-        <PlaceSearch
-          className="mt-6"
-          placeholder="Search for a place to start planning…"
-          onSelect={(result) => {
-            const at = { lat: result.lat, lon: result.lon };
-            setCenter(at);
-            setFlyTo({ ...at, nonce: Date.now() });
-          }}
+      <MapStage>
+        <RouteMap
+          points={points}
+          waypoints={waypoints}
+          onMapClick={(point) => setWaypoints((current) => [...current, point])}
+          initialCenter={center}
+          flyTo={flyTo}
+          fitTo={fitTo}
+          className="absolute inset-0 h-full w-full"
+          /* Both live on the rail instead: the built-in fit button and
+             MapLibre's zoom cluster land in the same corners the floating
+             chrome occupies. */
+          showFitControl={false}
+          showZoomControl={false}
         />
 
-        <div className="surface mt-4 grid gap-5 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Routing style
-            </span>
-            <ToggleGroup
-              type="single"
-              value={profile}
-              onValueChange={(value) => value && setProfile(value as BikeProfile)}
-              className="mt-3 justify-start"
-            >
-              {BIKE_PROFILES.map((option) => (
-                <ToggleGroupItem
-                  key={option.value}
-                  value={option.value}
-                  title={option.description}
-                  className="px-3"
-                >
-                  {option.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              onClick={locate}
-              disabled={locating}
-              title="Center the map on your location"
-            >
-              {locating ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Crosshair className="size-4" />
-              )}
-              My location
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setWaypoints((current) => current.slice(0, -1))}
-              disabled={waypoints.length === 0}
-            >
-              <Undo2 className="size-4" />
-              Undo point
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setWaypoints([])}
-              disabled={waypoints.length === 0}
-            >
-              <Redo2 className="size-4" />
-              Clear
-            </Button>
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-          <div className="surface h-[380px] overflow-hidden p-0 lg:h-[520px]">
-            <RouteMap
-              points={points}
-              waypoints={waypoints}
-              onMapClick={(point) => setWaypoints((current) => [...current, point])}
-              initialCenter={center}
-              flyTo={flyTo}
-              showFitControl={points.length > 1}
-              className="h-full w-full"
+        <MapOverlay>
+          <MapToolbar>
+            <PlaceSearch
+              className="glass pointer-events-auto min-w-0 sm:max-w-sm sm:flex-1"
+              inputClassName="h-11 border-0 bg-transparent shadow-none focus-visible:ring-0"
+              placeholder="Search for a place to start planning…"
+              onSelect={(result) => {
+                const at = { lat: result.lat, lon: result.lon };
+                setCenter(at);
+                setFlyTo({ ...at, nonce: Date.now() });
+              }}
             />
-          </div>
 
-          <section className="grid gap-4 content-start">
-            <div className="surface p-4">
-              {waypoints.length === 0 ? (
-                <p className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <MapPin className="mt-0.5 size-4 shrink-0" />
-                  Tap the map to drop your first point.
-                </p>
-              ) : (
-                <>
-                  <p className="metric text-sm">
-                    {waypoints.length} point{waypoints.length === 1 ? "" : "s"}
-                    {routed ? (
-                      <>
-                        {" "}
-                        · {formatDistance(routed.distanceM)}
-                        {elevation.ascentM > 0 ? ` · ${formatElevation(elevation.ascentM)} up` : ""}
-                        {routing && <Loader2 className="ml-2 inline size-3.5 animate-spin" />}
-                      </>
-                    ) : null}
-                  </p>
-                  {routed && !routed.routed && (
-                    <p className="mt-1 text-xs text-warning">
-                      Routers unreachable — showing a straight-line estimate.
-                    </p>
-                  )}
-                  {waypoints.length === 1 && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Add one more point to generate a route.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
+            <MapRail>
+              <MapRailButton
+                label="Center the map on my location"
+                onClick={locate}
+                disabled={locating}
+              >
+                {locating ? <Loader2 className="animate-spin" /> : <Crosshair />}
+              </MapRailButton>
 
-            {elevation.ascentM > 0 && (
-              <div className="surface p-4">
-                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Elevation
-                </span>
-                <div className="mt-3">
-                  <ElevationChart points={points} height={110} />
-                </div>
-              </div>
-            )}
+              <MapRailButton
+                label="Fit the route to the view"
+                onClick={fitRoute}
+                disabled={points.length < 2}
+              >
+                <Maximize2 />
+              </MapRailButton>
 
-            {departureHour && departureDay && (
-              <div className="surface p-4">
-                <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Weather at departure
-                </span>
-                <div className="mt-3 flex items-center gap-3">
-                  <WeatherGlyph
-                    icon={
-                      weatherInfo(departureHour.weatherCode, isDaytimeHour(departureHour.atIso))
-                        .icon
-                    }
-                    className="size-8 text-primary"
-                  />
+              <MapRailButton
+                label="Undo the last point"
+                onClick={() => setWaypoints((current) => current.slice(0, -1))}
+                disabled={waypoints.length === 0}
+              >
+                <Undo2 />
+              </MapRailButton>
+
+              <MapRailButton
+                label="Clear all points"
+                onClick={() => setWaypoints([])}
+                disabled={waypoints.length === 0}
+              >
+                <Trash2 />
+              </MapRailButton>
+
+              <MapRailButton
+                label={panelOpen ? "Hide route details" : "Show route details"}
+                pressed={panelOpen}
+                onClick={() => setPanelOpen((open) => !open)}
+              >
+                {panelOpen ? <ChevronDown /> : <ChevronUp />}
+              </MapRailButton>
+            </MapRail>
+          </MapToolbar>
+
+          {editId && editLoading && (
+            <MapCard className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Loading route to edit…
+            </MapCard>
+          )}
+
+          {panelOpen && (
+            <MapPanel>
+              <MapCard>
+                <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="metric text-lg font-bold leading-none">
-                      {formatTemperature(departureHour.temperatureC, true)}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {
-                        weatherInfo(departureHour.weatherCode, isDaytimeHour(departureHour.atIso))
-                          .label
-                      }{" "}
-                      · {formatWindSpeed(departureHour.windSpeedMs, true)}{" "}
-                      {compassAbbrev(departureHour.windDirectionDeg)}
+                    <h1 className="truncate text-xl font-extrabold tracking-tight">
+                      {activeEditRide ? `Edit ${activeEditRide.name}` : "Plan a route"}
+                    </h1>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      {activeEditRide
+                        ? "Move, add or remove points, then save — notes and offline downloads on this route may need re-checking afterwards."
+                        : "Tap the map to add points — Hodora routes between them over real roads and paths."}
                     </p>
                   </div>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="-mr-1 -mt-1 shrink-0"
+                    aria-label="My rides"
+                    title="My rides"
+                  >
+                    <Link to="/rides">
+                      <RouteIcon className="size-4" />
+                    </Link>
+                  </Button>
                 </div>
-                <div className="mt-3 space-y-2">
-                  <DayTabs
-                    days={forecastDays}
-                    value={departureDay.dateKey}
-                    onChange={(dateKey) => {
-                      setDepartureDayKey(dateKey);
-                      setDepartureHourIso(null);
-                    }}
-                  />
-                  <HourPicker
-                    hours={departureDay.hours}
-                    value={departureHour.atIso}
-                    onChange={setDepartureHourIso}
-                  />
-                </div>
-              </div>
-            )}
 
-            {points.length > 1 && (
-              <div className="surface grid gap-3 p-4">
+                <div className="mt-3 border-t border-border pt-3">
+                  {waypoints.length === 0 ? (
+                    <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <MapPin className="mt-0.5 size-4 shrink-0" />
+                      Tap the map to drop your first point.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="metric text-sm">
+                        {waypoints.length} point{waypoints.length === 1 ? "" : "s"}
+                        {routed ? (
+                          <>
+                            {" "}
+                            · {formatDistance(routed.distanceM)}
+                            {elevation.ascentM > 0
+                              ? ` · ${formatElevation(elevation.ascentM)} up`
+                              : ""}
+                            {routing && <Loader2 className="ml-2 inline size-3.5 animate-spin" />}
+                          </>
+                        ) : null}
+                      </p>
+                      {routed && !routed.routed && (
+                        <p className="mt-1 text-xs text-warning">
+                          Routers unreachable — showing a straight-line estimate.
+                        </p>
+                      )}
+                      {waypoints.length === 1 && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Add one more point to generate a route.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </MapCard>
+
+              <MapCard>
                 <label className="block">
                   <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    Route name
+                    Routing style
                   </span>
-                  <Input
-                    className="mt-2"
-                    placeholder="Planned route"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                  />
+                  <ToggleGroup
+                    type="single"
+                    value={profile}
+                    onValueChange={(value) => value && setProfile(value as BikeProfile)}
+                    className="mt-3 justify-start"
+                  >
+                    {BIKE_PROFILES.map((option) => (
+                      <ToggleGroupItem
+                        key={option.value}
+                        value={option.value}
+                        title={option.description}
+                        className="px-3"
+                      >
+                        {option.label}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
                 </label>
-                <Button
-                  className="glow-ring"
-                  onClick={() => saveMutation.mutate()}
-                  disabled={saveMutation.isPending}
-                >
-                  {saveMutation.isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Save className="size-4" />
-                  )}
-                  {activeEditRide ? "Save changes" : "Save to my rides"}
-                </Button>
-              </div>
-            )}
-          </section>
-        </div>
+              </MapCard>
 
-        <p className="mt-6 text-xs text-muted-foreground">
-          Routes are computed with OpenStreetMap data via BRouter/OSRM. Route data © OpenStreetMap
-          contributors — check unfamiliar roads before you ride.
-        </p>
-      </main>
-    </div>
+              {elevation.ascentM > 0 && (
+                <MapCard>
+                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Elevation
+                  </span>
+                  <div className="mt-3">
+                    <ElevationChart points={points} height={110} />
+                  </div>
+                </MapCard>
+              )}
+
+              {departureHour && departureDay && (
+                <MapCard>
+                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Weather at departure
+                  </span>
+                  <div className="mt-3 flex items-center gap-3">
+                    <WeatherGlyph
+                      icon={
+                        weatherInfo(departureHour.weatherCode, isDaytimeHour(departureHour.atIso))
+                          .icon
+                      }
+                      className="size-8 text-primary"
+                    />
+                    <div className="min-w-0">
+                      <p className="metric text-lg font-bold leading-none">
+                        {formatTemperature(departureHour.temperatureC, true)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {
+                          weatherInfo(departureHour.weatherCode, isDaytimeHour(departureHour.atIso))
+                            .label
+                        }{" "}
+                        · {formatWindSpeed(departureHour.windSpeedMs, true)}{" "}
+                        {compassAbbrev(departureHour.windDirectionDeg)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <DayTabs
+                      days={forecastDays}
+                      value={departureDay.dateKey}
+                      onChange={(dateKey) => {
+                        setDepartureDayKey(dateKey);
+                        setDepartureHourIso(null);
+                      }}
+                    />
+                    <HourPicker
+                      hours={departureDay.hours}
+                      value={departureHour.atIso}
+                      onChange={setDepartureHourIso}
+                    />
+                  </div>
+                </MapCard>
+              )}
+
+              {points.length > 1 && (
+                <MapCard className="grid gap-3">
+                  <label className="block">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Route name
+                    </span>
+                    <Input
+                      className="mt-2"
+                      placeholder="Planned route"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                    />
+                  </label>
+                  <Button
+                    className="glow-ring"
+                    onClick={() => saveMutation.mutate()}
+                    disabled={saveMutation.isPending}
+                  >
+                    {saveMutation.isPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Save className="size-4" />
+                    )}
+                    {activeEditRide ? "Save changes" : "Save to my rides"}
+                  </Button>
+                </MapCard>
+              )}
+
+              <MapCard className="p-3">
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Routes are computed with OpenStreetMap data via BRouter/OSRM. Route data ©
+                  OpenStreetMap contributors — check unfamiliar roads before you ride.
+                </p>
+              </MapCard>
+            </MapPanel>
+          )}
+        </MapOverlay>
+      </MapStage>
+    </MapScreen>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { RouteMap } from "@/components/RouteMap";
+import { MapRailButton } from "@/components/MapScreen";
 import { ElevationChart } from "@/components/ElevationChart";
 import { SpeedHistoryChart, type SpeedSample } from "@/components/SpeedHistoryChart";
 import { WeatherGlyph } from "@/components/WeatherGlyph";
@@ -583,17 +584,17 @@ function NavigatePage() {
          */}
         <div className="flex min-h-0 flex-1 items-end justify-end">
           <div className="pointer-events-auto flex flex-wrap justify-end gap-2">
-            <RailButton
+            <MapRailButton
               active={follow}
               label={follow ? "Stop following my position" : "Recenter on my position"}
               pressed={follow}
               onClick={() => setFollow((value) => !value)}
             >
               <Crosshair className="size-5" />
-            </RailButton>
+            </MapRailButton>
 
             {isVoiceSupported() && (
-              <RailButton
+              <MapRailButton
                 active={voiceEnabled}
                 label={
                   voiceEnabled ? "Turn off voice announcements" : "Turn on voice announcements"
@@ -608,28 +609,28 @@ function NavigatePage() {
                 }}
               >
                 {voiceEnabled ? <Volume2 className="size-5" /> : <VolumeX className="size-5" />}
-              </RailButton>
+              </MapRailButton>
             )}
 
-            <RailButton
+            <MapRailButton
               active={highContrast}
               label={highContrast ? "Turn off high contrast" : "Turn on high contrast"}
               pressed={highContrast}
               onClick={() => setHighContrast((value) => !value)}
             >
               <Contrast className="size-5" />
-            </RailButton>
+            </MapRailButton>
 
-            <RailButton
+            <MapRailButton
               active={angled}
               label={angled ? "Switch to bird's-eye view" : "Switch to angled view"}
               pressed={angled}
               onClick={() => setAngled((value) => !value)}
             >
               {angled ? <MapIcon className="size-5" /> : <Box className="size-5" />}
-            </RailButton>
+            </MapRailButton>
 
-            <RailButton
+            <MapRailButton
               label={bottomMinimized ? "Show ride stats" : "Hide ride stats"}
               onClick={() => setBottomMinimized((value) => !value)}
             >
@@ -638,7 +639,7 @@ function NavigatePage() {
               ) : (
                 <Minimize2 className="size-5" />
               )}
-            </RailButton>
+            </MapRailButton>
           </div>
         </div>
 
@@ -737,38 +738,6 @@ function windLabel(effect: WindEffect): string {
   if (effect === "headwind") return "Headwind";
   if (effect === "tailwind") return "Tailwind";
   return "Crosswind";
-}
-
-/**
- * A control-rail button: icon-only and circular, so five of them stack into
- * the corner without the wrapping pill row they used to form. `active` gives
- * the same filled treatment the labelled `default` button variant has.
- */
-function RailButton({
-  children,
-  label,
-  onClick,
-  active = false,
-  pressed,
-}: {
-  children: ReactNode;
-  label: string;
-  onClick: () => void;
-  active?: boolean;
-  pressed?: boolean;
-}) {
-  return (
-    <Button
-      size="icon"
-      variant={active ? "default" : "secondary"}
-      className={cn("size-11 rounded-full [&_svg]:size-5", !active && "glass")}
-      aria-label={label}
-      aria-pressed={pressed}
-      onClick={onClick}
-    >
-      {children}
-    </Button>
-  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

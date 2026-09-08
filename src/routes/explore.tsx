@@ -3,9 +3,12 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  ChevronDown,
+  ChevronUp,
   Compass,
   Crosshair,
   Loader2,
+  Maximize2,
   Repeat,
   Route as RouteIcon,
   Search,
@@ -13,6 +16,16 @@ import {
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
+import {
+  MapCard,
+  MapOverlay,
+  MapPanel,
+  MapRail,
+  MapRailButton,
+  MapScreen,
+  MapStage,
+  MapToolbar,
+} from "@/components/MapScreen";
 import { ElevationChart } from "@/components/ElevationChart";
 import { PlaceSearch } from "@/components/PlaceSearch";
 import { Button } from "@/components/ui/button";
@@ -66,6 +79,13 @@ function ExplorePage() {
   const [locating, setLocating] = useState(false);
   const [searchedOnce, setSearchedOnce] = useState(false);
   const [flyTo, setFlyTo] = useState<{ lat: number; lon: number; nonce: number } | null>(null);
+  const [panelOpen, setPanelOpen] = useState(true);
+  // Bumped to re-frame the camera around the selected route; the map only
+  // reacts to a new `nonce`, so re-fitting the same coords still works.
+  const [fitTo, setFitTo] = useState<{
+    coords: { lat: number; lon: number }[];
+    nonce: number;
+  } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const nonceRef = useRef(0);
 
@@ -159,173 +179,227 @@ function ExplorePage() {
       toast.error(error instanceof Error ? error.message : "Could not save that route"),
   });
 
-  return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto w-full max-w-6xl px-4 pb-20 pt-8">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Explore</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Signposted cycle routes near you, plus loops built to the length you want.
-            </p>
-          </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/rides">
-              <RouteIcon className="size-4" />
-              My rides
-            </Link>
-          </Button>
-        </div>
+  const fitRoute = () => {
+    if (points.length < 2) return;
+    setFitTo({
+      coords: points.map((point) => ({ lat: point.lat, lon: point.lon })),
+      nonce: Date.now(),
+    });
+  };
 
-        <PlaceSearch
-          className="mt-6"
-          placeholder="Search for a place to explore…"
-          onSelect={(result) => {
-            const at = { lat: result.lat, lon: result.lon };
-            setCenter(at);
-            nonceRef.current += 1;
-            setFlyTo({ ...at, nonce: nonceRef.current });
-            void search(at, radiusM, loopKm);
-          }}
+  return (
+    <MapScreen>
+      <AppHeader />
+
+      <MapStage>
+        <RouteMap
+          points={points}
+          initialCenter={center}
+          flyTo={flyTo}
+          fitTo={fitTo}
+          onViewChange={(view) => setCenter(view.center)}
+          className="absolute inset-0 h-full w-full"
+          /* Both live on the rail instead: the built-in fit button and
+             MapLibre's zoom cluster land in the same corners the floating
+             chrome occupies. */
+          showFitControl={false}
+          showZoomControl={false}
         />
 
-        <div className="surface mt-4 grid gap-5 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Search radius · {Math.round(radiusM / 1000)} km
-            </span>
-            <Slider
-              className="mt-3"
-              value={[radiusM / 1000]}
-              min={2}
-              max={40}
-              step={1}
-              onValueChange={([value]) => setRadiusM(value * 1000)}
+        <MapOverlay>
+          <MapToolbar>
+            <PlaceSearch
+              className="glass pointer-events-auto min-w-0 sm:max-w-sm sm:flex-1"
+              inputClassName="h-11 border-0 bg-transparent shadow-none focus-visible:ring-0"
+              placeholder="Search for a place to explore…"
+              onSelect={(result) => {
+                const at = { lat: result.lat, lon: result.lon };
+                setCenter(at);
+                nonceRef.current += 1;
+                setFlyTo({ ...at, nonce: nonceRef.current });
+                void search(at, radiusM, loopKm);
+              }}
             />
-          </label>
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Loop length · {loopKm} km
-            </span>
-            <Slider
-              className="mt-3"
-              value={[loopKm]}
-              min={10}
-              max={150}
-              step={5}
-              onValueChange={([value]) => setLoopKm(value)}
-            />
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={locate} disabled={locating || searching}>
-              {locating ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Crosshair className="size-4" />
-              )}
-              My location
-            </Button>
-            <Button
-              className="glow-ring"
-              onClick={() => void search(center, radiusM, loopKm)}
-              disabled={searching}
-            >
-              {searching ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Search className="size-4" />
-              )}
-              Search this area
-            </Button>
-          </div>
-        </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-          <div className="surface h-[380px] overflow-hidden p-0 lg:h-[520px]">
-            <RouteMap
-              points={points}
-              initialCenter={center}
-              flyTo={flyTo}
-              onViewChange={(view) => setCenter(view.center)}
-              showFitControl={points.length > 1}
-              className="h-full w-full"
-            />
-          </div>
+            <MapRail>
+              <MapRailButton
+                label="Center the map on my location"
+                onClick={locate}
+                disabled={locating || searching}
+              >
+                {locating ? <Loader2 className="animate-spin" /> : <Crosshair />}
+              </MapRailButton>
 
-          <section className="grid gap-3 content-start">
-            {searching &&
-              [0, 1, 2].map((key) => <Skeleton key={key} className="h-20 rounded-2xl" />)}
+              <MapRailButton
+                label="Search this area"
+                onClick={() => void search(center, radiusM, loopKm)}
+                disabled={searching}
+                active
+              >
+                {searching ? <Loader2 className="animate-spin" /> : <Search />}
+              </MapRailButton>
 
-            {!searching && routes.length === 0 && (
-              <p className="surface p-6 text-center text-sm text-muted-foreground">
-                {searchedOnce
-                  ? "No routes here yet — widen the radius, or pan the map and search this area."
-                  : "Finding routes around you…"}
-              </p>
-            )}
+              <MapRailButton
+                label="Fit the route to the view"
+                onClick={fitRoute}
+                disabled={points.length < 2}
+              >
+                <Maximize2 />
+              </MapRailButton>
 
-            {!searching &&
-              routes.map((route) => {
-                const active = route.id === selectedId;
-                return (
-                  <article
-                    key={route.id}
-                    className={cn(
-                      "surface min-w-0 p-4 transition-colors",
-                      active ? "border-primary/60" : "hover:border-primary/30",
-                    )}
+              <MapRailButton
+                label={panelOpen ? "Hide the route list" : "Show the route list"}
+                pressed={panelOpen}
+                onClick={() => setPanelOpen((open) => !open)}
+              >
+                {panelOpen ? <ChevronDown /> : <ChevronUp />}
+              </MapRailButton>
+            </MapRail>
+          </MapToolbar>
+
+          {panelOpen && (
+            <MapPanel>
+              <MapCard>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h1 className="text-xl font-extrabold tracking-tight">Explore</h1>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      Signposted cycle routes near you, plus loops built to the length you want.
+                    </p>
+                  </div>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="-mr-1 -mt-1 shrink-0"
+                    aria-label="My rides"
+                    title="My rides"
                   >
-                    <button
-                      type="button"
-                      className="flex w-full items-start gap-3 text-left"
-                      onClick={() => setSelectedId(route.id)}
-                    >
-                      <span className="mt-0.5 text-primary">
-                        {route.kind === "loop" ? (
-                          <Repeat className="size-5" />
-                        ) : (
-                          <Signpost className="size-5" />
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-semibold">{route.name}</span>
-                        <span className="mt-1 block metric text-xs text-muted-foreground">
-                          {formatDistance(route.distanceM)}
-                          {route.ascentM > 0
-                            ? ` · ${formatElevation(route.ascentM)} up`
-                            : ""} · {route.subtitle}
-                        </span>
-                      </span>
-                    </button>
-                    {active && (
-                      <div className="mt-3 space-y-3">
-                        {route.ascentM > 0 && <ElevationChart points={points} height={90} />}
-                        <Button
-                          size="sm"
-                          onClick={() => saveMutation.mutate(route)}
-                          disabled={saveMutation.isPending}
-                        >
-                          {saveMutation.isPending ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <Compass className="size-4" />
-                          )}
-                          Save to my rides
-                        </Button>
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
-          </section>
-        </div>
+                    <Link to="/rides">
+                      <RouteIcon className="size-4" />
+                    </Link>
+                  </Button>
+                </div>
 
-        <p className="mt-6 text-xs text-muted-foreground">
-          Route data © OpenStreetMap contributors. Generated loops follow bike-friendly roads and
-          paths; check them before you ride.
-        </p>
-      </main>
-    </div>
+                <div className="mt-3 grid gap-4 border-t border-border pt-3">
+                  <label className="block">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Search radius · {Math.round(radiusM / 1000)} km
+                    </span>
+                    <Slider
+                      className="mt-3"
+                      value={[radiusM / 1000]}
+                      min={2}
+                      max={40}
+                      step={1}
+                      onValueChange={([value]) => setRadiusM(value * 1000)}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Loop length · {loopKm} km
+                    </span>
+                    <Slider
+                      className="mt-3"
+                      value={[loopKm]}
+                      min={10}
+                      max={150}
+                      step={5}
+                      onValueChange={([value]) => setLoopKm(value)}
+                    />
+                  </label>
+                  <Button
+                    className="glow-ring"
+                    onClick={() => void search(center, radiusM, loopKm)}
+                    disabled={searching}
+                  >
+                    {searching ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Search className="size-4" />
+                    )}
+                    Search this area
+                  </Button>
+                </div>
+              </MapCard>
+
+              {searching &&
+                [0, 1, 2].map((key) => (
+                  <Skeleton key={key} className="h-20 shrink-0 rounded-2xl" />
+                ))}
+
+              {!searching && routes.length === 0 && (
+                <MapCard className="text-center text-sm text-muted-foreground">
+                  {searchedOnce
+                    ? "No routes here yet — widen the radius, or pan the map and search this area."
+                    : "Finding routes around you…"}
+                </MapCard>
+              )}
+
+              {!searching &&
+                routes.map((route) => {
+                  const active = route.id === selectedId;
+                  return (
+                    <MapCard
+                      key={route.id}
+                      className={cn(
+                        "min-w-0 transition-colors",
+                        active ? "border-primary/60" : "hover:border-primary/30",
+                      )}
+                    >
+                      <button
+                        type="button"
+                        className="flex w-full items-start gap-3 text-left"
+                        onClick={() => setSelectedId(route.id)}
+                      >
+                        <span className="mt-0.5 text-primary">
+                          {route.kind === "loop" ? (
+                            <Repeat className="size-5" />
+                          ) : (
+                            <Signpost className="size-5" />
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-semibold">{route.name}</span>
+                          <span className="mt-1 block metric text-xs text-muted-foreground">
+                            {formatDistance(route.distanceM)}
+                            {route.ascentM > 0
+                              ? ` · ${formatElevation(route.ascentM)} up`
+                              : ""} · {route.subtitle}
+                          </span>
+                        </span>
+                      </button>
+                      {active && (
+                        <div className="mt-3 space-y-3">
+                          {route.ascentM > 0 && <ElevationChart points={points} height={90} />}
+                          <Button
+                            size="sm"
+                            onClick={() => saveMutation.mutate(route)}
+                            disabled={saveMutation.isPending}
+                          >
+                            {saveMutation.isPending ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Compass className="size-4" />
+                            )}
+                            Save to my rides
+                          </Button>
+                        </div>
+                      )}
+                    </MapCard>
+                  );
+                })}
+
+              <MapCard className="p-3">
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Route data © OpenStreetMap contributors. Generated loops follow bike-friendly
+                  roads and paths; check them before you ride.
+                </p>
+              </MapCard>
+            </MapPanel>
+          )}
+        </MapOverlay>
+      </MapStage>
+    </MapScreen>
   );
 }
