@@ -319,9 +319,14 @@ export function RouteMap({
         ],
         zoom: 12,
         pitch,
-        attributionControl: { compact: true },
+        // Added by hand below rather than here so it can sit bottom-left: the
+        // default bottom-right corner is where the nav screen's control rail
+        // lives, and the rail draws straight over the compact attribution.
+        attributionControl: false,
         interactive,
       });
+
+      map.addControl(new maplibre.AttributionControl({ compact: true }), "bottom-left");
 
       if (interactive) {
         if (showZoomControl) {
