@@ -38,3 +38,85 @@ export function absoluteUrl(path: string): string {
 export function canonicalLink(path: string) {
   return [{ rel: "canonical", href: absoluteUrl(path) }];
 }
+
+/**
+ * Structured data helpers.
+ *
+ * Search engines and LLM crawlers both read JSON-LD, and both punish
+ * disagreement between it and the visible page — so every helper here takes
+ * the *same* strings the component renders rather than a parallel copy. Pass
+ * the array you map over into the FAQ list, not a hand-maintained duplicate.
+ *
+ * Each returns the graph object, which a route wraps in the meta entry itself:
+ *
+ * ```ts
+ * meta: [{ "script:ld+json": faqJsonLd(FAQS) }]
+ * ```
+ *
+ * The wrapper stays at the call site because TanStack's React binding types
+ * `head().meta` entries as React's own `<meta>` props; the `script:ld+json`
+ * form only typechecks as a literal written inline in that array.
+ */
+
+export type FaqItem = { question: string; answer: string };
+
+/** `FAQPage` for a route's `head().meta`. Feed it the rendered Q&A array. */
+export function faqJsonLd(items: FaqItem[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map(({ question, answer }) => ({
+      "@type": "Question",
+      name: question,
+      acceptedAnswer: { "@type": "Answer", text: answer },
+    })),
+  };
+}
+
+/**
+ * `BreadcrumbList` so the SERP shows "hodora.app › Bike navigation app"
+ * instead of a bare URL. `trail` is ordered root-first and excludes the home
+ * page, which this adds itself.
+ */
+export function breadcrumbJsonLd(trail: Array<{ name: string; path: string }>) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [{ name: "Home", path: "/" }, ...trail].map((crumb, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: crumb.name,
+      item: absoluteUrl(crumb.path),
+    })),
+  };
+}
+
+/**
+ * `SoftwareApplication` for the pages that describe the app itself. `price: 0`
+ * is what makes "free" a machine-readable fact rather than marketing copy —
+ * it's the field that answers "is there a free GPS app for cycling?".
+ */
+export function appJsonLd({
+  path,
+  description,
+  featureList,
+}: {
+  path: string;
+  description: string;
+  featureList: string[];
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Hodora",
+    url: absoluteUrl(path),
+    description,
+    applicationCategory: "TravelApplication",
+    applicationSubCategory: "Bike navigation app",
+    operatingSystem: "Web, Android, iOS (PWA)",
+    isAccessibleForFree: true,
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    license: "https://opensource.org/licenses/MIT",
+    featureList,
+  };
+}

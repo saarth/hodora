@@ -12,12 +12,21 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as BikeComputerAlternativeRouteImport } from './routes/bike-computer-alternative'
+import { Route as BikeNavigationAppRouteImport } from './routes/bike-navigation-app'
+import { Route as ClubRidesRouteImport } from './routes/club-rides'
+import { Route as ElevationTrackingRouteImport } from './routes/elevation-tracking'
 import { Route as ExploreRouteImport } from './routes/explore'
+import { Route as GpsCyclingAppRouteImport } from './routes/gps-cycling-app'
+import { Route as GpxRoutesRouteImport } from './routes/gpx-routes'
+import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
+import { Route as OfflineNavigationRouteImport } from './routes/offline-navigation'
 import { Route as PlanRouteImport } from './routes/plan'
 import { Route as RecordRouteImport } from './routes/record'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as TurnByTurnNavigationRouteImport } from './routes/turn-by-turn-navigation'
 import { Route as WindRouteImport } from './routes/wind'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as ApiDeleteAccountRouteImport } from './routes/api/delete-account'
@@ -56,9 +65,49 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BikeComputerAlternativeRoute = BikeComputerAlternativeRouteImport.update({
+  id: '/bike-computer-alternative',
+  path: '/bike-computer-alternative',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BikeNavigationAppRoute = BikeNavigationAppRouteImport.update({
+  id: '/bike-navigation-app',
+  path: '/bike-navigation-app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClubRidesRoute = ClubRidesRouteImport.update({
+  id: '/club-rides',
+  path: '/club-rides',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ElevationTrackingRoute = ElevationTrackingRouteImport.update({
+  id: '/elevation-tracking',
+  path: '/elevation-tracking',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExploreRoute = ExploreRouteImport.update({
   id: '/explore',
   path: '/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GpsCyclingAppRoute = GpsCyclingAppRouteImport.update({
+  id: '/gps-cycling-app',
+  path: '/gps-cycling-app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GpxRoutesRoute = GpxRoutesRouteImport.update({
+  id: '/gpx-routes',
+  path: '/gpx-routes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
+  id: '/llms.txt',
+  path: '/llms.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OfflineNavigationRoute = OfflineNavigationRouteImport.update({
+  id: '/offline-navigation',
+  path: '/offline-navigation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlanRoute = PlanRouteImport.update({
@@ -84,6 +133,11 @@ const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TurnByTurnNavigationRoute = TurnByTurnNavigationRouteImport.update({
+  id: '/turn-by-turn-navigation',
+  path: '/turn-by-turn-navigation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WindRoute = WindRouteImport.update({
@@ -214,12 +268,21 @@ const ApiCloudOnedriveSyncRoute = ApiCloudOnedriveSyncRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/bike-computer-alternative': typeof BikeComputerAlternativeRoute
+  '/bike-navigation-app': typeof BikeNavigationAppRoute
+  '/club-rides': typeof ClubRidesRoute
+  '/elevation-tracking': typeof ElevationTrackingRoute
   '/explore': typeof ExploreRoute
+  '/gps-cycling-app': typeof GpsCyclingAppRoute
+  '/gpx-routes': typeof GpxRoutesRoute
+  '/llms.txt': typeof LlmsDottxtRoute
+  '/offline-navigation': typeof OfflineNavigationRoute
   '/plan': typeof PlanRoute
   '/record': typeof RecordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/turn-by-turn-navigation': typeof TurnByTurnNavigationRoute
   '/wind': typeof WindRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/delete-account': typeof ApiDeleteAccountRoute
@@ -247,12 +310,21 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/bike-computer-alternative': typeof BikeComputerAlternativeRoute
+  '/bike-navigation-app': typeof BikeNavigationAppRoute
+  '/club-rides': typeof ClubRidesRoute
+  '/elevation-tracking': typeof ElevationTrackingRoute
   '/explore': typeof ExploreRoute
+  '/gps-cycling-app': typeof GpsCyclingAppRoute
+  '/gpx-routes': typeof GpxRoutesRoute
+  '/llms.txt': typeof LlmsDottxtRoute
+  '/offline-navigation': typeof OfflineNavigationRoute
   '/plan': typeof PlanRoute
   '/record': typeof RecordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/turn-by-turn-navigation': typeof TurnByTurnNavigationRoute
   '/wind': typeof WindRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/api/delete-account': typeof ApiDeleteAccountRoute
@@ -282,12 +354,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/bike-computer-alternative': typeof BikeComputerAlternativeRoute
+  '/bike-navigation-app': typeof BikeNavigationAppRoute
+  '/club-rides': typeof ClubRidesRoute
+  '/elevation-tracking': typeof ElevationTrackingRoute
   '/explore': typeof ExploreRoute
+  '/gps-cycling-app': typeof GpsCyclingAppRoute
+  '/gpx-routes': typeof GpxRoutesRoute
+  '/llms.txt': typeof LlmsDottxtRoute
+  '/offline-navigation': typeof OfflineNavigationRoute
   '/plan': typeof PlanRoute
   '/record': typeof RecordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/turn-by-turn-navigation': typeof TurnByTurnNavigationRoute
   '/wind': typeof WindRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/api/delete-account': typeof ApiDeleteAccountRoute
@@ -317,12 +398,21 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/bike-computer-alternative'
+    | '/bike-navigation-app'
+    | '/club-rides'
+    | '/elevation-tracking'
     | '/explore'
+    | '/gps-cycling-app'
+    | '/gpx-routes'
+    | '/llms.txt'
+    | '/offline-navigation'
     | '/plan'
     | '/record'
     | '/reset-password'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/turn-by-turn-navigation'
     | '/wind'
     | '/settings'
     | '/api/delete-account'
@@ -350,12 +440,21 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/bike-computer-alternative'
+    | '/bike-navigation-app'
+    | '/club-rides'
+    | '/elevation-tracking'
     | '/explore'
+    | '/gps-cycling-app'
+    | '/gpx-routes'
+    | '/llms.txt'
+    | '/offline-navigation'
     | '/plan'
     | '/record'
     | '/reset-password'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/turn-by-turn-navigation'
     | '/wind'
     | '/settings'
     | '/api/delete-account'
@@ -384,12 +483,21 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/bike-computer-alternative'
+    | '/bike-navigation-app'
+    | '/club-rides'
+    | '/elevation-tracking'
     | '/explore'
+    | '/gps-cycling-app'
+    | '/gpx-routes'
+    | '/llms.txt'
+    | '/offline-navigation'
     | '/plan'
     | '/record'
     | '/reset-password'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/turn-by-turn-navigation'
     | '/wind'
     | '/_authenticated/settings'
     | '/api/delete-account'
@@ -419,12 +527,21 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  BikeComputerAlternativeRoute: typeof BikeComputerAlternativeRoute
+  BikeNavigationAppRoute: typeof BikeNavigationAppRoute
+  ClubRidesRoute: typeof ClubRidesRoute
+  ElevationTrackingRoute: typeof ElevationTrackingRoute
   ExploreRoute: typeof ExploreRoute
+  GpsCyclingAppRoute: typeof GpsCyclingAppRoute
+  GpxRoutesRoute: typeof GpxRoutesRoute
+  LlmsDottxtRoute: typeof LlmsDottxtRoute
+  OfflineNavigationRoute: typeof OfflineNavigationRoute
   PlanRoute: typeof PlanRoute
   RecordRoute: typeof RecordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TurnByTurnNavigationRoute: typeof TurnByTurnNavigationRoute
   WindRoute: typeof WindRoute
   ApiDeleteAccountRoute: typeof ApiDeleteAccountRoute
   ApiSharedLinksRoute: typeof ApiSharedLinksRoute
@@ -472,11 +589,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bike-computer-alternative': {
+      id: '/bike-computer-alternative'
+      path: '/bike-computer-alternative'
+      fullPath: '/bike-computer-alternative'
+      preLoaderRoute: typeof BikeComputerAlternativeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bike-navigation-app': {
+      id: '/bike-navigation-app'
+      path: '/bike-navigation-app'
+      fullPath: '/bike-navigation-app'
+      preLoaderRoute: typeof BikeNavigationAppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/club-rides': {
+      id: '/club-rides'
+      path: '/club-rides'
+      fullPath: '/club-rides'
+      preLoaderRoute: typeof ClubRidesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/elevation-tracking': {
+      id: '/elevation-tracking'
+      path: '/elevation-tracking'
+      fullPath: '/elevation-tracking'
+      preLoaderRoute: typeof ElevationTrackingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/explore': {
       id: '/explore'
       path: '/explore'
       fullPath: '/explore'
       preLoaderRoute: typeof ExploreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gps-cycling-app': {
+      id: '/gps-cycling-app'
+      path: '/gps-cycling-app'
+      fullPath: '/gps-cycling-app'
+      preLoaderRoute: typeof GpsCyclingAppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gpx-routes': {
+      id: '/gpx-routes'
+      path: '/gpx-routes'
+      fullPath: '/gpx-routes'
+      preLoaderRoute: typeof GpxRoutesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/llms.txt': {
+      id: '/llms.txt'
+      path: '/llms.txt'
+      fullPath: '/llms.txt'
+      preLoaderRoute: typeof LlmsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/offline-navigation': {
+      id: '/offline-navigation'
+      path: '/offline-navigation'
+      fullPath: '/offline-navigation'
+      preLoaderRoute: typeof OfflineNavigationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plan': {
@@ -512,6 +685,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/turn-by-turn-navigation': {
+      id: '/turn-by-turn-navigation'
+      path: '/turn-by-turn-navigation'
+      fullPath: '/turn-by-turn-navigation'
+      preLoaderRoute: typeof TurnByTurnNavigationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/wind': {
@@ -693,12 +873,21 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  BikeComputerAlternativeRoute: BikeComputerAlternativeRoute,
+  BikeNavigationAppRoute: BikeNavigationAppRoute,
+  ClubRidesRoute: ClubRidesRoute,
+  ElevationTrackingRoute: ElevationTrackingRoute,
   ExploreRoute: ExploreRoute,
+  GpsCyclingAppRoute: GpsCyclingAppRoute,
+  GpxRoutesRoute: GpxRoutesRoute,
+  LlmsDottxtRoute: LlmsDottxtRoute,
+  OfflineNavigationRoute: OfflineNavigationRoute,
   PlanRoute: PlanRoute,
   RecordRoute: RecordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TurnByTurnNavigationRoute: TurnByTurnNavigationRoute,
   WindRoute: WindRoute,
   ApiDeleteAccountRoute: ApiDeleteAccountRoute,
   ApiSharedLinksRoute: ApiSharedLinksRoute,

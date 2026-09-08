@@ -62,23 +62,49 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   for the web app manifest and workbox caching rules — both `vite.config.ts`
   (dev/manifest generation) and `scripts/generate-sw.mjs` (the real,
   production service worker) import it. Don't duplicate config between them.
-  The production service worker is generated *after* `vite build` — see the
+  The production service worker is generated _after_ `vite build` — see the
   comment in `vite.config.ts`'s `VitePWA(...)` call for why, and
   `docs/CODE_REVIEW.md` for the full story if it regresses.
-- **SEO metadata.** Each public route's `head()`
-  (`src/routes/index.tsx`, `plan.tsx`, `explore.tsx`, `wind.tsx`) sets its
-  own `TITLE`/`DESCRIPTION` pair — those strings are keyword-researched, so
-  don't rewrite them casually. Every *URL* in that metadata, though, comes
+- **SEO metadata.** Each public route's `head()` (`src/routes/index.tsx`, the
+  eight topic pages listed under "Marketing/topic pages" below, plus
+  `plan.tsx`, `explore.tsx`, `wind.tsx`) sets its own `TITLE`/`DESCRIPTION` pair — those strings are keyword-researched, so
+  don't rewrite them casually. Every _URL_ in that metadata, though, comes
   from `src/lib/seo.ts`: use `absoluteUrl(path)` and `canonicalLink(path)`
   rather than writing `https://hodora.app/...` again, so self-hosted
-  instances under `VITE_SITE_URL` stay correct. `/robots.txt` and
-  `/sitemap.xml` are generated routes (`src/routes/robots[.]txt.tsx`,
-  `sitemap[.]xml.tsx`), not files in `public/` — a new public page needs an
-  entry in the sitemap's `PAGES`. Private/per-user routes (`/auth`,
+  instances under `VITE_SITE_URL` stay correct. `/robots.txt`,
+  `/sitemap.xml` and `/llms.txt` are generated routes
+  (`src/routes/robots[.]txt.tsx`, `sitemap[.]xml.tsx`, `llms[.]txt.tsx`),
+  not files in `public/` — a new public page needs an entry in the sitemap's
+  `PAGES`, and a plain-text route added there also needs adding to
+  `navigateFallbackDenylist` in `pwa-config.mjs` or the service worker will
+  answer it with the SPA shell. Private/per-user routes (`/auth`,
   `/reset-password`, `/rides`, `/rides/$id`, `/share/$id`) set
   `{ name: "robots", content: "noindex, follow" }` in their `head()` meta
   instead of a canonical — follow that pattern for any new account-gated or
   user-generated-content route rather than adding it to the sitemap.
+- **Marketing/topic pages.** `/` plus the eight topic pages —
+  `/bike-navigation-app` (the hub), `/turn-by-turn-navigation`,
+  `/offline-navigation`, `/bike-computer-alternative`, `/gpx-routes`,
+  `/elevation-tracking`, `/club-rides` and `/gps-cycling-app` — are the
+  indexable content pages, and all render inside
+  `src/components/MarketingLayout.tsx`. Its exported `GUIDES` array is the one
+  list of topic pages: it drives both the footer and the landing page's Guides
+  section, so a new page added there is linked from everywhere at once. A page
+  that isn't in `GUIDES` is an orphan only the sitemap knows about.
+  Each page's copy describes real behaviour — thresholds, fallbacks and the
+  things that _don't_ work offline included — so check the code before
+  changing a claim, and keep the honest limitations (foreground-only
+  navigation, no sensor pairing, rejoin needing a network) rather than
+  quietly dropping them. Their FAQs use
+  `src/components/FaqSection.tsx` and pass the _same_ array to
+  `faqJsonLd(...)` in `head()`; keep those in sync (structured data whose
+  answers aren't on the page is what rich-result validation rejects) and keep
+  the answers server-rendered rather than hiding them behind an accordion, so
+  crawlers that don't run JavaScript still see them. JSON-LD helpers
+  (`faqJsonLd`, `breadcrumbJsonLd`, `appJsonLd`) return the graph object and
+  the route wraps it — `meta: [{ "script:ld+json": faqJsonLd(FAQS) }]` — because
+  TanStack's React binding only typechecks that key as a literal written
+  inline in the `meta` array.
 - **Row Level Security.** `rides` and `profiles` are both scoped to
   `auth.uid()` in `supabase/migrations/`. Any new table needs its own RLS
   policy before shipping — don't assume the client can be trusted to filter
