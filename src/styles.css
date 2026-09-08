@@ -332,7 +332,15 @@
   --map-ctrl-invert: 1;
 }
 
-.map-shell .maplibregl-ctrl-attrib {
+/*
+ * MapLibre's stylesheet is injected at runtime, after this one, so it wins
+ * every specificity tie — hence matching its own `.maplibregl-ctrl` and
+ * `.maplibregl-compact` selectors rather than the bare class, which would
+ * leave the expanded credit panel on its stock white background.
+ */
+.map-shell .maplibregl-ctrl-attrib,
+.map-shell .maplibregl-ctrl.maplibregl-ctrl-attrib,
+.map-shell .maplibregl-ctrl-attrib.maplibregl-compact {
   background: color-mix(in oklab, var(--color-card) 80%, transparent);
   color: var(--color-muted-foreground);
   font-size: 10px;
@@ -340,6 +348,39 @@
 
 .map-shell .maplibregl-ctrl-attrib a {
   color: var(--color-muted-foreground);
+}
+
+/*
+ * The compact attribution toggle is a separate element from the credit panel
+ * above and otherwise keeps MapLibre's stock white disc with a black glyph,
+ * which reads as a bright blob on the dark basemap. The glyph moves to a
+ * masked pseudo-element so both the disc and the "i" can take theme colours;
+ * inverting the button instead would flip the disc back to white in dark mode.
+ *
+ * The expanded selector is repeated at MapLibre's own specificity for the
+ * open state, which otherwise re-asserts its translucent grey disc — and its
+ * stylesheet is injected at runtime, so it wins any tie on source order.
+ */
+.map-shell .maplibregl-ctrl-attrib-button,
+.map-shell .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-button {
+  background-image: none;
+  background-color: color-mix(in oklab, var(--color-card) 80%, transparent);
+  border: 1px solid var(--color-border);
+}
+
+.map-shell .maplibregl-ctrl-attrib-button:hover,
+.map-shell .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-button:hover {
+  background-color: var(--color-card);
+}
+
+.map-shell .maplibregl-ctrl-attrib-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-muted-foreground);
+  --attrib-glyph: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill-rule='evenodd' viewBox='0 0 20 20'%3E%3Cpath d='M4 10a6 6 0 1 0 12 0 6 6 0 1 0-12 0m5-3a1 1 0 1 0 2 0 1 1 0 1 0-2 0m0 3a1 1 0 1 1 2 0v3a1 1 0 1 1-2 0'/%3E%3C/svg%3E");
+  -webkit-mask: var(--attrib-glyph) center / 20px 20px no-repeat;
+  mask: var(--attrib-glyph) center / 20px 20px no-repeat;
 }
 
 .rider-arrow {
