@@ -68,7 +68,7 @@ const FAQS: FaqItem[] = [
   {
     question: "Does it use my phone's battery quickly?",
     answer:
-      "Navigation uses GPS continuously, which costs battery on any cycling GPS app. Hodora has a low-power mode that dims the map, reduces redraws and keeps the essentials on screen for long rides, and because routes and tiles can be stored offline it isn't spending power on mobile data the whole way round.",
+      "Navigation uses GPS continuously, which costs battery on any cycling GPS app. Hodora has a low-power mode that drops the GPS chip out of high-accuracy mode and polls the weather less often — the two biggest drains on a long ride — and because routes and map tiles can be stored offline it isn't spending power on mobile data the whole way round.",
   },
   {
     question: "Do I need an account to use it?",
@@ -155,7 +155,7 @@ const ADVANTAGES = [
   {
     icon: BatteryCharging,
     title: "Built for long days",
-    body: "Low-power mode trims the map and the redraws for all-day rides, and light and dark themes keep the screen readable in bright sun and at dusk.",
+    body: "Low-power mode trades a little GPS precision and weather-refresh frequency for battery on all-day rides, and light and dark themes keep the screen readable in bright sun and at dusk.",
   },
 ];
 

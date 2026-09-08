@@ -35,8 +35,8 @@ export const Route = createFileRoute("/llms.txt")({
   instead of a dedicated bike computer.
 - Planning a cycle route over real roads and paths (OpenStreetMap data via
   BRouter/OSRM) and then navigating it.
-- Recording a ride from the phone's GPS: distance, moving time, speed and
-  elevation gain.
+- Recording a ride from the phone's GPS: distance, elapsed time (with manual
+  pause/resume), speed and elevation gain.
 - Riding where there is no mobile signal, using routes and map tiles saved to
   the device beforehand.
 
@@ -58,13 +58,17 @@ export const Route = createFileRoute("/llms.txt")({
 - GPX import from Komoot, Strava, Ride with GPS, Garmin Connect or any other
   source that exports standard GPX.
 - Turn-by-turn navigation: distance to the next turn, turn prompts, current
-  grade, full cue sheet, optional spoken announcements. Turns come from router
-  step data (with street names) on routes planned in-app, or are detected from
-  the track's own geometry for an imported GPX.
+  grade, full cue sheet, optional spoken announcements. Turns are detected from
+  the route's own geometry (a bearing change past ~35 degrees), so a plain GPX
+  yields a full cue sheet; street names are an optional on-demand step that
+  re-routes an imported track through OSRM to attach them.
 - Off-route alerts with routed rejoin guidance back to the course.
-- Elevation: profile per route, total ascent/descent (smoothed, with a 0.5 m
-  noise threshold), live average grade over the next 200 m, and climbing
-  remaining while navigating.
+- Elevation: profile per route, total ascent/descent (a 0.5 m noise threshold
+  throughout, plus a moving-average smoothing pass on raw GPS altitude from
+  imported GPX and recorded rides), live average grade over the next 200 m,
+  and climbing remaining while navigating.
+- Low-power mode: drops the GPS chip out of high-accuracy mode and slows the
+  weather refresh; it does not change what is drawn.
 - Offline maps and offline route storage: the route corridor's map tiles and
   the route itself are saved on the device, so navigation, the cue sheet and
   the elevation profile work in airplane mode. Live weather, place search and
@@ -79,7 +83,7 @@ export const Route = createFileRoute("/llms.txt")({
   toilets.
 - Ride recording with speed history, saved as a reusable route.
 - Wind planner: picks the best hour to ride a saved route based on the forecast.
-- Low-power mode, light and dark themes.
+- Light and dark themes.
 
 ## Pages
 

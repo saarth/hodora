@@ -32,11 +32,12 @@ const WORKS = [
   "Turn-by-turn prompts and voice announcements",
   "The full cue sheet",
   "Elevation profile, remaining climbing and live grade",
-  "Distance, speed and ride recording",
+  "Distance and speed while you ride",
 ];
 
 const NEEDS_SIGNAL = [
   "Downloading map tiles you didn't save first",
+  "Saving a recorded ride to your account — signed out, it saves to the device",
   "Live weather, wind and rain alerts",
   "Routed rejoin guidance after an off-route alert (it falls back to a direct line)",
   "Searching for places, and finding nearby cafés or bike shops",
@@ -67,7 +68,7 @@ const FAQS: FaqItem[] = [
   {
     question: "What still needs a connection while riding offline?",
     answer:
-      "Live weather and rain alerts, place search, nearby amenities, and the routed rejoin path after an off-route alert — that last one falls back to showing the direct line back to the course. Everything needed to follow the route itself is computed on the device.",
+      "Live weather and rain alerts, place search, nearby amenities, and the routed rejoin path after an off-route alert — that last one falls back to showing the direct line back to the course. Saving a newly recorded ride to your account also needs a connection, though signed out it saves straight to the device. Everything needed to follow the route itself is computed on the device.",
   },
   {
     question: "Does the app open at all with no signal?",

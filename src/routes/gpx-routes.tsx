@@ -33,7 +33,7 @@ const LIFECYCLE = [
   },
   {
     title: "Organise",
-    body: "Give each route difficulty and surface tags, then search your library by name or filter it down: road or gravel, easy or hard, only the ones saved offline, only the rides you recorded yourself. A library of eighty GPX files stops being a folder of cryptic filenames.",
+    body: "Give each route difficulty and surface tags, then search your library by name or filter it down: paved or gravel, easy or hard, only the ones saved offline, only the rides you recorded yourself. A library of eighty GPX files stops being a folder of cryptic filenames.",
   },
   {
     title: "Prepare",
@@ -84,7 +84,7 @@ const FAQS: FaqItem[] = [
   {
     question: "Where are my GPX routes stored?",
     answer:
-      "On your device by default, in the browser's own database, which is what lets them work offline. If you sign in they also sync to your account so the same library appears on your phone, tablet and desktop, and you can optionally sync routes to your own Nextcloud, Google Drive or OneDrive instead of relying on anyone else's storage.",
+      "Signed out, entirely on your device — in the browser's own database, never sent anywhere. Signed in, they live in your account so the same library appears on your phone, tablet and desktop, and any route you save for offline use is kept on the device as well. You can also sync routes to storage you control — your own Nextcloud, Google Drive or OneDrive.",
   },
   {
     question: "Which planners can I import GPX files from?",
@@ -201,12 +201,13 @@ function GpxRoutesPage() {
           </h2>
           <div className="mt-6 max-w-3xl space-y-4 text-sm leading-relaxed text-muted-foreground">
             <p>
-              Imported files are parsed on your device, and routes are stored there — which is both
-              what makes them work offline and what keeps a library of where you ride out of anyone
-              else's analytics.
+              Imported files are parsed on your device rather than uploaded to be processed. Ride
+              signed out and they go no further: the library lives in your browser's own database
+              and nothing leaves the phone.
             </p>
             <p>
-              Signing in syncs the same library across your phone, tablet and desktop. If you would
+              Signing in puts that library in your account so it follows you across phone, tablet
+              and desktop, with anything you save offline kept on the device too. If you would
               rather not put it in this app's database at all, routes can sync to storage you
               control — a Nextcloud server, Google Drive or OneDrive — and the whole app can be
               self-hosted, since it is open source under the MIT licence.

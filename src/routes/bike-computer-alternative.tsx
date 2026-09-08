@@ -79,7 +79,7 @@ const SETUP = [
   },
   {
     title: "Turn on low-power mode and voice prompts",
-    body: "Low-power mode trims the map work for long rides. Voice announcements mean you can drop the screen brightness and still know the next turn.",
+    body: "Low-power mode eases the GPS chip out of high-accuracy mode and slows the weather refresh — a fair trade over six hours. Voice announcements mean you can drop the screen brightness and still know the next turn.",
   },
   {
     title: "Carry a small power bank for long days",
@@ -111,7 +111,7 @@ const FAQS: FaqItem[] = [
   {
     question: "Do I lose ride tracking if I stop using a head unit?",
     answer:
-      "No. Hodora records rides from the phone's GPS with distance, moving time, speed and elevation gain, saves each one as a route you can ride again, and can hand you the track as a standard GPX file to take anywhere else.",
+      "No. Hodora records rides from the phone's GPS with distance, elapsed time, speed and elevation gain, and saves each one as a route you can ride again or hand on as a standard GPX file. It records elapsed time with manual pause and resume rather than auto-pausing, so a long café stop is yours to pause.",
   },
   {
     question: "What does a bike computer do that this doesn't?",

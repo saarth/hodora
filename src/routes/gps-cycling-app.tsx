@@ -30,7 +30,7 @@ const FEATURES = [
 const USES = [
   {
     title: "Record a ride",
-    body: "Start recording and Hodora logs your track from the phone's GPS: distance, moving time, speed and elevation gain, with a speed history you can scrub through afterwards. Stop, name it, and the ride is saved as a route you can navigate again any time.",
+    body: "Start recording and Hodora logs your track from the phone's GPS: distance, elapsed time, speed and elevation gain, with a speed history you can scrub through afterwards. Pause and resume are manual, so a café stop is yours to call. Stop, name it, and the ride is saved as a route you can navigate again any time.",
     to: "/record" as const,
     cta: "Record a ride",
   },
@@ -78,7 +78,7 @@ const FAQS: FaqItem[] = [
   {
     question: "Does Hodora track me or sell my data?",
     answer:
-      "No. There are no ads, no analytics trackers and no data sales. Routes are stored on your device by default, an account exists only to sync them between your own devices, and you can sync to your own Nextcloud, Google Drive or OneDrive — or self-host the entire app, since the source is MIT-licensed on GitHub.",
+      "No. There are no ads, no analytics trackers and no data sales. Used signed out, your routes never leave the device at all; an account exists only to sync them between your own devices, and you can sync to your own Nextcloud, Google Drive or OneDrive — or self-host the entire app, since the source is MIT-licensed on GitHub.",
   },
   {
     question: "How do I stop a cycling GPS app from draining the battery?",

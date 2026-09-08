@@ -160,9 +160,11 @@ function ElevationTrackingPage() {
             <p>
               Hodora smooths the elevation series with a short moving average first, then counts a
               rise only once it exceeds half a metre. The result is a figure that tracks the road
-              rather than the receiver, and it is applied the same way to imported GPX files,
-              planned routes and rides you record, so numbers inside the app are comparable with
-              each other.
+              rather than the receiver. Imported GPX files and rides you record both go through it,
+              because both carry raw GPS altitude. Routes built in the planner skip the smoothing
+              and keep only the half-metre threshold — their elevation comes from the routing engine
+              rather than a receiver on a moving bike, so there is no jitter to smooth out and
+              averaging it would only flatten real terrain.
             </p>
             <p>
               Live gradient gets the same treatment for the same reason. A gradient computed between

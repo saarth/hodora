@@ -20,7 +20,7 @@ const DESCRIPTION =
 const FEATURES = [
   "Turn-by-turn cycling directions from any GPX route",
   "Spoken turn announcements via the browser's speech synthesis",
-  "Full cue sheet with street names on routes planned in-app",
+  "Full cue sheet, with a one-tap street-name lookup for imported GPX files",
   "Off-route alerts with a routed way back to the course",
   "Distance to the next turn, distance remaining and remaining climbing",
   "Average grade of the next 200 metres",
@@ -30,7 +30,7 @@ const FEATURES = [
 const ON_SCREEN = [
   {
     title: "The next turn",
-    body: "Direction, distance to it, and — on routes planned in Hodora, where the router returned step data — the name of the road you are turning onto. Imported GPX files carry no street names, so those turns are detected from the track's own geometry instead.",
+    body: 'Direction and distance to it, detected from the shape of the route itself. A GPX carries no street names, so an imported route can be run back through a routing engine on demand — one tap on "Recover street names" — to turn "left in 300 m" into the name of the road you\'re turning onto.',
   },
   {
     title: "What's left",
@@ -55,7 +55,7 @@ const FAQS: FaqItem[] = [
   {
     question: "How does Hodora give turn-by-turn directions from a GPX file?",
     answer:
-      "A GPX file is a list of coordinates, not a list of instructions, so Hodora derives the turns from the track itself: it walks the route, measures the change in bearing at each point, and treats anything above about 35 degrees as a turn. Routes planned inside Hodora go one better, because the routing engine returns real step data with street names, which becomes the cue sheet.",
+      "A GPX file is a list of coordinates, not a list of instructions, so Hodora derives the turns from the track itself: it walks the route, measures the change in bearing at each point, and treats anything above about 35 degrees as a turn. That gives you a complete cue sheet from a file that contained no instructions. Street names are a separate step — an imported route can be sent back through a routing engine on demand to attach them.",
   },
   {
     question: "Does it announce turns out loud?",
@@ -173,9 +173,12 @@ function TurnByTurnPage() {
               that contained no instructions at all.
             </p>
             <p>
-              Routes planned inside Hodora get the better version: the routing engine hands back
-              real step data, so the cue sheet carries street names, roundabout exits and fork
-              directions rather than "left in 300 m".
+              What geometry can't tell you is what the road is called. That's an optional second
+              step: an imported route can be sent back through a routing engine on demand — the
+              "Recover street names" action on the route — which matches the track to real streets
+              and turns "left in 300 m" into "left onto Mill Lane". It's a deliberate one-tap action
+              rather than something that happens to every import, because it needs the network and
+              most rides don't need it.
             </p>
             <p>
               Either way, the work happens on your phone. That is what makes{" "}
