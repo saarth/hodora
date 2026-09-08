@@ -155,6 +155,23 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   shell has no browser chrome to fall back on. Its `data-mobile-tabbar`
   attribute drives the body bottom-padding rule in `styles.css`; a page that
   renders the bar gets that clearance automatically.
+- **Full-bleed map screens.** `/plan`, `/explore` and `/record` (and live
+  navigation, which established the pattern) put the map edge to edge and
+  float their controls over it as glass panels, rather than boxing the map
+  inside a page that scrolls. `src/components/MapScreen.tsx` holds that
+  chrome — `MapScreen`/`MapStage`/`MapOverlay`/`MapToolbar`/`MapRail`/
+  `MapRailButton`/`MapPanel`/`MapCard` — and two invariants come with it.
+  First, the page is locked to the viewport (`h-[100dvh]`) and never
+  scrolls; anything that can overflow goes in `MapPanel`, which scrolls
+  inside itself. Second, `data-map-screen` makes `styles.css` drop the body
+  bottom padding that normally clears `MobileTabBar`, because the map is
+  meant to run *under* the bar — `MapOverlay` re-applies that clearance to
+  the floating panels instead, so keep new floating chrome inside it rather
+  than positioning it against the viewport. Pass `showFitControl={false}`
+  and `showZoomControl={false}` to `RouteMap` on these screens: its built-in
+  fit button (top-left) and MapLibre's zoom cluster (top-right) land in the
+  same corners the overlay occupies, so fitting moves to a rail button
+  driving the map's `fitTo` prop.
 - **Proximity alerts** (`findProximityAlert` in `src/lib/nav.ts`, wired into
   `src/routes/rides.$id.nav.tsx`) run on the same foreground
   `navigator.geolocation.watchPosition` stream every other location feature

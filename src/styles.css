@@ -413,6 +413,34 @@ body:has(nav[data-mobile-tabbar]) {
 }
 
 /*
+ * ...except on a full-bleed map screen (/plan, /explore, /record), where the
+ * map is meant to run edge to edge underneath the tab bar. Reserving the
+ * clearance on the body there would shrink the map and leave a dead strip
+ * below it instead; MapOverlay re-applies the same clearance to its own
+ * floating panels, so nothing tappable ends up behind the bar.
+ *
+ * The `:has(nav[data-mobile-tabbar])` half is redundant on its own — every
+ * map screen renders a tab bar — but it's what makes this selector *more
+ * specific* than the rule above rather than merely later in the file, which
+ * a bare `body:has([data-map-screen])` isn't (an attribute selector alone
+ * loses to `nav[data-mobile-tabbar]`), leaving the page scrollable by the
+ * height of the bar.
+ */
+body:has(nav[data-mobile-tabbar]):has([data-map-screen]) {
+  padding-bottom: 0;
+}
+
+/*
+ * MapLibre's own bottom-corner controls (the compact attribution) live inside
+ * the map, so on a map screen they sit behind the tab bar. Lift them clear of
+ * it — the attribution has to stay legible, it's the OpenStreetMap credit.
+ */
+[data-map-screen] .maplibregl-ctrl-bottom-left,
+[data-map-screen] .maplibregl-ctrl-bottom-right {
+  margin-bottom: calc(var(--safe-area-inset-bottom) + 3.5rem);
+}
+
+/*
  * Top safe-area clearance is the *header's* job on any page that renders one:
  * body padding scrolls away with the content, so a sticky header pinned below
  * it leaves a live strip of page content showing through under the status bar.
@@ -427,5 +455,11 @@ body:has(header[data-app-header]) {
 @media (min-width: 40rem) {
   body:has(nav[data-mobile-tabbar]) {
     padding-bottom: 0;
+  }
+
+  /* No tab bar from here up, so the map's own controls sit at the edge again. */
+  [data-map-screen] .maplibregl-ctrl-bottom-left,
+  [data-map-screen] .maplibregl-ctrl-bottom-right {
+    margin-bottom: var(--safe-area-inset-bottom);
   }
 }

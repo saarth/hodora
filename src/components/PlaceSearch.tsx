@@ -12,10 +12,13 @@ export function PlaceSearch({
   onSelect,
   placeholder = "Search for a place…",
   className,
+  inputClassName,
 }: {
   onSelect: (result: GeocodeResult) => void;
   placeholder?: string;
   className?: string;
+  /** extra classes for the field itself — map screens drop its border and background so it sits flush inside a glass panel */
+  inputClassName?: string;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GeocodeResult[]>([]);
@@ -73,7 +76,7 @@ export function PlaceSearch({
           onChange={(event) => setQuery(event.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder={placeholder}
-          className="pl-9 pr-9"
+          className={cn("pl-9 pr-9", inputClassName)}
         />
         {loading ? (
           <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
