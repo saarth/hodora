@@ -66,7 +66,7 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   comment in `vite.config.ts`'s `VitePWA(...)` call for why, and
   `docs/CODE_REVIEW.md` for the full story if it regresses.
 - **SEO metadata.** Each public route's `head()` (`src/routes/index.tsx`, the
-  eight topic pages listed under "Marketing/topic pages" below, plus
+  content pages listed under "Marketing pages" below, plus
   `plan.tsx`, `explore.tsx`, `wind.tsx`) sets its own `TITLE`/`DESCRIPTION` pair — those strings are keyword-researched, so
   don't rewrite them casually. Every _URL_ in that metadata, though, comes
   from `src/lib/seo.ts`: use `absoluteUrl(path)` and `canonicalLink(path)`
@@ -82,33 +82,52 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   `{ name: "robots", content: "noindex, follow" }` in their `head()` meta
   instead of a canonical — follow that pattern for any new account-gated or
   user-generated-content route rather than adding it to the sitemap.
-- **Marketing/topic pages.** `/` plus the eight topic pages —
-  `/bike-navigation-app` (the hub), `/turn-by-turn-navigation`,
-  `/offline-navigation`, `/bike-computer-alternative`, `/gpx-routes`,
-  `/elevation-tracking`, `/club-rides` and `/gps-cycling-app` — are the
-  indexable content pages, and all render inside
-  `src/components/MarketingLayout.tsx`. Its exported `GUIDES` array is the one
-  list of topic pages: it drives both the footer and the landing page's Guides
-  section, so a new page added there is linked from everywhere at once. A page
-  that isn't in `GUIDES` is an orphan only the sitemap knows about.
+- **Marketing pages.** The indexable content pages are `/`, `/how-to-use`,
+  `/bike-gps`, `/faq` and `/support`, plus `/plan`, `/explore` and `/wind`.
+  All the prose ones render inside `src/components/MarketingLayout.tsx`, whose
+  exported `GUIDES` array is the one list of supporting pages: it drives both
+  the footer and the landing page's Guides section, so a new page added there
+  is linked from everywhere at once. A page that isn't in `GUIDES` is an
+  orphan only the sitemap knows about — and one that's in `GUIDES` but not in
+  the sitemap's `PAGES` is the opposite mistake; `src/marketing-claims.test.ts`
+  now checks that pairing.
+  There used to be eight topic pages, one per search term
+  (`/bike-navigation-app`, `/turn-by-turn-navigation`, `/offline-navigation`,
+  `/bike-computer-alternative`, `/gpx-routes`, `/elevation-tracking`,
+  `/club-rides`, `/gps-cycling-app`). They 301 to `/how-to-use` and their
+  questions live on `/faq`; don't revive them. `/bike-gps` is the one page
+  added back, because it answers a buying question ("can a phone replace a GPS
+  bike computer?") rather than a how-do-I one — and it _owns_ that argument:
+  `/how-to-use` and `/` link to it instead of restating the comparison. Keep
+  it that way rather than letting a second page grow its own version.
   Each page's copy describes real behaviour — thresholds, fallbacks and the
   things that _don't_ work offline included — so check the code before
   changing a claim, and keep the honest limitations (foreground-only
   navigation, no sensor pairing, rejoin needing a network) rather than
-  quietly dropping them. `src/marketing-claims.test.ts` is the tripwire for
+  quietly dropping them. `/bike-gps`'s comparison table is the sharpest case:
+  the rows a head unit wins are load-bearing, not hedging.
+  `src/marketing-claims.test.ts` is the tripwire for
   exactly that: it pins each quoted number and behaviour to the function
   that implements it, and every test names the page and sentence it
   protects. If it fails because the code changed on purpose, update the page
-  copy first and the test second — don't just move the expected value. Their FAQs use
+  copy first and the test second — don't just move the expected value. FAQs use
   `src/components/FaqSection.tsx` and pass the _same_ array to
   `faqJsonLd(...)` in `head()`; keep those in sync (structured data whose
   answers aren't on the page is what rich-result validation rejects) and keep
   the answers server-rendered rather than hiding them behind an accordion, so
-  crawlers that don't run JavaScript still see them. JSON-LD helpers
-  (`faqJsonLd`, `breadcrumbJsonLd`, `appJsonLd`) return the graph object and
-  the route wraps it — `meta: [{ "script:ld+json": faqJsonLd(FAQS) }]` — because
+  crawlers that don't run JavaScript still see them. `/faq` carries the site's only
+  `FAQPage` graph. `/` renders a short five-question FAQ as visible copy with
+  no graph of its own — worded differently from the `/faq` entries covering
+  the same ground, and server-rendered, so a crawler reads the answers without
+  a second graph competing with the first. Don't add another;
+  `marketing-claims.test.ts` fails if one appears. JSON-LD helpers
+  (`faqJsonLd`, `breadcrumbJsonLd`, `appJsonLd`, `organizationJsonLd`) return
+  the graph object and the route wraps it —
+  `meta: [{ "script:ld+json": faqJsonLd(FAQS) }]` — because
   TanStack's React binding only typechecks that key as a literal written
-  inline in the `meta` array.
+  inline in the `meta` array. `/` emits three of them (app, organization,
+  FAQ) as separate scripts rather than one `@graph`; crawlers read those
+  identically.
 - **Row Level Security.** `rides` and `profiles` are both scoped to
   `auth.uid()` in `supabase/migrations/`. Any new table needs its own RLS
   policy before shipping — don't assume the client can be trusted to filter

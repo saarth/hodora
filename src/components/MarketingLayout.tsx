@@ -71,11 +71,16 @@ function MarketingNav() {
  *
  * This was eight topic pages — one per search term — which between them said
  * the same thing eight times and split the internal linking eight ways. They
- * now 301 to `/how-to-use`, and their questions live on `/faq`. Exported
- * because the landing page renders the same set as a visible section.
+ * now 301 to `/how-to-use`, and their questions live on `/faq`. `/bike-gps` is
+ * the one deliberate exception: it answers a shopping question ("is a phone
+ * good enough to replace a bike computer?") rather than a how-do-I one, and
+ * it *owns* that argument — `/how-to-use` links to it rather than repeating
+ * it. Exported because the landing page renders the same set as a visible
+ * section.
  */
 export const GUIDES = [
   { to: "/how-to-use", label: "How to use Hodora" },
+  { to: "/bike-gps", label: "Your phone as a bike GPS" },
   { to: "/faq", label: "Frequently asked questions" },
   { to: "/support", label: "Support the project" },
 ] as const;

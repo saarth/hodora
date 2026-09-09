@@ -1,4 +1,4 @@
-import { globSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -177,6 +177,29 @@ describe("/ and /how-to-use — what low-power mode actually trades", () => {
   });
 });
 
+describe("/bike-gps — the phone-versus-head-unit comparison", () => {
+  it('"a bearing change past about 35 degrees" is the turn threshold', () => {
+    expect(detectTurns(corner(30))).toHaveLength(0);
+    expect(detectTurns(corner(40))).toHaveLength(1);
+  });
+
+  it('"cuts the weather refresh from every minute to every five"', () => {
+    expect(weatherPollOptions(false).pollMs).toBe(60_000);
+    expect(weatherPollOptions(true).pollMs).toBe(5 * 60 * 1000);
+  });
+
+  it('the comparison table\'s honest loss: "does not read ANT+ or Bluetooth sensors"', () => {
+    // The row a rider would catch us on. If sensor pairing ever ships, the
+    // table, the "when to keep the head unit" section and the landing FAQ's
+    // last answer all have to change together.
+    const sensorApi = /navigator\.bluetooth|requestDevice\(|BluetoothRemoteGATT|\bant-?plus\b/i;
+    const offenders = globSync("**/*.{ts,tsx}", { cwd: __dirname })
+      .filter((file) => !file.endsWith(".test.ts") && !file.endsWith(".test.tsx"))
+      .filter((file) => sensorApi.test(readFileSync(resolve(__dirname, file), "utf8")));
+    expect(offenders).toEqual([]);
+  });
+});
+
 /**
  * Facts the marketing copy states that can't be reached without a network
  * or a rendered browser, so they're pinned to the source instead. These are
@@ -244,6 +267,37 @@ describe("source of truth for claims that can't be executed here", () => {
         return vendor.test(body);
       });
     expect(offenders).toEqual([]);
+  });
+
+  it("one FAQPage graph site-wide, and it is /faq", () => {
+    // Two graphs answering overlapping questions is what the topic-page
+    // consolidation removed. `/` renders a short FAQ as visible copy only —
+    // server-rendered, so a crawler reads it either way.
+    // Comments stripped first: index.tsx's doc comment *names* the call it
+    // tells you not to add, and that mention is not a graph.
+    const withGraph = globSync("routes/**/*.tsx", { cwd: __dirname }).filter((file) =>
+      /faqJsonLd\(/.test(read(file).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "")),
+    );
+    expect(withGraph).toEqual(["routes/faq.tsx"]);
+    expect(read("routes/index.tsx")).toContain("items={FAQS}");
+  });
+
+  it("/: the Organization logo points at a file that actually exists", () => {
+    const logo = read("lib/seo.ts").match(/logo: absoluteUrl\("([^"]+)"\)/);
+    expect(logo).not.toBeNull();
+    // Leading slash stripped: `resolve` would treat "/icon-512.png" as absolute.
+    expect(existsSync(resolve(__dirname, "..", "public", logo![1].replace(/^\//, "")))).toBe(true);
+  });
+
+  it("every page in GUIDES is in the sitemap — a linked page crawlers can't enumerate", () => {
+    const guides = [...read("components/MarketingLayout.tsx").matchAll(/\{ to: "([^"]+)"/g)].map(
+      (match) => match[1],
+    );
+    const sitemap = read("routes/sitemap[.]xml.tsx");
+    expect(guides.length).toBeGreaterThan(0);
+    for (const path of guides) {
+      expect(sitemap).toContain(`path: "${path}"`);
+    }
   });
 
   it("/llms.txt: exists because the map routes are client-rendered", () => {
