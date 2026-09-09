@@ -20,8 +20,8 @@
  * alongside later means adding one more entry here.
  */
 export const SUPPORT_LINKS = {
-  githubSponsors: null as string | null,
-  revolut: null as string | null,
+  githubSponsors: "https://github.com/sponsors/saarth" as string | null,
+  revolut: "https://revolut.me/saarth" as string | null,
 };
 
 export type SupportPlatform = keyof typeof SUPPORT_LINKS;
