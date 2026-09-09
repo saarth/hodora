@@ -97,6 +97,9 @@ export const Route = createFileRoute("/llms.txt")({
 - [FAQ](${SITE_URL}/faq): answers on cost, supported phones, iPhone
   behaviour, offline navigation, GPX imports, elevation figures, battery,
   privacy and self-hosting.
+- [Support](${SITE_URL}/support): how to support the project financially or
+  otherwise — starring the repository, reporting bugs, sharing it, and
+  contributing code or documentation.
 - [Bike route planner](${SITE_URL}/plan): plan a cycle route by tapping the map.
   Client-rendered map UI.
 - [Explore cycle routes near me](${SITE_URL}/explore): find nearby bike trails

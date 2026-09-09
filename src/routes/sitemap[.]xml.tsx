@@ -17,6 +17,7 @@ const PAGES = [
   { path: "/", lastmod: "2026-09-09", changefreq: "weekly", priority: "1.0" },
   { path: "/how-to-use", lastmod: "2026-09-09", changefreq: "monthly", priority: "0.9" },
   { path: "/faq", lastmod: "2026-09-09", changefreq: "monthly", priority: "0.9" },
+  { path: "/support", lastmod: "2026-09-09", changefreq: "monthly", priority: "0.6" },
   { path: "/plan", lastmod: "2026-08-18", changefreq: "monthly", priority: "0.8" },
   { path: "/explore", lastmod: "2026-08-18", changefreq: "monthly", priority: "0.8" },
   { path: "/wind", lastmod: "2026-08-18", changefreq: "monthly", priority: "0.5" },

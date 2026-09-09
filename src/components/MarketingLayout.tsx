@@ -77,6 +77,7 @@ function MarketingNav() {
 export const GUIDES = [
   { to: "/how-to-use", label: "How to use Hodora" },
   { to: "/faq", label: "Frequently asked questions" },
+  { to: "/support", label: "Support the project" },
 ] as const;
 
 /**

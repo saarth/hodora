@@ -28,6 +28,7 @@ import { Route as RecordRouteImport } from './routes/record'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SupportRouteImport } from './routes/support'
 import { Route as TurnByTurnNavigationRouteImport } from './routes/turn-by-turn-navigation'
 import { Route as WindRouteImport } from './routes/wind'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -145,6 +146,11 @@ const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TurnByTurnNavigationRoute = TurnByTurnNavigationRouteImport.update({
@@ -296,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/support': typeof SupportRoute
   '/turn-by-turn-navigation': typeof TurnByTurnNavigationRoute
   '/wind': typeof WindRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -340,6 +347,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/support': typeof SupportRoute
   '/turn-by-turn-navigation': typeof TurnByTurnNavigationRoute
   '/wind': typeof WindRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -386,6 +394,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/support': typeof SupportRoute
   '/turn-by-turn-navigation': typeof TurnByTurnNavigationRoute
   '/wind': typeof WindRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -432,6 +441,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/support'
     | '/turn-by-turn-navigation'
     | '/wind'
     | '/settings'
@@ -476,6 +486,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/support'
     | '/turn-by-turn-navigation'
     | '/wind'
     | '/settings'
@@ -521,6 +532,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/support'
     | '/turn-by-turn-navigation'
     | '/wind'
     | '/_authenticated/settings'
@@ -567,6 +579,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SupportRoute: typeof SupportRoute
   TurnByTurnNavigationRoute: typeof TurnByTurnNavigationRoute
   WindRoute: typeof WindRoute
   ApiDeleteAccountRoute: typeof ApiDeleteAccountRoute
@@ -725,6 +738,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/turn-by-turn-navigation': {
@@ -929,6 +949,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SupportRoute: SupportRoute,
   TurnByTurnNavigationRoute: TurnByTurnNavigationRoute,
   WindRoute: WindRoute,
   ApiDeleteAccountRoute: ApiDeleteAccountRoute,
