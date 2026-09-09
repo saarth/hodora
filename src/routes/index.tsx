@@ -9,7 +9,6 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FaqSection } from "@/components/FaqSection";
 import {
   AndroidIcon,
   ANDROID_RELEASES_URL,
@@ -17,7 +16,7 @@ import {
   MarketingLayout,
 } from "@/components/MarketingLayout";
 import { useUser } from "@/hooks/use-user";
-import { absoluteUrl, appJsonLd, canonicalLink, faqJsonLd, type FaqItem } from "@/lib/seo";
+import { absoluteUrl, appJsonLd, canonicalLink } from "@/lib/seo";
 
 const TITLE = "Free Bike Navigation App for Club Rides & GPX Routes | Hodora";
 const DESCRIPTION =
@@ -32,54 +31,6 @@ const FEATURES = [
   "Offline maps and routes",
   "Live weather, headwind and rain alerts",
   "Free and open source — no subscription, no ads, no tracking",
-];
-
-/**
- * Answers written to stand on their own out of context: an LLM quoting one of
- * these in a "best bike navigation app" answer will lift the sentence, not the
- * page around it, so each one names Hodora and what it actually does.
- */
-const FAQS: FaqItem[] = [
-  {
-    question: "What is the best bike navigation app for club rides?",
-    answer:
-      "The one that opens the file your ride leader actually sends. Club rides, sportives and gran fondos are shared as a GPX file, so the practical test for a bike navigation app is whether you can import that GPX in a few seconds and follow it turn by turn without a subscription. Hodora is built for exactly that case: import the organiser's GPX, save it for offline use before you leave, and ride it with turn prompts, a cue sheet and off-route alerts.",
-  },
-  {
-    question: "Is there a free GPS app for cycling?",
-    answer:
-      "Yes. Hodora is a free, open-source GPS app for cycling with no subscription tier and no paid unlock — turn-by-turn navigation, offline maps, route planning and ride recording are all included. It runs in your phone's browser or as an installable app, and the source is on GitHub under the MIT licence.",
-  },
-  {
-    question: "Do I need a bike computer to navigate a route?",
-    answer:
-      "No. A modern phone has the same GPS receiver, a far better screen and a bigger battery than most entry-level head units. Hodora turns that phone into a bike navigation device: mount it on the bars, load the route, and it gives you distance to the next turn, the grade of the climb ahead and an alert the moment you drift off course.",
-  },
-  {
-    question: "Does bike navigation work offline?",
-    answer:
-      "Yes. Save a route for offline use before you set off and Hodora stores the GPX and the map tiles around it on your device. Navigation, the elevation profile and the cue sheet all keep working with no signal, which matters on the parts of a club run where coverage disappears.",
-  },
-  {
-    question: "Which route planners can I import GPX files from?",
-    answer:
-      "Any of them. Hodora reads standard GPX tracks and routes, so files exported from Komoot, Strava, Ride with GPS, Garmin Connect, Cycle.travel or a club's own website all work the same way. You can also plan a route inside Hodora and skip the export step.",
-  },
-  {
-    question: "Does it use my phone's battery quickly?",
-    answer:
-      "Navigation uses GPS continuously, which costs battery on any cycling GPS app. Hodora has a low-power mode that drops the GPS chip out of high-accuracy mode and polls the weather less often — the two biggest drains on a long ride — and because routes and map tiles can be stored offline it isn't spending power on mobile data the whole way round.",
-  },
-  {
-    question: "Do I need an account to use it?",
-    answer:
-      "No. You can import a GPX and start navigating without signing up — routes are stored on your device. An account only exists so your routes sync between your phone, tablet and desktop, and you can optionally sync them to your own Nextcloud, Google Drive or OneDrive instead.",
-  },
-  {
-    question: "Is Hodora available on Android and iPhone?",
-    answer:
-      "Both. There is an Android app you can install from GitHub Releases, and on iPhone or any other device you can add the web app to your home screen as a PWA, which gives you the same offline-capable app without an app store.",
-  },
 ];
 
 export const Route = createFileRoute("/")({
@@ -97,7 +48,6 @@ export const Route = createFileRoute("/")({
           featureList: FEATURES,
         }),
       },
-      { "script:ld+json": faqJsonLd(FAQS) },
     ],
     links: canonicalLink("/"),
   }),
@@ -197,12 +147,19 @@ function Landing() {
               Get the Android app
             </a>
           </Button>
-          <span className="text-sm text-muted-foreground">
-            {user
-              ? "Your rides stay private."
-              : "Sign in later to sync your routes across devices."}
-          </span>
         </div>
+        {/* Hodora is a web app first — the Android build is the same site in a
+            native shell. Framing it as "Android only" would turn away every
+            iPhone rider, for whom it already works in the browser today. */}
+        <p className="mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Android gets an installable app. On iPhone and everywhere else Hodora runs in the browser
+          — add it to your home screen and it opens full-screen like any other app.{" "}
+          <Link to="/how-to-use" className="underline underline-offset-2 hover:text-foreground">
+            See how to set it up
+          </Link>
+          .{" "}
+          {user ? "Your rides stay private." : "Sign in later to sync your routes across devices."}
+        </p>
       </section>
 
       <section className="mt-20" aria-labelledby="what-it-does">
@@ -240,8 +197,8 @@ function Landing() {
         </ol>
         <p className="mt-6 text-sm text-muted-foreground">
           There's a longer walkthrough, plus tips for ride leaders, on{" "}
-          <Link to="/club-rides" className="underline underline-offset-2 hover:text-foreground">
-            bike navigation for club rides
+          <Link to="/how-to-use" className="underline underline-offset-2 hover:text-foreground">
+            how to use Hodora
           </Link>
           .
         </p>
@@ -262,13 +219,10 @@ function Landing() {
         </div>
         <p className="mt-6 text-sm text-muted-foreground">
           More on what to look for in a{" "}
-          <Link
-            to="/bike-navigation-app"
-            className="underline underline-offset-2 hover:text-foreground"
-          >
-            bike navigation app
+          <Link to="/how-to-use" className="underline underline-offset-2 hover:text-foreground">
+            guide to using a phone instead
           </Link>
-          , and how Hodora compares.
+          , including what a head unit still does better.
         </p>
       </section>
 
@@ -316,12 +270,12 @@ function Landing() {
 
       <section className="mt-20" aria-labelledby="guides">
         <h2 id="guides" className="text-2xl font-bold sm:text-3xl">
-          Guides
+          Learn more
         </h2>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Longer answers on the parts riders ask about most.
+          One guide that walks the whole thing through, and one page of answers.
         </p>
-        <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="mt-8 grid gap-3 sm:grid-cols-2">
           {GUIDES.map((guide) => (
             <li key={guide.to}>
               <Link
@@ -335,8 +289,6 @@ function Landing() {
           ))}
         </ul>
       </section>
-
-      <FaqSection heading="Bike navigation questions, answered" items={FAQS} />
     </MarketingLayout>
   );
 }

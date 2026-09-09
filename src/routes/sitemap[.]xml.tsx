@@ -5,32 +5,18 @@ import { SITE_URL } from "@/lib/seo";
 /**
  * The public, indexable routes. Account-gated and per-user routes (/auth,
  * /rides, /share/$id) are marked `noindex` in their own head() and
- * deliberately absent here.
+ * deliberately absent here, as are the eight retired topic pages that now
+ * 301 to /how-to-use — a sitemap listing a redirect asks crawlers to keep
+ * revisiting a URL whose only job is to point somewhere else.
  *
  * `lastmod` is a fixed date per page rather than "today": a date that advances
  * on every request tells crawlers the content changed when it didn't. Bump a
  * page's date by hand when you actually rewrite its content.
  */
 const PAGES = [
-  { path: "/", lastmod: "2026-09-08", changefreq: "weekly", priority: "1.0" },
-  { path: "/bike-navigation-app", lastmod: "2026-09-08", changefreq: "monthly", priority: "0.9" },
-  { path: "/club-rides", lastmod: "2026-09-08", changefreq: "monthly", priority: "0.9" },
-  { path: "/gps-cycling-app", lastmod: "2026-09-08", changefreq: "monthly", priority: "0.9" },
-  {
-    path: "/turn-by-turn-navigation",
-    lastmod: "2026-09-08",
-    changefreq: "monthly",
-    priority: "0.9",
-  },
-  { path: "/offline-navigation", lastmod: "2026-09-08", changefreq: "monthly", priority: "0.9" },
-  {
-    path: "/bike-computer-alternative",
-    lastmod: "2026-09-08",
-    changefreq: "monthly",
-    priority: "0.9",
-  },
-  { path: "/gpx-routes", lastmod: "2026-09-08", changefreq: "monthly", priority: "0.9" },
-  { path: "/elevation-tracking", lastmod: "2026-09-08", changefreq: "monthly", priority: "0.9" },
+  { path: "/", lastmod: "2026-09-09", changefreq: "weekly", priority: "1.0" },
+  { path: "/how-to-use", lastmod: "2026-09-09", changefreq: "monthly", priority: "0.9" },
+  { path: "/faq", lastmod: "2026-09-09", changefreq: "monthly", priority: "0.9" },
   { path: "/plan", lastmod: "2026-08-18", changefreq: "monthly", priority: "0.8" },
   { path: "/explore", lastmod: "2026-08-18", changefreq: "monthly", priority: "0.8" },
   { path: "/wind", lastmod: "2026-08-18", changefreq: "monthly", priority: "0.5" },

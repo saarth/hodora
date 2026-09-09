@@ -27,6 +27,14 @@ export function AndroidIcon({ className }: { className?: string }) {
   );
 }
 
+export function AppleIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M16.36 12.72c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.42-.14-2.76.83-3.48.83-.71 0-1.82-.81-2.99-.79-1.54.02-2.96.89-3.75 2.26-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.39 0 1.78.74 2.99.72 1.23-.02 2.02-1.12 2.78-2.23.87-1.28 1.23-2.52 1.25-2.58-.03-.01-2.4-.92-2.42-3.67zM14.09 5.9c.63-.77 1.06-1.83.94-2.9-.91.04-2.01.61-2.67 1.37-.59.68-1.1 1.76-.96 2.8 1.02.08 2.06-.52 2.69-1.27z" />
+    </svg>
+  );
+}
+
 function MarketingNav() {
   const { user, loading } = useUser();
   const { theme, toggle } = useTheme();
@@ -37,6 +45,14 @@ function MarketingNav() {
         <HodoraLogo textClassName="text-xl font-extrabold" />
       </Link>
       <div className="flex items-center gap-2">
+        {/* Phone-sized screens reach these from the footer — the tab bar
+            already owns the bottom of the viewport down there. */}
+        <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+          <Link to="/how-to-use">How to use</Link>
+        </Button>
+        <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+          <Link to="/faq">FAQ</Link>
+        </Button>
         <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
           {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </Button>
@@ -51,30 +67,24 @@ function MarketingNav() {
 }
 
 /**
- * The indexable topic pages, in one list.
+ * The indexable supporting pages, in one list.
  *
- * Exported because the landing page renders the same set as a visible section:
- * a guide reachable only from a footer is one click deeper than it needs to be,
- * and this way adding a page updates both places at once.
+ * This was eight topic pages — one per search term — which between them said
+ * the same thing eight times and split the internal linking eight ways. They
+ * now 301 to `/how-to-use`, and their questions live on `/faq`. Exported
+ * because the landing page renders the same set as a visible section.
  */
 export const GUIDES = [
-  { to: "/bike-navigation-app", label: "Bike navigation app" },
-  { to: "/turn-by-turn-navigation", label: "Turn-by-turn navigation" },
-  { to: "/offline-navigation", label: "Offline navigation" },
-  { to: "/bike-computer-alternative", label: "Bike computer alternative" },
-  { to: "/gpx-routes", label: "GPX route management" },
-  { to: "/elevation-tracking", label: "Elevation tracking" },
-  { to: "/club-rides", label: "Navigation for club rides" },
-  { to: "/gps-cycling-app", label: "Free GPS app for cycling" },
+  { to: "/how-to-use", label: "How to use Hodora" },
+  { to: "/faq", label: "Frequently asked questions" },
 ] as const;
 
 /**
  * Site-wide internal linking, in one place.
  *
- * Every marketing page carries the same footer so the topic pages
- * (`/bike-navigation-app`, `/club-rides`, `/gps-cycling-app`) are reachable in
- * one hop from anywhere — orphan pages that only the sitemap knows about get
- * crawled late and rank badly, however good the copy is.
+ * Every marketing page carries the same footer so the guide and the FAQ are
+ * reachable in one hop from anywhere — orphan pages that only the sitemap
+ * knows about get crawled late and rank badly, however good the copy is.
  */
 function MarketingFooter() {
   return (
