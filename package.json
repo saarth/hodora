@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
+    "screenshots": "node scripts/screenshots/capture.mjs",
     "cap:sync": "cap sync android",
     "cap:open": "cap open android"
   },
@@ -72,15 +73,18 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "fake-indexeddb": "^6.2.5",
+    "geojson-vt": "^5.0.2",
     "globals": "^17.9.0",
     "jsdom": "^30.0.1",
     "nitro": "3.0.260610-beta",
+    "playwright": "^1.63.0",
     "prettier": "^3.7.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.1.5",
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.1.10",
+    "vt-pbf": "^3.1.3",
     "workbox-build": "^7.4.1",
     "wrangler": "^4.118.0"
   }

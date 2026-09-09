@@ -37,6 +37,8 @@ docs/
 pwa-config.mjs      # Shared PWA manifest + workbox config (see below)
 scripts/
   generate-sw.mjs   # Postbuild step that generates the real service worker
+  screenshots/      # Listing/README screenshot pipeline — see its README
+screenshots/         # Generated screenshots for listings and the README
 Dockerfile           # Self-hosted (node-server preset) build — see README.md
 docker-compose.yml   # "Self-hosting with Docker" in README.md
 cloudflared/

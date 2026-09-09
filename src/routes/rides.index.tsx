@@ -373,7 +373,7 @@ function RidesPage() {
                 <Mountain className="size-5" />
               </span>
               <div className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
+                <span className="flex flex-wrap items-center gap-2">
                   <Link
                     to="/rides/$id"
                     params={{ id: ride.id }}
