@@ -3,7 +3,7 @@ import { Maximize2 } from "lucide-react";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { buildCyclingStyle, setVectorBasemapTheme } from "@/lib/cycling-style";
 import { haversine, splitBySegments, type RidePoint } from "@/lib/gpx";
-import { poiCategoryLabel, type Poi } from "@/lib/poi";
+import { poiCategoryLabel, POI_COLOR_VAR, type Poi, type PoiCategory } from "@/lib/poi";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { windSegmentsToGeoJSON, type WindSegment } from "@/lib/windScore";
@@ -60,8 +60,16 @@ type RouteMapProps = {
   notes?: { id: string; lat: number; lon: number }[] | null;
   /** per-segment wind classification; when present, the route is colored tailwind/headwind/crosswind instead of the theme's single route color */
   windSegments?: WindSegment[] | null;
-  /** nearby points of interest (cafes, water, bike shops, toilets) — tap a marker for its name */
+  /** nearby points of interest (train stations, cafes, water, bike shops, toilets) — tap a marker for its name */
   pois?: Poi[] | null;
+  /**
+   * called instead of the name popup when a POI marker is tapped, so a screen
+   * can do something with the place — the planner turns it into a route point.
+   * A tap handled here never reaches `onMapClick`.
+   */
+  onPoiClick?: (poi: Poi) => void;
+  /** index into `waypoints` to draw larger and outlined — the point being edited in the planner's point list */
+  activeWaypoint?: number | null;
 };
 
 function parsePercentOrNumber(value: string, hundredPercent: number): number {
@@ -158,9 +166,6 @@ function mapThemeColors() {
     warning: resolveThemeColor("--color-warning"),
     foreground: resolveThemeColor("--color-foreground"),
     chart2: resolveThemeColor("--color-chart-2"),
-    chart3: resolveThemeColor("--color-chart-3"),
-    chart4: resolveThemeColor("--color-chart-4"),
-    chart5: resolveThemeColor("--color-chart-5"),
     primary: resolveThemeColor("--color-primary"),
     destructive: resolveThemeColor("--color-destructive"),
   };
@@ -176,19 +181,48 @@ const WIND_LINE_COLOR_EXPRESSION = (colors: ReturnType<typeof mapThemeColors>) =
   colors.warning,
 ];
 
+// Built from POI_COLOR_VAR rather than a second hardcoded table, so the pins
+// and the legends beside them are the same colors by construction.
 const POI_COLOR_EXPRESSION = (colors: ReturnType<typeof mapThemeColors>) => [
   "match",
   ["get", "category"],
-  "cafe",
-  colors.chart3,
-  "water",
-  colors.chart4,
-  "bike_shop",
-  colors.chart5,
-  "toilets",
-  colors.chart2,
+  ...Object.entries(POI_COLOR_VAR).flatMap(([category, cssVar]) => [
+    category,
+    resolveThemeColor(cssVar),
+  ]),
   colors.mutedForeground,
 ];
+
+const WAYPOINT_COLOR_EXPRESSION = (colors: ReturnType<typeof mapThemeColors>) => [
+  "match",
+  ["get", "role"],
+  "start",
+  colors.route,
+  "end",
+  colors.foreground,
+  colors.warning,
+];
+
+// The point selected in the planner's point list gets a ring in the theme's
+// ink color instead of the usual background-colored halo, so it's obvious
+// which marker the list row and the move/remove buttons are acting on.
+const WAYPOINT_STROKE_EXPRESSION = (colors: ReturnType<typeof mapThemeColors>) => [
+  "case",
+  ["get", "active"],
+  colors.foreground,
+  colors.background,
+];
+
+const WAYPOINT_RADIUS_EXPRESSION = [
+  "case",
+  ["get", "active"],
+  9,
+  ["match", ["get", "role"], "via", 5, 7],
+];
+
+// Stations are the one category riders navigate *to* (start, finish, bail-out),
+// so they get a slightly bigger target than the amenities.
+const POI_RADIUS_EXPRESSION = ["match", ["get", "category"], "train_station", 7, 5.5];
 
 function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
   if (map.getLayer("route-casing")) {
@@ -221,16 +255,12 @@ function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
     map.setPaintProperty("endpoints-layer", "circle-stroke-color", colors.background);
   }
   if (map.getLayer("waypoints-layer")) {
-    map.setPaintProperty("waypoints-layer", "circle-color", [
-      "match",
-      ["get", "role"],
-      "start",
-      colors.route,
-      "end",
-      colors.foreground,
-      colors.warning,
-    ]);
-    map.setPaintProperty("waypoints-layer", "circle-stroke-color", colors.background);
+    map.setPaintProperty("waypoints-layer", "circle-color", WAYPOINT_COLOR_EXPRESSION(colors));
+    map.setPaintProperty(
+      "waypoints-layer",
+      "circle-stroke-color",
+      WAYPOINT_STROKE_EXPRESSION(colors),
+    );
   }
   if (map.getLayer("notes-layer")) {
     map.setPaintProperty("notes-layer", "circle-color", colors.chart2);
@@ -265,6 +295,8 @@ export function RouteMap({
   notes = null,
   windSegments = null,
   pois = null,
+  onPoiClick,
+  activeWaypoint = null,
 }: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -288,6 +320,10 @@ export function RouteMap({
   notesRef.current = notes;
   const poisRef = useRef(pois);
   poisRef.current = pois;
+  const poiClickRef = useRef(onPoiClick);
+  poiClickRef.current = onPoiClick;
+  const activeWaypointRef = useRef(activeWaypoint);
+  activeWaypointRef.current = activeWaypoint;
   const { theme } = useTheme();
 
   // Boot the map once, client side only.
@@ -352,9 +388,9 @@ export function RouteMap({
         const current = pointsRef.current;
         drawRoute(map, current);
         applyWindSegments(map, current, windSegmentsRef.current);
-        setupWaypointsLayer(map, waypointsRef.current ?? []);
+        setupWaypointsLayer(map, waypointsRef.current ?? [], activeWaypointRef.current);
         setupNotesLayer(map, notesRef.current ?? []);
-        setupPoisLayer(map, maplibre, poisRef.current ?? []);
+        setupPoisLayer(map, maplibre, poisRef.current ?? [], () => poiClickRef.current);
         // Show the complete route until the first live GPS fix takes over.
         if (current.length > 1) fitRoute(map, current, 48);
         // Some browsers can report their final size after MapLibre's initial
@@ -363,6 +399,13 @@ export function RouteMap({
       });
 
       map.on("click", (event: any) => {
+        // A tap on a POI marker belongs to the POI layer's own handler below —
+        // without this the planner would drop a waypoint under the pin (and
+        // the ride page a note) on top of whatever that handler does.
+        if (map.getLayer("pois-layer")) {
+          const hits = map.queryRenderedFeatures(event.point, { layers: ["pois-layer"] });
+          if (hits.length > 0) return;
+        }
         mapClickRef.current?.({ lat: event.lngLat.lat, lon: event.lngLat.lng });
       });
 
@@ -536,8 +579,8 @@ export function RouteMap({
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
     const source = map.getSource("waypoints");
-    if (source) source.setData(waypointsFeatureCollection(waypoints ?? []));
-  }, [waypoints]);
+    if (source) source.setData(waypointsFeatureCollection(waypoints ?? [], activeWaypoint));
+  }, [waypoints, activeWaypoint]);
 
   // Rider-authored note pins.
   useEffect(() => {
@@ -547,7 +590,7 @@ export function RouteMap({
     if (source) source.setData(notesFeatureCollection(notes ?? []));
   }, [notes]);
 
-  // Nearby points of interest (cafes, water, bike shops, toilets).
+  // Nearby points of interest (train stations, cafes, water, bike shops, toilets).
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !readyRef.current) return;
@@ -734,13 +777,17 @@ function endpointData(points: RidePoint[]) {
   };
 }
 
-function waypointsFeatureCollection(waypoints: { lat: number; lon: number }[]) {
+function waypointsFeatureCollection(
+  waypoints: { lat: number; lon: number }[],
+  activeIndex: number | null = null,
+) {
   return {
     type: "FeatureCollection" as const,
     features: waypoints.map((point, index) => ({
       type: "Feature" as const,
       properties: {
         role: index === 0 ? "start" : index === waypoints.length - 1 ? "end" : "via",
+        active: index === activeIndex,
       },
       geometry: { type: "Point" as const, coordinates: [point.lon, point.lat] },
     })),
@@ -748,27 +795,26 @@ function waypointsFeatureCollection(waypoints: { lat: number; lon: number }[]) {
 }
 
 /** Route-planner click markers — independent of the routed line, so a single tapped point still shows up. */
-function setupWaypointsLayer(map: any, waypoints: { lat: number; lon: number }[]) {
+function setupWaypointsLayer(
+  map: any,
+  waypoints: { lat: number; lon: number }[],
+  activeIndex: number | null,
+) {
   if (map.getSource("waypoints")) return;
   const colors = mapThemeColors();
-  map.addSource("waypoints", { type: "geojson", data: waypointsFeatureCollection(waypoints) });
+  map.addSource("waypoints", {
+    type: "geojson",
+    data: waypointsFeatureCollection(waypoints, activeIndex),
+  });
   map.addLayer({
     id: "waypoints-layer",
     type: "circle",
     source: "waypoints",
     paint: {
-      "circle-radius": ["match", ["get", "role"], "via", 5, 7],
-      "circle-color": [
-        "match",
-        ["get", "role"],
-        "start",
-        colors.route,
-        "end",
-        colors.foreground,
-        colors.warning,
-      ],
+      "circle-radius": WAYPOINT_RADIUS_EXPRESSION,
+      "circle-color": WAYPOINT_COLOR_EXPRESSION(colors),
       "circle-stroke-width": 2.5,
-      "circle-stroke-color": colors.background,
+      "circle-stroke-color": WAYPOINT_STROKE_EXPRESSION(colors),
     },
   });
 }
@@ -813,8 +859,22 @@ function poisFeatureCollection(pois: Poi[]) {
   };
 }
 
-/** Nearby amenities (cafes, water, bike shops, toilets), color-coded by category, with a name popup on tap. */
-function setupPoisLayer(map: any, maplibre: any, pois: Poi[]) {
+/**
+ * Nearby places (train stations, cafes, water, bike shops, toilets),
+ * color-coded by category. Tapping one shows its name — unless the screen
+ * passed an `onPoiClick` handler, in which case the tap is handed to that
+ * instead (the planner turns the place into a route point, and a popup on top
+ * of that would just be in the way).
+ *
+ * `getOnPoiClick` is read at click time rather than captured: the layer is set
+ * up once when the map loads, and the handler prop can change on any render.
+ */
+function setupPoisLayer(
+  map: any,
+  maplibre: any,
+  pois: Poi[],
+  getOnPoiClick: () => ((poi: Poi) => void) | undefined,
+) {
   if (map.getSource("pois")) return;
   const colors = mapThemeColors();
   map.addSource("pois", { type: "geojson", data: poisFeatureCollection(pois) });
@@ -823,7 +883,7 @@ function setupPoisLayer(map: any, maplibre: any, pois: Poi[]) {
     type: "circle",
     source: "pois",
     paint: {
-      "circle-radius": 5.5,
+      "circle-radius": POI_RADIUS_EXPRESSION,
       "circle-color": POI_COLOR_EXPRESSION(colors),
       "circle-stroke-width": 2,
       "circle-stroke-color": colors.background,
@@ -839,12 +899,19 @@ function setupPoisLayer(map: any, maplibre: any, pois: Poi[]) {
   map.on("click", "pois-layer", (event: any) => {
     const feature = event.features?.[0];
     if (!feature) return;
-    const name = feature.properties?.name || poiCategoryLabel(feature.properties?.category);
-    const label = feature.properties?.name
-      ? `${name} · ${poiCategoryLabel(feature.properties.category)}`
-      : name;
+    const category = feature.properties?.category as PoiCategory;
+    const [lon, lat] = feature.geometry.coordinates as [number, number];
+    const name = (feature.properties?.name as string) || null;
+
+    const handler = getOnPoiClick();
+    if (handler) {
+      handler({ id: feature.properties?.id ?? `${lat},${lon}`, lat, lon, category, name });
+      return;
+    }
+
+    const label = name ? `${name} · ${poiCategoryLabel(category)}` : poiCategoryLabel(category);
     new maplibre.Popup({ closeButton: false, offset: 10 })
-      .setLngLat(feature.geometry.coordinates)
+      .setLngLat([lon, lat])
       .setText(label)
       .addTo(map);
   });

@@ -76,11 +76,12 @@ export const Route = createFileRoute("/llms.txt")({
 - GPX route management: import from any planner, a searchable library with
   difficulty/surface tags and offline/recorded filters, share links that offer
   a GPX download, and optional sync to Nextcloud, Google Drive or OneDrive.
-- Bike route planner with elevation profile and departure-time weather.
+- Bike route planner with elevation profile, departure-time weather, and a
+  point list for moving, reordering and removing points.
 - Live weather during navigation, including a headwind/tailwind call-out and a
   warning before rain arrives.
-- Nearby amenities from OpenStreetMap: cafés, drinking water, bike shops,
-  toilets.
+- Nearby places from OpenStreetMap: train stations, cafés, drinking water,
+  bike shops, toilets. On the route planner, tapping one adds it to the route.
 - Ride recording with speed history, saved as a reusable route.
 - Wind planner: picks the best hour to ride a saved route based on the forecast.
 - Light and dark themes.

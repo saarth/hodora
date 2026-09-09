@@ -8,11 +8,11 @@ Hodora is a modern, open-source bike navigation app and free GPS app for cycling
 
 - **No bike computer, no subscription** — free and open-source, runs in your phone's browser or as an installable PWA
 - **Import GPX routes** from your favorite route planners (Komoot, Strava, Ride with GPS, etc.) or whatever your club/event organiser sends
-- **Plan a route** by tapping the map (or searching for a place to start) — routed over real roads and paths with OpenStreetMap data (BRouter/OSRM), with elevation and a weather-at-departure forecast, and editable after you save it
+- **Plan a route** by tapping the map (or searching for a place to start) — routed over real roads and paths with OpenStreetMap data (BRouter/OSRM), with elevation and a weather-at-departure forecast, and a point list for moving, reordering and removing points, before or after you save it
 - **Record a ride live** with GPS — distance, time, speed and elevation gain, saved as a new route when you finish
 - **Turn-by-turn navigation** with distance, grade, turn prompts, a full cue sheet, and optional voice announcements
 - **Live weather, wind and rain alerts** during navigation — temperature, conditions, a headwind/tailwind call-out relative to your direction of travel, and a heads-up before rain arrives
-- **Nearby amenities** — cafes, water, bike shops and toilets from OpenStreetMap, shown on the map
+- **Nearby places** — train stations, cafes, water, bike shops and toilets from OpenStreetMap, shown on the map; in the planner, tap one to add it to your route
 - **Offline maps and routes** — save map tiles and GPX data to your device, so a patchy signal on the club run doesn't lose your route
 - **Search and filter your rides** by name, difficulty, surface, offline availability or whether they were recorded
 - **Low-power mode** for long rides, plus light and dark themes inspired by Sleep for Android
