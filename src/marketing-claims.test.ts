@@ -269,12 +269,17 @@ describe("source of truth for claims that can't be executed here", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("/: the visible FAQ and the FAQPage graph are built from the same array", () => {
-    // Structured data whose answers aren't on the page is what rich-result
-    // validation rejects, so both call sites must read one `FAQS`.
-    const landing = read("routes/index.tsx");
-    expect(landing).toContain("faqJsonLd(FAQS)");
-    expect(landing).toContain("items={FAQS}");
+  it("one FAQPage graph site-wide, and it is /faq", () => {
+    // Two graphs answering overlapping questions is what the topic-page
+    // consolidation removed. `/` renders a short FAQ as visible copy only —
+    // server-rendered, so a crawler reads it either way.
+    // Comments stripped first: index.tsx's doc comment *names* the call it
+    // tells you not to add, and that mention is not a graph.
+    const withGraph = globSync("routes/**/*.tsx", { cwd: __dirname }).filter((file) =>
+      /faqJsonLd\(/.test(read(file).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "")),
+    );
+    expect(withGraph).toEqual(["routes/faq.tsx"]);
+    expect(read("routes/index.tsx")).toContain("items={FAQS}");
   });
 
   it("/: the Organization logo points at a file that actually exists", () => {

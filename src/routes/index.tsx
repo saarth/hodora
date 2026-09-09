@@ -17,14 +17,7 @@ import {
 } from "@/components/MarketingLayout";
 import { useUser } from "@/hooks/use-user";
 import { FaqSection } from "@/components/FaqSection";
-import {
-  absoluteUrl,
-  appJsonLd,
-  canonicalLink,
-  faqJsonLd,
-  organizationJsonLd,
-  type FaqItem,
-} from "@/lib/seo";
+import { absoluteUrl, appJsonLd, canonicalLink, organizationJsonLd, type FaqItem } from "@/lib/seo";
 
 const TITLE = "Free Bike Navigation App for Club Rides & GPX Routes | Hodora";
 const DESCRIPTION =
@@ -42,7 +35,8 @@ const FEATURES = [
 ];
 
 /**
- * The landing page's short FAQ.
+ * The landing page's short FAQ — on-page copy only, deliberately with no
+ * `FAQPage` graph.
  *
  * Five questions, not twenty-five: the long list lives on `/faq`, and this one
  * answers only what someone deciding whether to open the app at all needs —
@@ -51,9 +45,12 @@ const FEATURES = [
  * from the `/faq` entries covering the same ground, so the two pages aren't
  * two copies of one answer competing for the same query.
  *
- * The same array feeds `FaqSection` below and `faqJsonLd` in `head()` — a
- * `FAQPage` graph whose answers aren't visible on the page is what rich-result
- * validation rejects.
+ * `/faq` is the site's only `FAQPage` graph. Two graphs answering overlapping
+ * questions is the mistake the eight-topic-page consolidation removed, and the
+ * structured data buys little here that the visible copy doesn't: the answers
+ * are server-rendered, so a crawler that doesn't run JavaScript reads them
+ * either way. Don't add `faqJsonLd(FAQS)` to this route's `head()` —
+ * `marketing-claims.test.ts` fails if a second graph appears anywhere.
  */
 const FAQS: FaqItem[] = [
   {
@@ -99,7 +96,6 @@ export const Route = createFileRoute("/")({
         }),
       },
       { "script:ld+json": organizationJsonLd() },
-      { "script:ld+json": faqJsonLd(FAQS) },
     ],
     links: canonicalLink("/"),
   }),

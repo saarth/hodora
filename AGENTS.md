@@ -115,10 +115,12 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   `faqJsonLd(...)` in `head()`; keep those in sync (structured data whose
   answers aren't on the page is what rich-result validation rejects) and keep
   the answers server-rendered rather than hiding them behind an accordion, so
-  crawlers that don't run JavaScript still see them. Only two pages carry a
-  `FAQPage` graph — `/faq` (the full list) and `/` (five questions, worded
-  differently on purpose so the two aren't one answer competing with itself).
-  Don't add a third. JSON-LD helpers
+  crawlers that don't run JavaScript still see them. `/faq` carries the site's only
+  `FAQPage` graph. `/` renders a short five-question FAQ as visible copy with
+  no graph of its own — worded differently from the `/faq` entries covering
+  the same ground, and server-rendered, so a crawler reads the answers without
+  a second graph competing with the first. Don't add another;
+  `marketing-claims.test.ts` fails if one appears. JSON-LD helpers
   (`faqJsonLd`, `breadcrumbJsonLd`, `appJsonLd`, `organizationJsonLd`) return
   the graph object and the route wraps it —
   `meta: [{ "script:ld+json": faqJsonLd(FAQS) }]` — because
