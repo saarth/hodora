@@ -1,6 +1,6 @@
 /**
- * Points of interest along a route (cafes, drinking water, bike shops,
- * toilets) from OpenStreetMap via Overpass — same public, no-key
+ * Points of interest along a route (train stations, cafes, drinking water,
+ * bike shops, toilets) from OpenStreetMap via Overpass — same public, no-key
  * infrastructure discover.ts already uses for signposted routes/loops.
  * Fetched on demand for a route's bounding box (padded a little), not
  * continuously as the map pans, to stay a good citizen of the free public
@@ -13,14 +13,28 @@ const OVERPASS_ENDPOINTS = [
   "https://overpass.kumi.systems/api/interpreter",
 ];
 
-export type PoiCategory = "cafe" | "water" | "bike_shop" | "toilets";
+export type PoiCategory = "train_station" | "cafe" | "water" | "bike_shop" | "toilets";
 
 export const POI_CATEGORIES: { value: PoiCategory; label: string }[] = [
+  { value: "train_station", label: "Train stations" },
   { value: "cafe", label: "Cafes" },
   { value: "water", label: "Water" },
   { value: "bike_shop", label: "Bike shops" },
   { value: "toilets", label: "Toilets" },
 ];
+
+/**
+ * The CSS custom property each category is drawn with. RouteMap's map layer
+ * and every legend read this same table, so a pin on the map and its swatch
+ * in the UI can't drift apart.
+ */
+export const POI_COLOR_VAR: Record<PoiCategory, string> = {
+  train_station: "--color-transit",
+  cafe: "--color-chart-3",
+  water: "--color-chart-4",
+  bike_shop: "--color-chart-5",
+  toilets: "--color-chart-2",
+};
 
 export type Poi = {
   id: string;
@@ -31,6 +45,11 @@ export type Poi = {
 };
 
 const CATEGORY_FILTERS: Record<PoiCategory, string> = {
+  // Heavy/underground rail is filtered out by `station`: a subway or light
+  // rail stop is tagged `railway=station` too, and neither takes bikes the
+  // way a mainline train does. `halt` keeps the small unstaffed stops, which
+  // are often the useful ones for starting or bailing out of a ride.
+  train_station: '["railway"~"^(station|halt)$"]["station"!~"subway|light_rail"]',
   cafe: '["amenity"="cafe"]',
   water: '["amenity"="drinking_water"]',
   bike_shop: '["shop"="bicycle"]',
@@ -38,6 +57,13 @@ const CATEGORY_FILTERS: Record<PoiCategory, string> = {
 };
 
 function categoryForTags(tags: Record<string, string>): PoiCategory | null {
+  if (
+    (tags.railway === "station" || tags.railway === "halt") &&
+    tags.station !== "subway" &&
+    tags.station !== "light_rail"
+  ) {
+    return "train_station";
+  }
   if (tags.amenity === "cafe") return "cafe";
   if (tags.amenity === "drinking_water") return "water";
   if (tags.shop === "bicycle") return "bike_shop";
@@ -139,6 +165,36 @@ export function poiBounds(points: LatLon[]): Bounds {
     maxLon = Math.max(maxLon, p.lon);
   }
   return { minLat, minLon, maxLat, maxLon };
+}
+
+/**
+ * The bounding box of the area visible around `center`, given the radius
+ * RouteMap reports for the current view. Lets a screen without a route yet
+ * — the planner, before any point is dropped — still ask for POIs in what
+ * the rider is actually looking at.
+ */
+export function boundsAround(center: LatLon, radiusM: number): Bounds {
+  const latDeg = radiusM / 111_320;
+  // Meridians converge toward the poles, so a metre is worth more longitude
+  // the further north/south you are. Clamped so a view near a pole can't
+  // divide by ~0 and ask Overpass for the whole planet.
+  const lonDeg = radiusM / (111_320 * Math.max(0.05, Math.cos((center.lat * Math.PI) / 180)));
+  return {
+    minLat: center.lat - latDeg,
+    maxLat: center.lat + latDeg,
+    minLon: center.lon - lonDeg,
+    maxLon: center.lon + lonDeg,
+  };
+}
+
+/** True when `point` sits inside `bounds` — used to tell whether the map has been panned off the area POIs were last fetched for. */
+export function boundsContain(bounds: Bounds, point: LatLon): boolean {
+  return (
+    point.lat >= bounds.minLat &&
+    point.lat <= bounds.maxLat &&
+    point.lon >= bounds.minLon &&
+    point.lon <= bounds.maxLon
+  );
 }
 
 export function poiCategoryLabel(category: PoiCategory): string {

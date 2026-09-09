@@ -5,6 +5,47 @@ correctness (GPX parsing, navigation math, offline storage), build/deploy
 correctness, and maintainability. Verified with `tsc --noEmit`, `eslint`, and
 real production builds — not just a read-through.
 
+## 2026-09-09 — Editable points in the planner, and train stations on the map
+
+Two additions to `/plan`, both driven in a real browser with Playwright
+against the dev server (map tiles and the routers are unreachable from this
+environment, so the checks were the straight-line fallback route plus a
+stubbed Overpass response).
+
+- **A point list in the planner's panel** (`src/routes/plan.tsx`). Until now
+  the only way to change a planned route was Undo (drop the last point) and
+  Clear (drop all of them), so the edit screen's own copy — "Move, add or
+  remove points" — was ahead of what the screen could actually do. The panel
+  now lists every point as Start / Via n / Finish with its coordinates;
+  tapping a row selects it (flying the map there and drawing that marker
+  larger, with a contrasting ring) and reveals Move, reorder and Remove.
+  "Move" arms the next map tap to relocate _that_ point rather than append a
+  new one, which is what makes a point editable at all on a touch screen.
+  Reordering swaps a point with its neighbour — which changes the route's
+  shape, not just the list — and "Reverse" flips the whole thing.
+- **Train stations as a POI category** (`src/lib/poi.ts`), plus the POI
+  overlay on the planner. `railway=station|halt` minus the `subway` and
+  `light_rail` variants, so the results are the stations a bike can actually
+  get on a train at. The planner fetches POIs for the _visible_ map area
+  rather than a route's bounding box — a rider looking for a station to start
+  from hasn't dropped a point yet — still on demand only (turning the layer
+  on, or "Search this area" once the map has been panned off the fetched
+  box), keeping the "never on pan/zoom" rule the ride page already follows.
+  Tapping a place on the planner pins it as a route point.
+
+Two smaller things fell out of it:
+
+- `POI_COLOR_VAR` in `poi.ts` is now the single category -> CSS-variable
+  table. `RouteMap`'s paint expression and both legends read it, so a pin and
+  its swatch can't drift apart; the map layer's second hardcoded copy is
+  gone. Stations get their own `--transit` token (a cool blue) rather than
+  reusing a chart color that already means something else on that map.
+- **A POI tap no longer also counts as a map tap.** `RouteMap`'s global click
+  handler now ignores a click that landed on `pois-layer`. Without it the
+  planner would drop a waypoint underneath the pin it just handled — and the
+  ride page, which uses the same handler to place notes, has always had the
+  same bug when placing a note near an amenity pin.
+
 ## 2026-08-20 — Fixed the text alignment in the wind stats bar
 
 Reported from a phone screenshot of `/rides/$id`: in `WindStatsBar`, the

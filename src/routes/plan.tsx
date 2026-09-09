@@ -4,16 +4,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { toast } from "sonner";
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronDown,
   ChevronUp,
   Crosshair,
   Loader2,
   MapPin,
   Maximize2,
+  Move,
+  Repeat2,
   Route as RouteIcon,
   Save,
+  Search,
+  TrainFront,
   Trash2,
   Undo2,
+  X,
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { RouteMap } from "@/components/RouteMap";
@@ -38,8 +45,20 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { boundsOf, toRidePoints } from "@/lib/discover";
 import { computeAscentDescent, formatDistance, formatElevation } from "@/lib/gpx";
 import { compassAbbrev } from "@/lib/nav";
+import {
+  boundsAround,
+  boundsContain,
+  fetchPois,
+  poiCategoryLabel,
+  POI_CATEGORIES,
+  POI_COLOR_VAR,
+  type Bounds,
+  type Poi,
+  type PoiCategory,
+} from "@/lib/poi";
 import { createRide, fetchRide, ridesKeys, updateRide } from "@/lib/rides";
 import { absoluteUrl, canonicalLink } from "@/lib/seo";
+import { cn } from "@/lib/utils";
 import {
   BIKE_PROFILES,
   fetchRoute,
@@ -85,6 +104,13 @@ export const Route = createFileRoute("/plan")({
 
 const FALLBACK_CENTER: LatLon = { lat: 47.3769, lon: 8.5417 };
 
+/** What a point is called in the point list — the ends are named, the rest are numbered by their position along the route. */
+function pointLabel(index: number, total: number): string {
+  if (index === 0) return "Start";
+  if (index === total - 1) return "Finish";
+  return `Via ${index}`;
+}
+
 function PlanPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -104,6 +130,21 @@ function PlanPage() {
     coords: { lat: number; lon: number }[];
     nonce: number;
   } | null>(null);
+  // The point the rider is editing in the point list: highlighted on the map,
+  // and the one the move/remove/reorder buttons act on.
+  const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
+  // Set while "Move" is armed — the next tap on the map (or on a place pin)
+  // relocates this point instead of adding a new one to the end.
+  const [movingPoint, setMovingPoint] = useState<number | null>(null);
+
+  // Nearby places (train stations, cafes, water, bike shops, toilets).
+  const [showPois, setShowPois] = useState(false);
+  const [poiCategories, setPoiCategories] = useState<PoiCategory[]>(["train_station"]);
+  // The area POIs were last fetched for. Deliberately *not* the live map view:
+  // Overpass is a free public service, so it's queried when the rider asks
+  // (turning the layer on, or "Search this area") rather than on every pan.
+  const [poiArea, setPoiArea] = useState<Bounds | null>(null);
+  const [view, setView] = useState<{ center: LatLon; radiusM: number } | null>(null);
 
   const {
     data: editRide,
@@ -260,6 +301,101 @@ function PlanPage() {
     });
   };
 
+  /**
+   * Every way of picking a spot on the map ends up here — a tap on empty map
+   * and a tap on a place pin alike. With "Move" armed it relocates that point
+   * in place, keeping its position in the route; otherwise it appends.
+   */
+  const addOrMovePoint = (point: LatLon) => {
+    if (movingPoint !== null) {
+      const index = movingPoint;
+      setWaypoints((current) => current.map((waypoint, at) => (at === index ? point : waypoint)));
+      setMovingPoint(null);
+      setSelectedPoint(index);
+      return;
+    }
+    // No auto-select on a plain add: tapping out a route is a run of taps, and
+    // opening a row's edit buttons under each one just shifts the list around.
+    setWaypoints((current) => [...current, point]);
+  };
+
+  const removePoint = (index: number) => {
+    setWaypoints((current) => current.filter((_, at) => at !== index));
+    setSelectedPoint(null);
+    setMovingPoint(null);
+  };
+
+  /** Swaps a point with its neighbour, which is what reordering a route means: the ride's shape changes, not just the list. */
+  const shiftPoint = (index: number, delta: -1 | 1) => {
+    const target = index + delta;
+    if (target < 0 || target >= waypoints.length) return;
+    const next = [...waypoints];
+    [next[index], next[target]] = [next[target], next[index]];
+    setWaypoints(next);
+    setSelectedPoint(target);
+    setMovingPoint(null);
+  };
+
+  const reversePoints = () => {
+    if (waypoints.length < 2) return;
+    setWaypoints([...waypoints].reverse());
+    setSelectedPoint(selectedPoint === null ? null : waypoints.length - 1 - selectedPoint);
+    setMovingPoint(null);
+  };
+
+  const clearPoints = () => {
+    setWaypoints([]);
+    setSelectedPoint(null);
+    setMovingPoint(null);
+  };
+
+  const undoPoint = () => {
+    setWaypoints((current) => current.slice(0, -1));
+    setSelectedPoint(null);
+    setMovingPoint(null);
+  };
+
+  /** The box POIs get fetched for: whatever the map is showing, falling back to a city-sized box around the camera before the first pan reports a view. */
+  const visibleArea = () => boundsAround(view?.center ?? center, view?.radiusM ?? 6000);
+
+  const togglePois = () => {
+    if (showPois) {
+      setShowPois(false);
+      return;
+    }
+    setPoiArea(visibleArea());
+    setShowPois(true);
+  };
+
+  const {
+    data: pois,
+    isFetching: poisLoading,
+    error: poisError,
+  } = useQuery({
+    queryKey: ["plan-pois", poiArea, [...poiCategories].sort()],
+    queryFn: ({ signal }) => fetchPois(poiArea!, poiCategories, signal),
+    enabled: showPois && Boolean(poiArea) && poiCategories.length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Panning off the fetched box is what makes the results stale — so that, and
+  // not every small nudge of the map, is what offers a re-search.
+  const poiAreaStale = Boolean(showPois && poiArea && view && !boundsContain(poiArea, view.center));
+
+  const togglePoiCategory = (category: PoiCategory) =>
+    setPoiCategories((current) =>
+      current.includes(category) ? current.filter((c) => c !== category) : [...current, category],
+    );
+
+  const addPoiAsPoint = (poi: Poi) => {
+    addOrMovePoint({ lat: poi.lat, lon: poi.lon });
+    toast.success(
+      movingPoint !== null
+        ? `Point moved to ${poi.name ?? poiCategoryLabel(poi.category)}`
+        : `Added ${poi.name ?? poiCategoryLabel(poi.category)}`,
+    );
+  };
+
   return (
     <MapScreen>
       <AppHeader />
@@ -268,7 +404,11 @@ function PlanPage() {
         <RouteMap
           points={points}
           waypoints={waypoints}
-          onMapClick={(point) => setWaypoints((current) => [...current, point])}
+          activeWaypoint={movingPoint ?? selectedPoint}
+          onMapClick={addOrMovePoint}
+          pois={showPois ? (pois ?? []) : null}
+          onPoiClick={addPoiAsPoint}
+          onViewChange={setView}
           initialCenter={center}
           flyTo={flyTo}
           fitTo={fitTo}
@@ -312,7 +452,7 @@ function PlanPage() {
 
               <MapRailButton
                 label="Undo the last point"
-                onClick={() => setWaypoints((current) => current.slice(0, -1))}
+                onClick={undoPoint}
                 disabled={waypoints.length === 0}
               >
                 <Undo2 />
@@ -320,10 +460,19 @@ function PlanPage() {
 
               <MapRailButton
                 label="Clear all points"
-                onClick={() => setWaypoints([])}
+                onClick={clearPoints}
                 disabled={waypoints.length === 0}
               >
                 <Trash2 />
+              </MapRailButton>
+
+              <MapRailButton
+                label={showPois ? "Hide nearby places" : "Show nearby places"}
+                active={showPois}
+                pressed={showPois}
+                onClick={togglePois}
+              >
+                {poisLoading ? <Loader2 className="animate-spin" /> : <TrainFront />}
               </MapRailButton>
 
               <MapRailButton
@@ -406,6 +555,195 @@ function PlanPage() {
                   )}
                 </div>
               </MapCard>
+
+              {waypoints.length > 0 && (
+                <MapCard>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Points
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="-mr-2 h-7 px-2 text-xs"
+                      onClick={reversePoints}
+                      disabled={waypoints.length < 2}
+                    >
+                      <Repeat2 className="size-3.5" />
+                      Reverse
+                    </Button>
+                  </div>
+
+                  <ol className="mt-2 max-h-56 space-y-1 overflow-y-auto overscroll-contain">
+                    {waypoints.map((waypoint, index) => {
+                      const selected = selectedPoint === index;
+                      const moving = movingPoint === index;
+                      return (
+                        // Index keys are the honest ones here: a point *is* its
+                        // position in the route, and reordering is meant to
+                        // re-render both rows it swapped.
+                        <li key={index}>
+                          <button
+                            type="button"
+                            aria-expanded={selected}
+                            onClick={() => {
+                              setSelectedPoint(selected ? null : index);
+                              setMovingPoint(null);
+                              setFlyTo({ lat: waypoint.lat, lon: waypoint.lon, nonce: Date.now() });
+                            }}
+                            className={cn(
+                              "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary",
+                              selected && "bg-secondary",
+                            )}
+                          >
+                            <span className="metric flex size-6 shrink-0 items-center justify-center rounded-full bg-elevated text-[11px] font-bold">
+                              {index + 1}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-semibold">
+                                {pointLabel(index, waypoints.length)}
+                              </span>
+                              <span className="metric block truncate text-[11px] text-muted-foreground">
+                                {waypoint.lat.toFixed(4)}, {waypoint.lon.toFixed(4)}
+                              </span>
+                            </span>
+                          </button>
+
+                          {selected && (
+                            <div className="mb-1 mt-1 flex flex-wrap items-center gap-1 pl-8">
+                              <Button
+                                size="sm"
+                                variant={moving ? "default" : "secondary"}
+                                className="h-7 px-2 text-xs"
+                                onClick={() => setMovingPoint(moving ? null : index)}
+                              >
+                                {moving ? (
+                                  <X className="size-3.5" />
+                                ) : (
+                                  <Move className="size-3.5" />
+                                )}
+                                {moving ? "Cancel move" : "Move"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-7 w-8 px-0"
+                                aria-label={`Move ${pointLabel(index, waypoints.length)} earlier in the route`}
+                                title="Earlier in the route"
+                                disabled={index === 0}
+                                onClick={() => shiftPoint(index, -1)}
+                              >
+                                <ArrowUp className="size-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-7 w-8 px-0"
+                                aria-label={`Move ${pointLabel(index, waypoints.length)} later in the route`}
+                                title="Later in the route"
+                                disabled={index === waypoints.length - 1}
+                                onClick={() => shiftPoint(index, 1)}
+                              >
+                                <ArrowDown className="size-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                                onClick={() => removePoint(index)}
+                              >
+                                <Trash2 className="size-3.5" />
+                                Remove
+                              </Button>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+
+                  <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                    {movingPoint !== null
+                      ? `Tap the map to move ${pointLabel(movingPoint, waypoints.length)}.`
+                      : "Tap a point to move, reorder or remove it. New taps on the map are added at the end."}
+                  </p>
+                </MapCard>
+              )}
+
+              {showPois && (
+                <MapCard>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Nearby places
+                    </span>
+                    {poisLoading && (
+                      <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {POI_CATEGORIES.map((category) => {
+                      const on = poiCategories.includes(category.value);
+                      return (
+                        <button
+                          key={category.value}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => togglePoiCategory(category.value)}
+                          className={cn(
+                            "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                            on
+                              ? "border-transparent bg-secondary text-secondary-foreground"
+                              : "border-border text-muted-foreground",
+                          )}
+                        >
+                          <span
+                            className="size-2 rounded-full"
+                            style={{
+                              background: `var(${POI_COLOR_VAR[category.value]})`,
+                              opacity: on ? 1 : 0.35,
+                            }}
+                            aria-hidden
+                          />
+                          {category.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                    {poiCategories.length === 0
+                      ? "Pick a category to see places on the map."
+                      : "Tap a place on the map to add it to your route — handy for starting or finishing at a station."}
+                  </p>
+
+                  {poiAreaStale && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="mt-2 w-full"
+                      onClick={() => setPoiArea(visibleArea())}
+                    >
+                      <Search className="size-3.5" />
+                      Search this area
+                    </Button>
+                  )}
+
+                  {poisError ? (
+                    <p className="mt-2 text-[11px] text-warning">
+                      Couldn&apos;t reach OpenStreetMap for places here.
+                    </p>
+                  ) : (
+                    poiCategories.length > 0 &&
+                    !poisLoading &&
+                    pois?.length === 0 && (
+                      <p className="mt-2 text-[11px] text-warning">
+                        Nothing found in this area — try another spot or a wider view.
+                      </p>
+                    )
+                  )}
+                </MapCard>
+              )}
 
               <MapCard>
                 <label className="block">

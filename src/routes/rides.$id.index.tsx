@@ -47,7 +47,7 @@ import { buildCueSheet, hasRouterCues } from "@/lib/cues";
 import { recoverCuesForRide } from "@/lib/cue-recovery";
 import { directionsUrl, formatDistance, formatElevation } from "@/lib/gpx";
 import { snapToRoute } from "@/lib/nav";
-import { fetchPois, poiBounds, POI_CATEGORIES, type PoiCategory } from "@/lib/poi";
+import { fetchPois, poiBounds, POI_CATEGORIES, POI_COLOR_VAR, type PoiCategory } from "@/lib/poi";
 import {
   createSharedLink,
   fetchProfile,
@@ -90,14 +90,6 @@ export const Route = createFileRoute("/rides/$id/")({
   }),
   component: RideDetail,
 });
-
-/** Matches the category -> color mapping RouteMap's POI layer uses, so the legend swatches agree with the pins on the map. */
-const POI_LEGEND_COLOR_VAR: Record<PoiCategory, string> = {
-  cafe: "--color-chart-3",
-  water: "--color-chart-4",
-  bike_shop: "--color-chart-5",
-  toilets: "--color-chart-2",
-};
 
 function RideDetail() {
   const { id } = Route.useParams();
@@ -413,7 +405,7 @@ function RideDetail() {
                 ) : (
                   <Coffee className="size-4" />
                 )}
-                {showPois ? "Hide amenities" : "Show amenities"}
+                {showPois ? "Hide places" : "Show places"}
               </Button>
               {showPois && (
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
@@ -421,7 +413,7 @@ function RideDetail() {
                     <span key={category.value} className="flex items-center gap-1.5">
                       <span
                         className="size-2 rounded-full"
-                        style={{ background: `var(${POI_LEGEND_COLOR_VAR[category.value]})` }}
+                        style={{ background: `var(${POI_COLOR_VAR[category.value]})` }}
                         aria-hidden
                       />
                       {category.label}
