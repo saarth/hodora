@@ -18,10 +18,19 @@ export type NextcloudStatus =
       syncing: boolean;
     };
 
+/**
+ * `configured` is about the deployment, not the user: false means the server
+ * has no OAuth client credentials for this provider, so the connect flow
+ * cannot succeed no matter what the user does. It is reported separately
+ * from `connected` because both combinations are real — an unconfigured
+ * deployment nobody has connected (hodora.app today), and a connection that
+ * outlives the credentials it was made with (a self-hoster rotating keys).
+ */
 export type OAuthCloudStatus =
-  | { connected: false }
+  | { connected: false; configured: boolean }
   | {
       connected: true;
+      configured: boolean;
       accountEmail: string | null;
       folder: string;
       status: "active" | "error" | "disconnected";

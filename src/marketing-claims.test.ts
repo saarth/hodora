@@ -9,10 +9,8 @@ import { geolocationOptions, weatherPollOptions } from "@/lib/low-power";
 import { tileKeysForRoute } from "@/lib/offline-tiles";
 
 /**
- * The public marketing pages (`/`, `/bike-navigation-app`, `/club-rides`,
- * `/gps-cycling-app`, `/turn-by-turn-navigation`, `/offline-navigation`,
- * `/bike-computer-alternative`, `/gpx-routes`, `/elevation-tracking`) don't
- * just describe the app in the abstract — they quote specific numbers and
+ * The public marketing pages (`/`, `/how-to-use`, `/faq`) don't just
+ * describe the app in the abstract — they quote specific numbers and
  * behaviours, because that's what makes a page worth citing rather than
  * skimming. Copy like that rots silently: nothing breaks when a threshold
  * moves, the page just starts lying.
@@ -74,7 +72,7 @@ function raw(points: { lat: number; lon: number; ele: number }[]): RawTrackPoint
   return points.map((p) => ({ ...p, gap: false }));
 }
 
-describe("/turn-by-turn-navigation — turns are detected from the route's own geometry", () => {
+describe("/how-to-use — turns are detected from the route's own geometry", () => {
   it('"treats anything above about 35 degrees as a turn" — 25° is not a turn', () => {
     expect(detectTurns(corner(25))).toHaveLength(0);
   });
@@ -91,7 +89,7 @@ describe("/turn-by-turn-navigation — turns are detected from the route's own g
   });
 });
 
-describe("/elevation-tracking — how the climbing is measured", () => {
+describe("/how-to-use — how the climbing is measured", () => {
   /** Flat ground, ±0.6 m of alternating receiver jitter on every other point. */
   function jittery(count = 60) {
     return Array.from({ length: count }, (_, i) => at(0, i * 10, i % 2 === 0 ? 0 : 0.6));
@@ -136,7 +134,7 @@ describe("/elevation-tracking — how the climbing is measured", () => {
   });
 });
 
-describe("/gpx-routes — what a GPX file can contain", () => {
+describe("/how-to-use — what a GPX file can contain", () => {
   it('"reads both GPX tracks and routes" — a <rtept>-only file parses', () => {
     const gpx =
       `<?xml version="1.0"?><gpx><rte><name>Club route</name>` +
@@ -149,7 +147,7 @@ describe("/gpx-routes — what a GPX file can contain", () => {
   });
 });
 
-describe("/offline-navigation — what saving a route offline downloads", () => {
+describe("/how-to-use — what saving a route offline downloads", () => {
   const route = withDistance(Array.from({ length: 200 }, (_, i) => at(i * 50, 0)));
 
   it('"at the handful of zoom levels you actually navigate at"', () => {
@@ -163,7 +161,7 @@ describe("/offline-navigation — what saving a route offline downloads", () => 
   });
 });
 
-describe("/ and /bike-computer-alternative — what low-power mode actually trades", () => {
+describe("/ and /how-to-use — what low-power mode actually trades", () => {
   it('"drops the GPS chip out of high-accuracy mode"', () => {
     expect(geolocationOptions(true).enableHighAccuracy).toBe(false);
     expect(geolocationOptions(false).enableHighAccuracy).toBe(true);
@@ -189,7 +187,7 @@ describe("/ and /bike-computer-alternative — what low-power mode actually trad
 describe("source of truth for claims that can't be executed here", () => {
   const read = (p: string) => readFileSync(resolve(__dirname, p), "utf8");
 
-  it("/turn-by-turn-navigation: street names come from re-routing an *imported* track, not the planner", () => {
+  it("/how-to-use: street names come from re-routing an *imported* track, not the planner", () => {
     // The planner asks BRouter first (for the bike profile and elevation),
     // and BRouter returns no step data — so planned routes get geometry
     // cues too. Only the imported-GPX recovery path goes via OSRM.
@@ -201,7 +199,7 @@ describe("source of truth for claims that can't be executed here", () => {
     );
   });
 
-  it("/turn-by-turn-navigation: the navigation screen shows the metrics the page lists", () => {
+  it("/how-to-use: the navigation screen shows the metrics the page lists", () => {
     const nav = read("routes/rides.$id.nav.tsx");
     for (const label of ["To go", "Climb left", "Grade", "Elapsed", "Speed", "ETA"]) {
       expect(nav).toContain(`label="${label}"`);
@@ -211,20 +209,20 @@ describe("source of truth for claims that can't be executed here", () => {
     expect(nav).toContain("useWakeLock");
   });
 
-  it("/offline-navigation: saving a recorded ride needs the network when signed in", () => {
+  it("/how-to-use: saving a recorded ride needs the network when signed in", () => {
     const rides = read("lib/rides.ts");
     expect(rides).toMatch(/Guest: keep the route on the device only\.[\s\S]{0,400}?putOfflineRide/);
     expect(rides).toMatch(/supabase\s*\.from\("rides"\)\s*\.insert/);
     expect(rides.toLowerCase()).not.toContain("outbox");
   });
 
-  it("/gps-cycling-app: recording is elapsed time with manual pause, not auto-paused moving time", () => {
+  it("/faq: recording is elapsed time with manual pause, not auto-paused moving time", () => {
     const record = read("routes/record.tsx");
     expect(record).toContain("pausedAccumMsRef");
     expect(record).not.toMatch(/autoPause|auto_pause/);
   });
 
-  it("/gpx-routes: the library filters and surface tags the page names exist", () => {
+  it("/how-to-use: the library filters and surface tags the page names exist", () => {
     const list = read("routes/rides.index.tsx");
     for (const filter of ["difficultyFilter", "surfaceFilter", "offlineOnly", "recordedOnly"]) {
       expect(list).toContain(filter);
@@ -234,7 +232,7 @@ describe("source of truth for claims that can't be executed here", () => {
     );
   });
 
-  it("/gps-cycling-app: no analytics vendor is wired anywhere", () => {
+  it("/faq: no analytics vendor is wired anywhere", () => {
     const vendor =
       /google-analytics\.com|googletagmanager|\bgtag\(|plausible\.io|posthog\.(com|init)|mixpanel\.|sentry\.io|Sentry\.init|bugsnag/i;
     const offenders = globSync("**/*.{ts,tsx}", { cwd: __dirname })

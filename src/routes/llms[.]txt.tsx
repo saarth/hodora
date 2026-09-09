@@ -89,26 +89,17 @@ export const Route = createFileRoute("/llms.txt")({
 
 - [Home](${SITE_URL}/): what Hodora is, how to navigate a club ride GPX in four
   steps, and why a phone works in place of a bike computer.
-- [Bike navigation app](${SITE_URL}/bike-navigation-app): what to look for in a
-  bike navigation app and how Hodora meets each criterion.
-- [Turn-by-turn navigation](${SITE_URL}/turn-by-turn-navigation): what is on
-  screen while riding, how turn instructions are derived from a plain GPX, and
-  how off-route alerts and rejoin guidance work.
-- [Offline navigation](${SITE_URL}/offline-navigation): how offline maps and
-  offline routes are stored, and precisely what does and does not work without
-  a mobile signal.
-- [Bike computer alternative](${SITE_URL}/bike-computer-alternative): honest
-  comparison of a phone against a dedicated head unit, in both directions, plus
-  how to set a phone up for the bars.
-- [GPX route management](${SITE_URL}/gpx-routes): importing, viewing, tagging,
-  searching, sharing and exporting GPX routes, and where they are stored.
-- [Elevation tracking](${SITE_URL}/elevation-tracking): elevation profile,
-  total ascent, live gradient, and how elevation gain is smoothed and
-  thresholded so GPS noise doesn't inflate it.
-- [Bike navigation for club rides](${SITE_URL}/club-rides): step-by-step guide
-  for riders following a club or event GPX, plus guidance for ride leaders.
-- [Free GPS app for cycling](${SITE_URL}/gps-cycling-app): ride recording,
-  navigation, GPS accuracy, battery and what "free" means here.
+- [How to use Hodora](${SITE_URL}/how-to-use): the complete walkthrough —
+  installing on Android or iPhone, importing a GPX, planning or finding a
+  route, saving it offline, riding it turn by turn, and using a phone in
+  place of a head unit. Also covers what does and does not work without a
+  mobile signal, and advice for club ride leaders.
+- [FAQ](${SITE_URL}/faq): answers on cost, supported phones, iPhone
+  behaviour, offline navigation, GPX imports, elevation figures, battery,
+  privacy and self-hosting.
+- [Support](${SITE_URL}/support): how to support the project financially or
+  otherwise — starring the repository, reporting bugs, sharing it, and
+  contributing code or documentation.
 - [Bike route planner](${SITE_URL}/plan): plan a cycle route by tapping the map.
   Client-rendered map UI.
 - [Explore cycle routes near me](${SITE_URL}/explore): find nearby bike trails

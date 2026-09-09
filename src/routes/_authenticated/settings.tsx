@@ -185,6 +185,33 @@ function OAuthCloudCard({ provider }: { provider: OAuthProvider }) {
     onError: () => toast.error(`Could not disconnect ${label}`),
   });
 
+  // No credentials on this deployment means Connect can only ever fail with a
+  // raw "Missing GOOGLE_DRIVE_CLIENT_ID" toast, so don't offer it. Say why
+  // instead — a self-hoster can fix this themselves by setting the variables.
+  if (status && !status.configured && !status.connected) {
+    return (
+      <div className="flex flex-wrap items-start justify-between gap-3 opacity-70">
+        <div>
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            {label}
+            <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Coming soon
+            </span>
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Not set up on this server yet. If you're self-hosting, add this provider's OAuth client
+            ID and secret to your server environment (see <code>.env.example</code>) and the
+            connection appears here.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" disabled>
+          <Cloud className="size-4" />
+          Connect {label}
+        </Button>
+      </div>
+    );
+  }
+
   if (status?.connected) {
     return (
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -198,6 +225,14 @@ function OAuthCloudCard({ provider }: { provider: OAuthProvider }) {
               ? `Last synced ${formatDistanceToNow(new Date(status.lastSyncedAt), { addSuffix: true })}`
               : "Not synced yet"}
           </p>
+          {/* Credentials removed or rotated out from under an existing
+              connection: syncing will fail until they're restored, so say so
+              rather than letting "Sync now" throw an env-var error. */}
+          {!status.configured && (
+            <p className="mt-1 text-xs text-destructive">
+              Sync is paused — this server no longer has {label} credentials configured.
+            </p>
+          )}
           {status.status === "error" && status.lastError && (
             <p className="mt-1 text-xs text-destructive">{status.lastError}</p>
           )}
@@ -207,7 +242,7 @@ function OAuthCloudCard({ provider }: { provider: OAuthProvider }) {
             variant="outline"
             size="sm"
             onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending || status.syncing}
+            disabled={syncMutation.isPending || status.syncing || !status.configured}
           >
             {syncMutation.isPending ? (
               <Loader2 className="size-4 animate-spin" />

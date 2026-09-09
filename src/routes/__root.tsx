@@ -8,10 +8,13 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { ArrowRight, RefreshCw } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportError } from "../lib/error-reporting";
 import { ThemeProvider, useTheme } from "../lib/theme";
+import { Button } from "@/components/ui/button";
+import { StatusPage } from "@/components/StatusPage";
 import { Toaster } from "@/components/ui/sonner";
 import { registerServiceWorker } from "@/lib/pwa";
 import { initNativeShell, syncStatusBar } from "@/lib/native";
@@ -21,23 +24,25 @@ import { absoluteUrl } from "@/lib/seo";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          This route doesn't exist or has been moved.
-        </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Go home
-          </Link>
-        </div>
-      </div>
-    </div>
+    <StatusPage
+      documentTitle="Page not found — Hodora"
+      code="404 — wrong turn"
+      title="This page isn't on the route."
+      message="The link is broken, or whatever used to be here has moved. Your saved rides are all still where you left them."
+      actions={
+        <>
+          <Button asChild size="lg" className="glow-ring">
+            <Link to="/rides">
+              Go to my rides
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="secondary">
+            <Link to="/">Back to the home page</Link>
+          </Button>
+        </>
+      }
+    />
   );
 }
 
@@ -49,33 +54,32 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
+    <StatusPage
+      documentTitle="This page didn't load — Hodora"
+      code="Something broke"
+      title="This page didn't load."
+      message="Something went wrong on our end, not yours. Trying again usually clears it. Any ride you saved for offline is still on this device either way."
+      actions={
+        <>
+          <Button
+            size="lg"
+            className="glow-ring"
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
+            <RefreshCw className="size-4" />
             Try again
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
-          </a>
-        </div>
-      </div>
-    </div>
+          </Button>
+          {/* A hard navigation, not a <Link>: the router is already in a
+              failed state, so rebuilding the app from scratch is the point. */}
+          <Button asChild size="lg" variant="secondary">
+            <a href="/rides">Go to my rides</a>
+          </Button>
+        </>
+      }
+    />
   );
 }
 

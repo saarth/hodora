@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { __test__, buildAuthUrl } from "./onedrive.server";
+import { __test__, buildAuthUrl, isConfigured } from "./onedrive.server";
 
 const { normalizeFolderName, itemPath } = __test__;
 
@@ -60,5 +60,44 @@ describe("buildAuthUrl", () => {
     expect(() => buildAuthUrl("https://example.com/callback", "state")).toThrow(
       /ONEDRIVE_CLIENT_ID/,
     );
+  });
+});
+
+describe("isConfigured", () => {
+  const original = {
+    id: process.env.ONEDRIVE_CLIENT_ID,
+    secret: process.env.ONEDRIVE_CLIENT_SECRET,
+  };
+
+  afterEach(() => {
+    for (const [name, value] of [
+      ["ONEDRIVE_CLIENT_ID", original.id],
+      ["ONEDRIVE_CLIENT_SECRET", original.secret],
+    ] as const) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
+
+  it("is true only when both the client id and secret are present", () => {
+    process.env.ONEDRIVE_CLIENT_ID = "id";
+    process.env.ONEDRIVE_CLIENT_SECRET = "secret";
+    expect(isConfigured()).toBe(true);
+  });
+
+  it("is false when either half is missing — a half-configured deployment can't complete the flow", () => {
+    process.env.ONEDRIVE_CLIENT_ID = "id";
+    delete process.env.ONEDRIVE_CLIENT_SECRET;
+    expect(isConfigured()).toBe(false);
+
+    delete process.env.ONEDRIVE_CLIENT_ID;
+    process.env.ONEDRIVE_CLIENT_SECRET = "secret";
+    expect(isConfigured()).toBe(false);
+  });
+
+  it("is false when an empty string is set, not just when the variable is absent", () => {
+    process.env.ONEDRIVE_CLIENT_ID = "";
+    process.env.ONEDRIVE_CLIENT_SECRET = "";
+    expect(isConfigured()).toBe(false);
   });
 });
