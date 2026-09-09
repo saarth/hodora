@@ -94,6 +94,11 @@ export const Route = createFileRoute("/llms.txt")({
   route, saving it offline, riding it turn by turn, and using a phone in
   place of a head unit. Also covers what does and does not work without a
   mobile signal, and advice for club ride leaders.
+- [Your phone as a bike GPS](${SITE_URL}/bike-gps): whether a phone can replace
+  a GPS bike computer — what a cycling GPS has to do, a row-by-row comparison
+  with a dedicated head unit (including what the head unit wins: waterproofing,
+  gloved buttons, ANT+/Bluetooth power and heart-rate sensors, which Hodora does
+  not read), mount and battery advice, and when to keep the head unit.
 - [FAQ](${SITE_URL}/faq): answers on cost, supported phones, iPhone
   behaviour, offline navigation, GPX imports, elevation figures, battery,
   privacy and self-hosting.

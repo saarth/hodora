@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BikeComputerAlternativeRouteImport } from './routes/bike-computer-alternative'
+import { Route as BikeGpsRouteImport } from './routes/bike-gps'
 import { Route as BikeNavigationAppRouteImport } from './routes/bike-navigation-app'
 import { Route as ClubRidesRouteImport } from './routes/club-rides'
 import { Route as ElevationTrackingRouteImport } from './routes/elevation-tracking'
@@ -71,6 +72,11 @@ const AuthRoute = AuthRouteImport.update({
 const BikeComputerAlternativeRoute = BikeComputerAlternativeRouteImport.update({
   id: '/bike-computer-alternative',
   path: '/bike-computer-alternative',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BikeGpsRoute = BikeGpsRouteImport.update({
+  id: '/bike-gps',
+  path: '/bike-gps',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BikeNavigationAppRoute = BikeNavigationAppRouteImport.update({
@@ -287,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/bike-computer-alternative': typeof BikeComputerAlternativeRoute
+  '/bike-gps': typeof BikeGpsRoute
   '/bike-navigation-app': typeof BikeNavigationAppRoute
   '/club-rides': typeof ClubRidesRoute
   '/elevation-tracking': typeof ElevationTrackingRoute
@@ -332,6 +339,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/bike-computer-alternative': typeof BikeComputerAlternativeRoute
+  '/bike-gps': typeof BikeGpsRoute
   '/bike-navigation-app': typeof BikeNavigationAppRoute
   '/club-rides': typeof ClubRidesRoute
   '/elevation-tracking': typeof ElevationTrackingRoute
@@ -379,6 +387,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/bike-computer-alternative': typeof BikeComputerAlternativeRoute
+  '/bike-gps': typeof BikeGpsRoute
   '/bike-navigation-app': typeof BikeNavigationAppRoute
   '/club-rides': typeof ClubRidesRoute
   '/elevation-tracking': typeof ElevationTrackingRoute
@@ -426,6 +435,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/bike-computer-alternative'
+    | '/bike-gps'
     | '/bike-navigation-app'
     | '/club-rides'
     | '/elevation-tracking'
@@ -471,6 +481,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/bike-computer-alternative'
+    | '/bike-gps'
     | '/bike-navigation-app'
     | '/club-rides'
     | '/elevation-tracking'
@@ -517,6 +528,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/bike-computer-alternative'
+    | '/bike-gps'
     | '/bike-navigation-app'
     | '/club-rides'
     | '/elevation-tracking'
@@ -564,6 +576,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   BikeComputerAlternativeRoute: typeof BikeComputerAlternativeRoute
+  BikeGpsRoute: typeof BikeGpsRoute
   BikeNavigationAppRoute: typeof BikeNavigationAppRoute
   ClubRidesRoute: typeof ClubRidesRoute
   ElevationTrackingRoute: typeof ElevationTrackingRoute
@@ -633,6 +646,13 @@ declare module '@tanstack/react-router' {
       path: '/bike-computer-alternative'
       fullPath: '/bike-computer-alternative'
       preLoaderRoute: typeof BikeComputerAlternativeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bike-gps': {
+      id: '/bike-gps'
+      path: '/bike-gps'
+      fullPath: '/bike-gps'
+      preLoaderRoute: typeof BikeGpsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bike-navigation-app': {
@@ -934,6 +954,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   BikeComputerAlternativeRoute: BikeComputerAlternativeRoute,
+  BikeGpsRoute: BikeGpsRoute,
   BikeNavigationAppRoute: BikeNavigationAppRoute,
   ClubRidesRoute: ClubRidesRoute,
   ElevationTrackingRoute: ElevationTrackingRoute,

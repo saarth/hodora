@@ -120,3 +120,32 @@ export function appJsonLd({
     featureList,
   };
 }
+
+/**
+ * `Organization` for the site root.
+ *
+ * Separate from `appJsonLd` because they answer different questions: the
+ * SoftwareApplication says "this is a free navigation app", the Organization
+ * says "Hodora is the thing that publishes it", which is what lets a search
+ * engine or an LLM attach the name to an entity rather than treating it as a
+ * word in a sentence. Emitted as its own `script:ld+json` next to the app
+ * graph rather than merged into an `@graph` — two scripts on a page are read
+ * identically, and keeping them separate means a page can take one without
+ * the other.
+ *
+ * `logo` points at the PWA icon rather than a marketing image: it has to be a
+ * square raster the crawler can actually fetch, and that file already exists
+ * and is already cached.
+ */
+export function organizationJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Hodora",
+    url: absoluteUrl("/"),
+    logo: absoluteUrl("/icon-512.png"),
+    description:
+      "Hodora is a free, open-source bike navigation app: GPX import, route planning and offline turn-by-turn cycling directions on the phone you already own.",
+    sameAs: ["https://github.com/saarth/hodora"],
+  };
+}

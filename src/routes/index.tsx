@@ -16,7 +16,15 @@ import {
   MarketingLayout,
 } from "@/components/MarketingLayout";
 import { useUser } from "@/hooks/use-user";
-import { absoluteUrl, appJsonLd, canonicalLink } from "@/lib/seo";
+import { FaqSection } from "@/components/FaqSection";
+import {
+  absoluteUrl,
+  appJsonLd,
+  canonicalLink,
+  faqJsonLd,
+  organizationJsonLd,
+  type FaqItem,
+} from "@/lib/seo";
 
 const TITLE = "Free Bike Navigation App for Club Rides & GPX Routes | Hodora";
 const DESCRIPTION =
@@ -31,6 +39,48 @@ const FEATURES = [
   "Offline maps and routes",
   "Live weather, headwind and rain alerts",
   "Free and open source — no subscription, no ads, no tracking",
+];
+
+/**
+ * The landing page's short FAQ.
+ *
+ * Five questions, not twenty-five: the long list lives on `/faq`, and this one
+ * answers only what someone deciding whether to open the app at all needs —
+ * does it navigate, does it work offline, will it take my GPX, what does it
+ * cost, can it replace my head unit. The wording is deliberately different
+ * from the `/faq` entries covering the same ground, so the two pages aren't
+ * two copies of one answer competing for the same query.
+ *
+ * The same array feeds `FaqSection` below and `faqJsonLd` in `head()` — a
+ * `FAQPage` graph whose answers aren't visible on the page is what rich-result
+ * validation rejects.
+ */
+const FAQS: FaqItem[] = [
+  {
+    question: "Does Hodora support turn-by-turn cycling navigation?",
+    answer:
+      "Yes, and it is built for cycling rather than adapted from driving directions. You get distance to the next turn, the grade of the climb ahead, a full cue sheet and optional spoken announcements. Turns are detected from the route's own geometry, so a plain GPX carrying no instructions still gives directions, with an off-route alert within seconds if you drift.",
+  },
+  {
+    question: "Can I use Hodora offline?",
+    answer:
+      "Yes, with one thing done in advance. Save a route for offline use before you set off and Hodora stores the GPX and the map tiles along it on your phone; navigation, the cue sheet and the elevation profile then work with no signal at all. Live weather, place search and planning a brand-new route are the parts that still need a connection.",
+  },
+  {
+    question: "Can I import a GPX route?",
+    answer:
+      "Yes. Drop in the GPX your club, sportive or event organiser sent and it parses on your phone in about a second — no upload, no account. Files exported from Komoot, Strava, Ride with GPS, Garmin Connect or a club's own website all work the same way, and you can export any route back out as GPX whenever you want it.",
+  },
+  {
+    question: "Do I need an account or subscription?",
+    answer:
+      "Neither. Hodora is free and open source under the MIT licence, with no subscription, no paid tier, no ads and no trial to run out. Import a GPX and start navigating without signing up — routes live on your device. An account exists only so your library syncs between your own phone, tablet and desktop.",
+  },
+  {
+    question: "Can my phone replace a bike computer?",
+    answer:
+      "For most riders on most rides, yes: the phone reads the same satellites, has the better screen, and costs nothing you have not already spent. Use a proper out-front mount and turn on low-power mode for all-day rides. A head unit still wins on waterproofing, gloved buttons and ANT+ power meters, which Hodora does not read.",
+  },
 ];
 
 export const Route = createFileRoute("/")({
@@ -48,6 +98,8 @@ export const Route = createFileRoute("/")({
           featureList: FEATURES,
         }),
       },
+      { "script:ld+json": organizationJsonLd() },
+      { "script:ld+json": faqJsonLd(FAQS) },
     ],
     links: canonicalLink("/"),
   }),
@@ -218,11 +270,11 @@ function Landing() {
           ))}
         </div>
         <p className="mt-6 text-sm text-muted-foreground">
-          More on what to look for in a{" "}
-          <Link to="/how-to-use" className="underline underline-offset-2 hover:text-foreground">
-            guide to using a phone instead
+          The full comparison is on{" "}
+          <Link to="/bike-gps" className="underline underline-offset-2 hover:text-foreground">
+            using your phone as a bike GPS
           </Link>
-          , including what a head unit still does better.
+          , row by row and including what a head unit still does better.
         </p>
       </section>
 
@@ -289,6 +341,15 @@ function Landing() {
           ))}
         </ul>
       </section>
+
+      <FaqSection heading="FAQ" items={FAQS} />
+      <p className="mt-6 text-sm text-muted-foreground">
+        More answers — iPhone behaviour, battery, storage, privacy and self-hosting — on the{" "}
+        <Link to="/faq" className="underline underline-offset-2 hover:text-foreground">
+          full FAQ page
+        </Link>
+        .
+      </p>
     </MarketingLayout>
   );
 }

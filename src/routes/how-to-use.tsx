@@ -150,21 +150,6 @@ const OFFLINE_SPLIT = {
   ],
 };
 
-const VS_HEAD_UNIT = [
-  {
-    title: "What you gain",
-    body: "A far better screen, a bigger battery than most entry-level head units, the same GNSS receiver, and no hardware to buy. Routes, maps and voice all cost nothing, with no annual routing subscription behind them.",
-  },
-  {
-    title: "What you give up",
-    body: "A dedicated unit is waterproof, has physical buttons you can hit in winter gloves, and pairs with power meters and heart-rate straps. Hodora does not read ANT+ or Bluetooth sensors, so if your training runs on power data, keep the head unit for that and use Hodora for the route.",
-  },
-  {
-    title: "Making the phone work on the bars",
-    body: "Use a proper out-front mount rather than a rubber-strap holder, and turn on low-power mode in Settings for all-day rides — it drops the GPS out of high-accuracy mode and polls the weather less often, the two biggest drains. With routes and tiles saved offline the phone is not burning power on mobile data either.",
-  },
-];
-
 const LEADER_TIPS = [
   {
     title: "Send the GPX, not a screenshot",
@@ -455,14 +440,16 @@ function HowToUsePage() {
           <h2 id="vs-head-unit" className="text-2xl font-bold sm:text-3xl">
             Using a phone instead of a bike computer
           </h2>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            {VS_HEAD_UNIT.map((item) => (
-              <section key={item.title} className="surface p-6">
-                <h3 className="text-base font-bold">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
-              </section>
-            ))}
-          </div>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            Short version: the phone has the same satellites, a better screen and nothing to buy;
+            the head unit is waterproof, has buttons you can hit in winter gloves, and reads the
+            power meter Hodora cannot. The row-by-row comparison, the mount and battery advice, and
+            the cases where you should keep the head unit are all on{" "}
+            <Link to="/bike-gps" className="underline underline-offset-2 hover:text-foreground">
+              using your phone as a bike GPS
+            </Link>
+            .
+          </p>
         </section>
 
         <section className="mt-20" aria-labelledby="the-rest">
