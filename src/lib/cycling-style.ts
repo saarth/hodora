@@ -102,16 +102,35 @@ const PALETTES: Record<MapTheme, Palette> = {
     industrial: "#232529",
     building: "#2a2d33",
     boundary: "#4c4a5e",
-    motorwayFill: "#b3583d",
-    motorwayCasing: "#7a3324",
-    primaryFill: "#8c6b3d",
-    primaryCasing: "#5f4b2c",
-    secondaryFill: "#3c3f46",
-    secondaryCasing: "#2a2c31",
-    minorFill: "#2e3136",
-    minorCasing: "#24262b",
-    track: "#6f5c44",
-    path: "#5d5f66",
+    /*
+     * Deliberately cool and near-neutral, unlike the light palette's warm
+     * OSM-carto ramp. The route drawn on top of this is brass (L 0.73, H 80),
+     * gold (H 80) or red (H 25) depending on the wind classification, and the
+     * warm ramp this replaced put every road within 0-8 degrees of hue of one
+     * of them — a headwind stretch against a trunk road, or a tailwind
+     * stretch against a primary, differed only in lightness and vanished on a
+     * phone in daylight. Road *hierarchy* is carried by line width, casings
+     * and the dash patterns on track/path (see the layers below), not by hue,
+     * so spending the warm end of the spectrum on the basemap bought nothing
+     * and cost the route its separation.
+     *
+     * Two consequences to preserve if these are ever retuned: motorway and
+     * primary used to sit 0.016 apart in lightness and rely on hue to
+     * separate, so they're spread to ~0.08 here; and track (unpaved, warm)
+     * vs path (cool) were the same lightness for the same reason, so track
+     * keeps a trace of warmth at a chroma low enough — 0.02 against the
+     * route's 0.10-0.18 — not to read as a route color.
+     */
+    motorwayFill: "#697481",
+    motorwayCasing: "#404952",
+    primaryFill: "#555d68",
+    primaryCasing: "#31373f",
+    secondaryFill: "#42474f",
+    secondaryCasing: "#272a30",
+    minorFill: "#31343a",
+    minorCasing: "#202328",
+    track: "#5d554b",
+    path: "#56585e",
     cycleway: "#4da3ff",
     cyclewayCasing: "#173250",
     labelText: "#d7d9dc",

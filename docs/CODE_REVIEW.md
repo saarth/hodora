@@ -46,6 +46,27 @@ scratchpad) and verified after in a real browser against the dev server.
   `--color-background` for both. `src/components/RouteMap.tsx` reads it as
   `colors.routeCasing`; light mode's value reproduces the old appearance
   exactly.
+- **...but brightening `--route` only fixed the plain route line, and the ride
+  page doesn't draw one.** With a wind forecast loaded it draws
+  `route-wind-line`, coloured per segment by `WIND_LINE_COLOR_EXPRESSION`:
+  brass for tailwind, `--warning` gold for crosswind, `--destructive` red for
+  headwind. Measured against the dark basemap's ramp, every one of those was
+  0-8 degrees of hue from a road colour — tailwind vs `primaryCasing` 2
+  degrees, headwind vs `motorwayCasing` 8 — leaving lightness as the only
+  thing separating a headwind stretch from a trunk road. The fix is on the
+  basemap side (`src/lib/cycling-style.ts`), because the route palette can't
+  move: brass is the brand and red-for-headwind is semantic. The dark road
+  ramp is now cool and near-neutral (motorway `#697481` down to minor
+  `#31343a`), which costs nothing — hierarchy there is carried by line width,
+  casings and the dash patterns on track/path, not by hue. Two things to
+  preserve if it's retuned: motorway and primary used to sit 0.016 apart in
+  lightness and lean on hue to separate, so they're spread to ~0.08; and
+  track (unpaved) vs path were the same lightness for the same reason, so
+  track keeps a trace of warmth at C 0.02 — far enough below the route's
+  0.10-0.18 not to read as one. The light ramp is untouched: it has a milder
+  version of the same overlap (`motorwayCasing` is 10 degrees off the rust
+  route) but the roads there are *lighter* than the route on pale parchment,
+  so figure/ground does the separating.
 - **`text-rust` was 3.4:1 on a dark card.** `--color-rust` resolved straight to
   `--brand-rust`, which is a fixed brand value — correct for a route line drawn
   over a map, wrong for the 12px mono eyebrows on every marketing page. Added
