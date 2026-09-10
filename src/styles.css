@@ -60,6 +60,9 @@
   --color-ring-offset-background: var(--background);
   --color-route: var(--route);
   --color-route-casing: var(--route-casing);
+  --color-wind-tailwind: var(--wind-tailwind);
+  --color-wind-crosswind: var(--wind-crosswind);
+  --color-wind-headwind: var(--wind-headwind);
   --color-transit: var(--transit);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -145,6 +148,32 @@
      Alpha lives in the token (not the layer's paint) so each theme can pick
      its own strength — dark mode needs a much heavier one than this. */
   --route-casing: oklch(0.943 0.022 89.8 / 45%);
+
+  /*
+   * Per-segment wind classification on the route (RouteMap's wind layers, and
+   * the matching icons in WindStatsBar — same tokens, so the readout and the
+   * map can't drift). These are their own tokens rather than --primary /
+   * --warning / --destructive, which is what they used to borrow, because
+   * those three answer to the UI and collided as a *set*: --primary is racing
+   * green in light mode but brass in dark, which put tailwind 0.5 degrees of
+   * hue from a --warning crosswind.
+   *
+   * Read as an ordinal scale — helping, neutral, hurting — so green/amber/red
+   * is the right convention. But that convention is also the classic
+   * red-green trap, so the three are spaced in *lightness* as well as hue,
+   * checked by simulating dichromatic vision (Vienot-Brettel-Mollon) rather
+   * than by eye: worst-case separation across normal/deutan/protan/tritan is
+   * 0.129 in OKLab here, against 0.047 for the palette this replaced.
+   *
+   * Light mode can't get there on color alone — every segment has to be dark
+   * enough to be ink on parchment, which compresses the range, and under
+   * protanopia red darkens into the green. So headwind carries a redundant
+   * non-color channel: RouteMap draws it dashed over the continuous casing.
+   * Keep that dash if these are retuned.
+   */
+  --wind-tailwind: oklch(0.46 0.115 155);
+  --wind-crosswind: oklch(0.645 0.128 77);
+  --wind-headwind: oklch(0.44 0.19 25);
   /* Public transport: a cool blue that reads as "not part of your route" next
      to the rust route line and the warm chart ramp. */
   --transit: oklch(0.5 0.14 255);
@@ -237,6 +266,9 @@
      as another road. See --route-casing for the other half of that. */
   --route: oklch(0.85 0.16 78);
   --route-casing: oklch(0.09 0.012 164 / 85%);
+  --wind-tailwind: oklch(0.87 0.17 152);
+  --wind-crosswind: oklch(0.75 0.145 72);
+  --wind-headwind: oklch(0.6 0.21 20);
   --transit: oklch(0.78 0.13 255);
 
   --chart-1: var(--brand-brass);
@@ -305,6 +337,9 @@
   --ring: oklch(0.88 0.14 80);
   --route: oklch(0.9 0.15 75);
   --route-casing: oklch(0 0 0 / 90%);
+  --wind-tailwind: oklch(0.9 0.2 150);
+  --wind-crosswind: oklch(0.82 0.17 72);
+  --wind-headwind: oklch(0.68 0.24 22);
 
   --map-filter: contrast(1.25) brightness(0.8) saturate(1.15);
 }

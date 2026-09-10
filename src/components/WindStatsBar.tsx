@@ -85,13 +85,16 @@ export function WindStatsBar({
             valueClassName={cn("text-3xl", scoreTone(score.windScore))}
             emphasized
           />
+          {/* These two cells are a key to the colors RouteMap paints those
+              segments in, so they read the same --wind-* tokens it does rather
+              than the --primary/--warning they look like. */}
           <StatCell
-            icon={<TrendingUp className="size-4 text-primary" />}
+            icon={<TrendingUp className="size-4 text-wind-tailwind" />}
             label="Tailwind %"
             value={`${score.tailwindPct}%`}
           />
           <StatCell
-            icon={<ArrowLeftRight className="size-4 text-warning" />}
+            icon={<ArrowLeftRight className="size-4 text-wind-crosswind" />}
             label="Crosswind %"
             value={`${score.crosswindPct}%`}
           />

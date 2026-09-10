@@ -104,22 +104,55 @@ scratchpad) and verified after in a real browser against the dev server.
 `.dark.hc-dark` (the navigation-only high-contrast theme) is untouched; it
 already overrode everything that mattered here.
 
-**Known, not fixed — the wind palette collides with itself.** Worth a product
-decision rather than a unilateral change, since it's what riders learn to read
-off the map, and there is no legend anywhere in the app to lean on:
+- **The wind palette collided with itself, and borrowing UI tokens was the
+  cause.** Tailwind was `--primary`, crosswind `--warning`, headwind
+  `--destructive` — three tokens that answer to the UI and were never designed
+  as a *set*. `--primary` is racing green in light mode but brass in dark,
+  which put dark-mode tailwind 0.5 degrees of hue and 0.08 of lightness from a
+  crosswind segment. Simulating dichromatic vision (Vienot-Brettel-Mollon,
+  script in the session scratchpad) put numbers on it: worst-case separation
+  across normal/deutan/protan/tritan was **0.047 in OKLab** for dark and 0.076
+  for light — for a deuteranope the dark route was one uniform olive line with
+  no readable boundaries at all.
+  There are now `--wind-tailwind` / `--wind-crosswind` / `--wind-headwind`
+  tokens, per theme, designed together as the ordinal scale they are
+  (helping / neutral / hurting, so green-amber-red is the right convention)
+  and spaced in *lightness* as well as hue so the ramp survives colour
+  deficiency. Dark worst-case is now 0.129, nearly 3x better.
+  `WindStatsBar`'s Tailwind %/Crosswind % icons read the same tokens, since
+  they're a key to what the map paints — same reasoning as `POI_COLOR_VAR`.
+- **Light mode couldn't reach the same bar on colour alone, so headwind is
+  dashed.** Every segment there has to be dark enough to read as ink on
+  parchment, which compresses the available lightness range, and under
+  protanopia red darkens into the green: the best light palette the search
+  found still left tailwind/headwind at 0.068. So `route-wind-line` is split —
+  it now filters out headwind, and a new `route-wind-headwind-line` draws that
+  class dashed. The gaps show the continuous route casing rather than the
+  basemap (`route-casing` comes from the full route and stays visible in wind
+  mode), so it reads as a barred line, not a broken one. `line-cap` is `butt`
+  there, unlike its siblings: round caps grow each dash by half the line width
+  at both ends, which at this dash length closes the gaps back up.
+  `line-dasharray` takes no data expression in MapLibre, which is why this is
+  a second layer rather than a `match` like the colour.
 
-- In *dark* mode tailwind and crosswind are nearly the same colour. Tailwind is
-  `--primary` (brass, H 79.5) and crosswind is `--warning` (H 80) — 0.5 degrees
-  of hue and 0.08 of lightness apart. The light theme doesn't have this problem
-  because its `--primary` is racing green.
-- Crosswind and headwind separate by hue alone in light mode (51 degrees, 0.09
-  lightness), which is the classic amber/red confusion for the ~8% of men with
-  a red-green deficiency. Green/amber/red is conventional and easy to read for
-  everyone else, so the fix is probably a lightness ramp or a dash pattern
-  rather than new hues.
+**Known, not fixed:**
 
-**Verified:** `npx tsc --noEmit`, `npm run lint` (0 errors), `npm test`, and
-side-by-side dark-mode screenshots of `/`, `/faq`, `/plan`, `/wind` plus a
+- **There is no legend for the wind colouring anywhere in the app.** The three
+  categories are only decodable by convention plus the WindStatsBar icons.
+  Worth adding.
+- **A theme preference may be clobbered on a crashed page.** Observed, not
+  root-caused: loading a route that hits the root error boundary (Supabase env
+  missing) left `hodora-theme` set to `"dark"` in a fresh browser profile whose
+  system preference was light, where a healthy load correctly stores
+  `"system"`. If real, a failed load would pin a "system" user to dark. Worth
+  reproducing against `ThemeProvider`'s hydration guard in `src/lib/theme.tsx`
+  before changing anything.
+
+**Verified:** `npx tsc --noEmit`, `npm run lint` (0 errors), `npm test`, a
+production build, a runtime probe confirming all the new `--color-*` tokens
+resolve per theme off `documentElement` (Tailwind's `@theme inline` does not
+always emit one, so `resolveThemeColor` can't assume it), dichromat
+simulations of the finished map, and side-by-side dark-mode screenshots of `/`, `/faq`, `/plan`, `/wind` plus a
 throwaway route rendering `WindStatsBar`/`DayTabs`/`HourPicker`/every button
 and badge variant, driven with Playwright against `vite dev`. Map tiles and
 Supabase are unreachable from this environment, so the basemap-vs-route
