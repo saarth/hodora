@@ -161,6 +161,7 @@ function resolveThemeColor(varName: string): string {
 function mapThemeColors() {
   return {
     route: resolveThemeColor("--color-route"),
+    routeCasing: resolveThemeColor("--color-route-casing"),
     background: resolveThemeColor("--color-background"),
     mutedForeground: resolveThemeColor("--color-muted-foreground"),
     warning: resolveThemeColor("--color-warning"),
@@ -226,7 +227,7 @@ const POI_RADIUS_EXPRESSION = ["match", ["get", "category"], "train_station", 7,
 
 function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
   if (map.getLayer("route-casing")) {
-    map.setPaintProperty("route-casing", "line-color", colors.background);
+    map.setPaintProperty("route-casing", "line-color", colors.routeCasing);
   }
   if (map.getLayer("route-line")) {
     map.setPaintProperty("route-line", "line-color", colors.route);
@@ -677,12 +678,16 @@ function drawRoute(map: any, points: RidePoint[]) {
 
   const colors = mapThemeColors();
 
+  // The halo's strength is the theme's call, not this layer's: --route-casing
+  // carries its own alpha (a light wash in light mode, a heavy near-black one
+  // in dark, where the route has a much busier road ramp to separate from), so
+  // `line-opacity` stays at its default 1 and the token decides.
   map.addLayer({
     id: "route-casing",
     type: "line",
     source: "route",
     layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": colors.background, "line-width": 8, "line-opacity": 0.45 },
+    paint: { "line-color": colors.routeCasing, "line-width": 8 },
   });
   map.addLayer({
     id: "route-line",

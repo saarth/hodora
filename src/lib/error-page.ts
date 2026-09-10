@@ -35,15 +35,18 @@ export function renderErrorPage(): string {
         --border: rgba(26, 24, 21, 0.13);
         --mark: url("/brand-mark-light.svg");
       }
+      /* Kept in step with the .dark block in src/styles.css by hand — this page
+         ships without the app's stylesheet, so it can't read those tokens. */
       @media (prefers-color-scheme: dark) {
         :root {
           color-scheme: dark;
-          --bg: #0d2119;
-          --fg: #f2ecdc;
-          --muted: #c3c8c0;
+          --bg: #040c08;
+          --fg: #f3eee1;
+          --muted: #c2beae;
+          --rust: #d8783e;
           --primary: #c9a15d;
-          --primary-fg: #1a1815;
-          --border: rgba(247, 242, 228, 0.14);
+          --primary-fg: #16130f;
+          --border: rgba(237, 233, 217, 0.26);
           --mark: url("/brand-mark-dark.svg");
         }
       }

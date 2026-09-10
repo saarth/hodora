@@ -5,6 +5,71 @@ correctness (GPX parsing, navigation math, offline storage), build/deploy
 correctness, and maintainability. Verified with `tsc --noEmit`, `eslint`, and
 real production builds — not just a read-through.
 
+## 2026-09-10 — Dark mode legibility
+
+Reported from a phone screenshot of the ride page: the dark theme "is not very
+clear". It wasn't a single broken color — the whole palette is one hue (racing
+green, 164) at low chroma, so nothing separated by *color*, and the surface
+tiers weren't separated enough by lightness either to carry it alone. Measured
+before touching anything (OKLCH → sRGB → WCAG, script in the session's
+scratchpad) and verified after in a real browser against the dev server.
+
+- **Surface tiers were ~0.07 apart in OKLCH lightness** (`src/styles.css`),
+  page 0.19 → card 0.26 → elevated 0.32, and `--popover` was *identical* to
+  `--card`. Every panel read as a slightly different shade of the page behind
+  it. The page now sits at 0.145 with card at 0.265 (a 0.12 step) and each
+  tier above it stepping again, popover included. Note that WCAG ratios are
+  useless as a target down here — the formula's flare term compresses every
+  dark pair into ~1.2:1 whatever their lightness — so the tiers are spaced by
+  OKLCH lightness and checked by eye.
+- **Borders at 14% white** (`--border`) **and 18%** (`--input`) **on dark
+  green were effectively invisible**, which is what made the day/hour chips on
+  the ride page read as floating text rather than controls. Now 26% and 32%.
+- **`--accent`** — the selected/hover state for toggles, menu items and ghost
+  buttons — **was a dark brown one step off the green surfaces** (L 0.38,
+  C 0.065), so a selected day or hour chip barely differed from its
+  neighbours. It's a proper rust now (L 0.48, C 0.105): the one warm surface
+  in the palette, and unambiguously "on".
+- **`--destructive` failed AA as text.** It's used as `text-destructive` at
+  `text-xs` in several places (`OfflineSaveCard`, the nav screen's off-route
+  banner, `rides.index`), where 0.62 gave 3.78:1 on a card. Raised to the
+  minimum that clears 4.5:1 (0.665), and `--destructive-foreground` flipped to
+  ink for the cases where the token is a fill instead.
+- **The route line was the same hue family as the basemap's roads.** Dark
+  `--route` (brass, L 0.8) sat right next to the dark basemap's tan primaries
+  (`#8c6b3d`) and orange motorways (`#b3583d`) — on the ride page the route
+  read as one more road. It's brighter and more saturated now (L 0.85,
+  C 0.16), and the casing under it is a real halo: `--route-casing` is a new
+  token carrying its own alpha, so each theme picks its own strength (a light
+  wash in light mode, a heavy near-black one in dark) instead of
+  `route-casing`'s paint hardcoding `line-opacity: 0.45` over
+  `--color-background` for both. `src/components/RouteMap.tsx` reads it as
+  `colors.routeCasing`; light mode's value reproduces the old appearance
+  exactly.
+- **`text-rust` was 3.4:1 on a dark card.** `--color-rust` resolved straight to
+  `--brand-rust`, which is a fixed brand value — correct for a route line drawn
+  over a map, wrong for the 12px mono eyebrows on every marketing page. Added
+  `--rust-ink` between them: the brand value in light mode, a lighter one of
+  the same hue in dark. `--brand-rust` itself is unchanged.
+- **Dark `--shadow-card` was doing nothing.** A wide soft shadow has nothing to
+  darken against on a dark page; the card edge is now carried by a tight
+  near-black shadow plus a hairline top highlight, with the ambient one kept
+  for depth.
+- **`src/lib/error-page.ts`** ships its own copy of the palette (it's the
+  static fallback served without the app's stylesheet), so its
+  `prefers-color-scheme: dark` block was re-pinned to the new values.
+
+Light mode is untouched, as is `.dark.hc-dark` (the navigation-only
+high-contrast theme), which already overrode everything that mattered here.
+
+**Verified:** `npx tsc --noEmit`, `npm run lint` (0 errors), `npm test`, and
+side-by-side dark-mode screenshots of `/`, `/faq`, `/plan`, `/wind` plus a
+throwaway route rendering `WindStatsBar`/`DayTabs`/`HourPicker`/every button
+and badge variant, driven with Playwright against `vite dev`. Map tiles and
+Supabase are unreachable from this environment, so the basemap-vs-route
+comparison was done against a mock of the dark basemap's own road colors
+rather than live tiles.
+
 ## 2026-09-09 — Editable points in the planner, and train stations on the map
 
 Two additions to `/plan`, both driven in a real browser with Playwright
