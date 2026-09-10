@@ -71,16 +71,35 @@ const PALETTES: Record<MapTheme, Palette> = {
     industrial: "#e6e1d8",
     building: "#ddd2c0",
     boundary: "#b49bc0",
-    motorwayFill: "#ffcb7d",
-    motorwayCasing: "#e08a3c",
-    primaryFill: "#ffe59b",
-    primaryCasing: "#dcb35c",
+    /*
+     * Warm, unlike the dark ramp — the parchment basemap keeps the OSM-carto
+     * feel — but desaturated, because light mode separates route from road on
+     * a different axis than dark mode does. Here the route is *ink* and the
+     * roads are *tints*: every route color is much darker than the paper, so
+     * lightness does most of the work. What broke that was chroma. The old
+     * ramp was more saturated than the route it sat under (motorwayFill C
+     * 0.113 and primaryCasing C 0.116 against a C 0.098 brass crosswind
+     * segment, 3-5 degrees of hue apart), so a road could out-shout the line
+     * drawn on top of it.
+     *
+     * So: fills stay light (L >= 0.83) and drop to C <= 0.065, which puts
+     * them 0.19+ in lightness from any route color; and the only road
+     * elements dark enough to read as ink themselves — the casings and the
+     * dashed track/path — are held at C <= 0.045, at least 2.8x less
+     * saturated than anything the route is drawn in. Keep both bounds if
+     * these are retuned. The white secondary/minor fills are untouched: at
+     * C 0 they can't clash with anything.
+     */
+    motorwayFill: "#f3d1a9",
+    motorwayCasing: "#cab198",
+    primaryFill: "#f8e6bc",
+    primaryCasing: "#d9cbaf",
     secondaryFill: "#ffffff",
     secondaryCasing: "#d8cdb8",
     minorFill: "#ffffff",
     minorCasing: "#ddd6c6",
-    track: "#a9835a",
-    path: "#8f8574",
+    track: "#a79989",
+    path: "#989082",
     cycleway: "#1f7fd1",
     cyclewayCasing: "#ffffff",
     labelText: "#3a352c",

@@ -125,7 +125,17 @@
   --accent-foreground: oklch(0.4 0.11 50);
   --destructive: oklch(0.55 0.19 25);
   --destructive-foreground: oklch(0.98 0.01 90);
-  --warning: var(--brand-brass);
+  /*
+   * Not --brand-brass, which is what this used to be. Brass is a *surface*
+   * accent — it works as a fill or on a dark ground — and as ink on parchment
+   * it managed only 2.2:1, which is both a failing contrast for the uses that
+   * matter (`text-warning` carries the wind score at text-3xl, plus the
+   * crosswind and best-hour icons) and the reason a brass crosswind segment
+   * disappeared into the basemap's road tints. This is the same hue carried
+   * down to where it reads as ink. --brand-brass itself is unchanged, and
+   * dark mode still wants a light brass, which it sets in the .dark block.
+   */
+  --warning: oklch(0.64 0.125 76);
   --warning-foreground: oklch(0.24 0.05 60);
   --border: oklch(0.21 0.007 78.2 / 13%);
   --input: oklch(0.21 0.007 78.2 / 17%);

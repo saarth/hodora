@@ -63,10 +63,7 @@ scratchpad) and verified after in a real browser against the dev server.
   lightness and lean on hue to separate, so they're spread to ~0.08; and
   track (unpaved) vs path were the same lightness for the same reason, so
   track keeps a trace of warmth at C 0.02 — far enough below the route's
-  0.10-0.18 not to read as one. The light ramp is untouched: it has a milder
-  version of the same overlap (`motorwayCasing` is 10 degrees off the rust
-  route) but the roads there are *lighter* than the route on pale parchment,
-  so figure/ground does the separating.
+  0.10-0.18 not to read as one.
 - **`text-rust` was 3.4:1 on a dark card.** `--color-rust` resolved straight to
   `--brand-rust`, which is a fixed brand value — correct for a route line drawn
   over a map, wrong for the 12px mono eyebrows on every marketing page. Added
@@ -80,8 +77,46 @@ scratchpad) and verified after in a real browser against the dev server.
   static fallback served without the app's stylesheet), so its
   `prefers-color-scheme: dark` block was re-pinned to the new values.
 
-Light mode is untouched, as is `.dark.hc-dark` (the navigation-only
-high-contrast theme), which already overrode everything that mattered here.
+- **The light basemap had the same defect, worse in one place.** Measured
+  after the dark fix: the brass crosswind segment was 5 degrees of hue from
+  `primaryCasing` and 3 from `motorwayFill`, and — unlike dark mode — the
+  *roads were more saturated than the route*, C 0.113-0.116 against the
+  route's C 0.098. A crosswind stretch crossing a primary road simply
+  disappeared. Light mode separates route from road on a different axis than
+  dark does (the route is ink, the roads are tints, so lightness does most of
+  the work), so the ramp stays warm — the parchment identity depends on it —
+  and drops chroma instead: fills to C <= 0.065, and the casings plus the
+  dashed track/path, which are the only road elements dark enough to read as
+  ink themselves, to C <= 0.045. That leaves every route colour at least 2.8x
+  more saturated than the road nearest it in hue. The white secondary/minor
+  fills are untouched; at C 0 they can't clash.
+- **Light `--warning` couldn't be fixed from the basemap side at all.** It was
+  `var(--brand-brass)`, which is 2.2:1 on parchment — too faint to be a route
+  line whatever colour the roads are, and it's the same token that carries the
+  wind score (`scoreTone` returns `text-warning` for 36-64, rendered at
+  `text-3xl`) and the crosswind and best-hour icons. So light `--warning` is
+  now the same hue carried down to ink (`oklch(0.64 0.125 76)`, 3.2:1), which
+  fixes the map segment and the readout together. `--brand-brass` is
+  unchanged, dark mode still sets its own light brass, and
+  `--warning-foreground` stays dark ink — it scores 4.84:1 on the new value
+  against 3.24:1 for a light one, and no component uses it today anyway.
+
+`.dark.hc-dark` (the navigation-only high-contrast theme) is untouched; it
+already overrode everything that mattered here.
+
+**Known, not fixed — the wind palette collides with itself.** Worth a product
+decision rather than a unilateral change, since it's what riders learn to read
+off the map, and there is no legend anywhere in the app to lean on:
+
+- In *dark* mode tailwind and crosswind are nearly the same colour. Tailwind is
+  `--primary` (brass, H 79.5) and crosswind is `--warning` (H 80) — 0.5 degrees
+  of hue and 0.08 of lightness apart. The light theme doesn't have this problem
+  because its `--primary` is racing green.
+- Crosswind and headwind separate by hue alone in light mode (51 degrees, 0.09
+  lightness), which is the classic amber/red confusion for the ~8% of men with
+  a red-green deficiency. Green/amber/red is conventional and easy to read for
+  everyone else, so the fix is probably a lightness ramp or a dash pattern
+  rather than new hues.
 
 **Verified:** `npx tsc --noEmit`, `npm run lint` (0 errors), `npm test`, and
 side-by-side dark-mode screenshots of `/`, `/faq`, `/plan`, `/wind` plus a
