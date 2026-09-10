@@ -5,6 +5,160 @@ correctness (GPX parsing, navigation math, offline storage), build/deploy
 correctness, and maintainability. Verified with `tsc --noEmit`, `eslint`, and
 real production builds — not just a read-through.
 
+## 2026-09-10 — Dark mode legibility
+
+Reported from a phone screenshot of the ride page: the dark theme "is not very
+clear". It wasn't a single broken color — the whole palette is one hue (racing
+green, 164) at low chroma, so nothing separated by *color*, and the surface
+tiers weren't separated enough by lightness either to carry it alone. Measured
+before touching anything (OKLCH → sRGB → WCAG, script in the session's
+scratchpad) and verified after in a real browser against the dev server.
+
+- **Surface tiers were ~0.07 apart in OKLCH lightness** (`src/styles.css`),
+  page 0.19 → card 0.26 → elevated 0.32, and `--popover` was *identical* to
+  `--card`. Every panel read as a slightly different shade of the page behind
+  it. The page now sits at 0.145 with card at 0.265 (a 0.12 step) and each
+  tier above it stepping again, popover included. Note that WCAG ratios are
+  useless as a target down here — the formula's flare term compresses every
+  dark pair into ~1.2:1 whatever their lightness — so the tiers are spaced by
+  OKLCH lightness and checked by eye.
+- **Borders at 14% white** (`--border`) **and 18%** (`--input`) **on dark
+  green were effectively invisible**, which is what made the day/hour chips on
+  the ride page read as floating text rather than controls. Now 26% and 32%.
+- **`--accent`** — the selected/hover state for toggles, menu items and ghost
+  buttons — **was a dark brown one step off the green surfaces** (L 0.38,
+  C 0.065), so a selected day or hour chip barely differed from its
+  neighbours. It's a proper rust now (L 0.48, C 0.105): the one warm surface
+  in the palette, and unambiguously "on".
+- **`--destructive` failed AA as text.** It's used as `text-destructive` at
+  `text-xs` in several places (`OfflineSaveCard`, the nav screen's off-route
+  banner, `rides.index`), where 0.62 gave 3.78:1 on a card. Raised to the
+  minimum that clears 4.5:1 (0.665), and `--destructive-foreground` flipped to
+  ink for the cases where the token is a fill instead.
+- **The route line was the same hue family as the basemap's roads.** Dark
+  `--route` (brass, L 0.8) sat right next to the dark basemap's tan primaries
+  (`#8c6b3d`) and orange motorways (`#b3583d`) — on the ride page the route
+  read as one more road. It's brighter and more saturated now (L 0.85,
+  C 0.16), and the casing under it is a real halo: `--route-casing` is a new
+  token carrying its own alpha, so each theme picks its own strength (a light
+  wash in light mode, a heavy near-black one in dark) instead of
+  `route-casing`'s paint hardcoding `line-opacity: 0.45` over
+  `--color-background` for both. `src/components/RouteMap.tsx` reads it as
+  `colors.routeCasing`; light mode's value reproduces the old appearance
+  exactly.
+- **...but brightening `--route` only fixed the plain route line, and the ride
+  page doesn't draw one.** With a wind forecast loaded it draws
+  `route-wind-line`, coloured per segment by `WIND_LINE_COLOR_EXPRESSION`:
+  brass for tailwind, `--warning` gold for crosswind, `--destructive` red for
+  headwind. Measured against the dark basemap's ramp, every one of those was
+  0-8 degrees of hue from a road colour — tailwind vs `primaryCasing` 2
+  degrees, headwind vs `motorwayCasing` 8 — leaving lightness as the only
+  thing separating a headwind stretch from a trunk road. The fix is on the
+  basemap side (`src/lib/cycling-style.ts`), because the route palette can't
+  move: brass is the brand and red-for-headwind is semantic. The dark road
+  ramp is now cool and near-neutral (motorway `#697481` down to minor
+  `#31343a`), which costs nothing — hierarchy there is carried by line width,
+  casings and the dash patterns on track/path, not by hue. Two things to
+  preserve if it's retuned: motorway and primary used to sit 0.016 apart in
+  lightness and lean on hue to separate, so they're spread to ~0.08; and
+  track (unpaved) vs path were the same lightness for the same reason, so
+  track keeps a trace of warmth at C 0.02 — far enough below the route's
+  0.10-0.18 not to read as one.
+- **`text-rust` was 3.4:1 on a dark card.** `--color-rust` resolved straight to
+  `--brand-rust`, which is a fixed brand value — correct for a route line drawn
+  over a map, wrong for the 12px mono eyebrows on every marketing page. Added
+  `--rust-ink` between them: the brand value in light mode, a lighter one of
+  the same hue in dark. `--brand-rust` itself is unchanged.
+- **Dark `--shadow-card` was doing nothing.** A wide soft shadow has nothing to
+  darken against on a dark page; the card edge is now carried by a tight
+  near-black shadow plus a hairline top highlight, with the ambient one kept
+  for depth.
+- **`src/lib/error-page.ts`** ships its own copy of the palette (it's the
+  static fallback served without the app's stylesheet), so its
+  `prefers-color-scheme: dark` block was re-pinned to the new values.
+
+- **The light basemap had the same defect, worse in one place.** Measured
+  after the dark fix: the brass crosswind segment was 5 degrees of hue from
+  `primaryCasing` and 3 from `motorwayFill`, and — unlike dark mode — the
+  *roads were more saturated than the route*, C 0.113-0.116 against the
+  route's C 0.098. A crosswind stretch crossing a primary road simply
+  disappeared. Light mode separates route from road on a different axis than
+  dark does (the route is ink, the roads are tints, so lightness does most of
+  the work), so the ramp stays warm — the parchment identity depends on it —
+  and drops chroma instead: fills to C <= 0.065, and the casings plus the
+  dashed track/path, which are the only road elements dark enough to read as
+  ink themselves, to C <= 0.045. That leaves every route colour at least 2.8x
+  more saturated than the road nearest it in hue. The white secondary/minor
+  fills are untouched; at C 0 they can't clash.
+- **Light `--warning` couldn't be fixed from the basemap side at all.** It was
+  `var(--brand-brass)`, which is 2.2:1 on parchment — too faint to be a route
+  line whatever colour the roads are, and it's the same token that carries the
+  wind score (`scoreTone` returns `text-warning` for 36-64, rendered at
+  `text-3xl`) and the crosswind and best-hour icons. So light `--warning` is
+  now the same hue carried down to ink (`oklch(0.64 0.125 76)`, 3.2:1), which
+  fixes the map segment and the readout together. `--brand-brass` is
+  unchanged, dark mode still sets its own light brass, and
+  `--warning-foreground` stays dark ink — it scores 4.84:1 on the new value
+  against 3.24:1 for a light one, and no component uses it today anyway.
+
+`.dark.hc-dark` (the navigation-only high-contrast theme) is untouched; it
+already overrode everything that mattered here.
+
+- **The wind palette collided with itself, and borrowing UI tokens was the
+  cause.** Tailwind was `--primary`, crosswind `--warning`, headwind
+  `--destructive` — three tokens that answer to the UI and were never designed
+  as a *set*. `--primary` is racing green in light mode but brass in dark,
+  which put dark-mode tailwind 0.5 degrees of hue and 0.08 of lightness from a
+  crosswind segment. Simulating dichromatic vision (Vienot-Brettel-Mollon,
+  script in the session scratchpad) put numbers on it: worst-case separation
+  across normal/deutan/protan/tritan was **0.047 in OKLab** for dark and 0.076
+  for light — for a deuteranope the dark route was one uniform olive line with
+  no readable boundaries at all.
+  There are now `--wind-tailwind` / `--wind-crosswind` / `--wind-headwind`
+  tokens, per theme, designed together as the ordinal scale they are
+  (helping / neutral / hurting, so green-amber-red is the right convention)
+  and spaced in *lightness* as well as hue so the ramp survives colour
+  deficiency. Dark worst-case is now 0.129, nearly 3x better.
+  `WindStatsBar`'s Tailwind %/Crosswind % icons read the same tokens, since
+  they're a key to what the map paints — same reasoning as `POI_COLOR_VAR`.
+- **Light mode couldn't reach the same bar on colour alone, so headwind is
+  dashed.** Every segment there has to be dark enough to read as ink on
+  parchment, which compresses the available lightness range, and under
+  protanopia red darkens into the green: the best light palette the search
+  found still left tailwind/headwind at 0.068. So `route-wind-line` is split —
+  it now filters out headwind, and a new `route-wind-headwind-line` draws that
+  class dashed. The gaps show the continuous route casing rather than the
+  basemap (`route-casing` comes from the full route and stays visible in wind
+  mode), so it reads as a barred line, not a broken one. `line-cap` is `butt`
+  there, unlike its siblings: round caps grow each dash by half the line width
+  at both ends, which at this dash length closes the gaps back up.
+  `line-dasharray` takes no data expression in MapLibre, which is why this is
+  a second layer rather than a `match` like the colour.
+
+**Known, not fixed:**
+
+- **There is no legend for the wind colouring anywhere in the app.** The three
+  categories are only decodable by convention plus the WindStatsBar icons.
+  Worth adding.
+- **A theme preference may be clobbered on a crashed page.** Observed, not
+  root-caused: loading a route that hits the root error boundary (Supabase env
+  missing) left `hodora-theme` set to `"dark"` in a fresh browser profile whose
+  system preference was light, where a healthy load correctly stores
+  `"system"`. If real, a failed load would pin a "system" user to dark. Worth
+  reproducing against `ThemeProvider`'s hydration guard in `src/lib/theme.tsx`
+  before changing anything.
+
+**Verified:** `npx tsc --noEmit`, `npm run lint` (0 errors), `npm test`, a
+production build, a runtime probe confirming all the new `--color-*` tokens
+resolve per theme off `documentElement` (Tailwind's `@theme inline` does not
+always emit one, so `resolveThemeColor` can't assume it), dichromat
+simulations of the finished map, and side-by-side dark-mode screenshots of `/`, `/faq`, `/plan`, `/wind` plus a
+throwaway route rendering `WindStatsBar`/`DayTabs`/`HourPicker`/every button
+and badge variant, driven with Playwright against `vite dev`. Map tiles and
+Supabase are unreachable from this environment, so the basemap-vs-route
+comparison was done against a mock of the dark basemap's own road colors
+rather than live tiles.
+
 ## 2026-09-09 — Editable points in the planner, and train stations on the map
 
 Two additions to `/plan`, both driven in a real browser with Playwright

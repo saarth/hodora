@@ -32,7 +32,7 @@
    */
   --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-rust: var(--brand-rust);
+  --color-rust: var(--rust-ink);
   --color-brass: var(--brand-brass);
 
   --color-background: var(--background);
@@ -59,6 +59,10 @@
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
   --color-route: var(--route);
+  --color-route-casing: var(--route-casing);
+  --color-wind-tailwind: var(--wind-tailwind);
+  --color-wind-crosswind: var(--wind-crosswind);
+  --color-wind-headwind: var(--wind-headwind);
   --color-transit: var(--transit);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -97,6 +101,16 @@
   --brand-rust: oklch(0.584 0.125 49.6); /* #B5622F */
   --brand-brass: oklch(0.731 0.098 79.5); /* #C9A15D */
 
+  /*
+   * Rust *as ink* — what `text-rust`/`border-rust`/`bg-rust` resolve to. It
+   * tracks the surface it sits on, which --brand-rust (a fixed brand value,
+   * correct for the route line drawn over a map) can't: the same 12px mono
+   * eyebrow that reads cleanly on parchment is only ~3.4:1 on a dark green
+   * card. Light mode wants the brand value exactly; dark mode gets a lighter
+   * one of the same hue in the .dark block.
+   */
+  --rust-ink: var(--brand-rust);
+
   --background: oklch(0.943 0.022 89.8); /* #F2ECDC parchment */
   --foreground: oklch(0.21 0.007 78.2); /* #1A1815 ink */
   --card: oklch(0.975 0.008 89.8);
@@ -114,12 +128,52 @@
   --accent-foreground: oklch(0.4 0.11 50);
   --destructive: oklch(0.55 0.19 25);
   --destructive-foreground: oklch(0.98 0.01 90);
-  --warning: var(--brand-brass);
+  /*
+   * Not --brand-brass, which is what this used to be. Brass is a *surface*
+   * accent — it works as a fill or on a dark ground — and as ink on parchment
+   * it managed only 2.2:1, which is both a failing contrast for the uses that
+   * matter (`text-warning` carries the wind score at text-3xl, plus the
+   * crosswind and best-hour icons) and the reason a brass crosswind segment
+   * disappeared into the basemap's road tints. This is the same hue carried
+   * down to where it reads as ink. --brand-brass itself is unchanged, and
+   * dark mode still wants a light brass, which it sets in the .dark block.
+   */
+  --warning: oklch(0.64 0.125 76);
   --warning-foreground: oklch(0.24 0.05 60);
   --border: oklch(0.21 0.007 78.2 / 13%);
   --input: oklch(0.21 0.007 78.2 / 17%);
   --ring: var(--primary);
   --route: var(--brand-rust);
+  /* Halo drawn under the route line so it stays readable over the basemap.
+     Alpha lives in the token (not the layer's paint) so each theme can pick
+     its own strength — dark mode needs a much heavier one than this. */
+  --route-casing: oklch(0.943 0.022 89.8 / 45%);
+
+  /*
+   * Per-segment wind classification on the route (RouteMap's wind layers, and
+   * the matching icons in WindStatsBar — same tokens, so the readout and the
+   * map can't drift). These are their own tokens rather than --primary /
+   * --warning / --destructive, which is what they used to borrow, because
+   * those three answer to the UI and collided as a *set*: --primary is racing
+   * green in light mode but brass in dark, which put tailwind 0.5 degrees of
+   * hue from a --warning crosswind.
+   *
+   * Read as an ordinal scale — helping, neutral, hurting — so green/amber/red
+   * is the right convention. But that convention is also the classic
+   * red-green trap, so the three are spaced in *lightness* as well as hue,
+   * checked by simulating dichromatic vision (Vienot-Brettel-Mollon) rather
+   * than by eye: worst-case separation across normal/deutan/protan/tritan is
+   * 0.129 in OKLab here, against 0.047 for the palette this replaced.
+   *
+   * Light mode can't get there on color alone — every segment has to be dark
+   * enough to be ink on parchment, which compresses the range, and under
+   * protanopia red darkens into the green. So headwind carries a redundant
+   * non-color channel: RouteMap draws it dashed over the continuous casing.
+   * Keep that dash if these are retuned.
+   */
+  --wind-tailwind: oklch(0.46 0.115 155);
+  --wind-crosswind: oklch(0.645 0.128 77);
+  --wind-headwind: oklch(0.44 0.19 25);
   /* Public transport: a cool blue that reads as "not part of your route" next
      to the rust route line and the warm chart ramp. */
   --transit: oklch(0.5 0.14 255);
@@ -154,45 +208,82 @@
   --map-filter: none;
 }
 
+/*
+ * Dark mode. The whole palette is one hue (racing green, 164) at low chroma,
+ * which is the brand — but it also means nothing separates by *color*, so the
+ * surface tiers have to earn their separation from lightness alone. Two rules
+ * keep that readable, and both were learned the hard way from a wash of
+ * near-identical greens:
+ *
+ * 1. The page sits well below the panels on it. Background is nearly black
+ *    (L 0.145) so `--card` at L 0.265 reads as a raised panel rather than a
+ *    slightly different shade of the same thing, and each tier above it
+ *    (muted → secondary → popover → elevated) steps up again. WCAG ratios are
+ *    a bad guide down here — the formula's flare term compresses everything
+ *    dark into ~1.2:1 — so the tiers are spaced by *OKLCH lightness* instead,
+ *    ~0.03 minimum between adjacent tiers and 0.12 from page to card.
+ * 2. Borders do real work. At 14% white on dark green an outlined control
+ *    (the day/hour chips, inputs, the map's zoom cluster) had no visible edge
+ *    at all; --border/--input are strong enough here to draw one.
+ */
 .dark {
-  --background: oklch(0.19 0.03 164); /* deep racing green */
-  --foreground: oklch(0.943 0.022 89.8); /* parchment */
-  --card: oklch(0.26 0.038 164); /* #1F3A2E racing green */
-  --card-foreground: oklch(0.943 0.022 89.8);
-  --elevated: oklch(0.32 0.042 164);
-  --popover: oklch(0.26 0.038 164);
-  --popover-foreground: oklch(0.943 0.022 89.8);
+  --background: oklch(0.145 0.018 164); /* near-black racing green */
+  --foreground: oklch(0.95 0.018 89.8); /* parchment */
+  --card: oklch(0.265 0.036 164); /* #1F3A2E racing green */
+  --card-foreground: oklch(0.95 0.018 89.8);
+  --elevated: oklch(0.345 0.042 164);
+  /* A step above --card: popovers and dropdowns float over cards, so sharing
+     the card surface left them edge-defined only. */
+  --popover: oklch(0.29 0.038 164);
+  --popover-foreground: oklch(0.95 0.018 89.8);
+  --rust-ink: oklch(0.67 0.14 49.6);
   --primary: var(--brand-brass);
-  --primary-foreground: oklch(0.21 0.007 78.2);
-  --secondary: oklch(0.3 0.04 164);
-  --secondary-foreground: oklch(0.943 0.022 89.8);
-  --muted: oklch(0.29 0.038 164);
-  --muted-foreground: oklch(0.78 0.018 95);
-  --accent: oklch(0.38 0.065 50);
-  --accent-foreground: oklch(0.92 0.05 70);
-  --destructive: oklch(0.62 0.19 25);
-  --destructive-foreground: oklch(0.98 0.01 90);
-  --warning: oklch(0.78 0.1 80);
+  --primary-foreground: oklch(0.19 0.01 78.2);
+  --secondary: oklch(0.32 0.038 164);
+  --secondary-foreground: oklch(0.95 0.018 89.8);
+  --muted: oklch(0.3 0.036 164);
+  --muted-foreground: oklch(0.8 0.022 95);
+  /*
+   * The selected/hover state for toggles, menu items and ghost buttons. The
+   * old value was a dark brown a shade off the green surfaces, so a selected
+   * day/hour chip was barely distinguishable from its neighbours; this is a
+   * proper rust — the one warm surface in the palette, and unmistakably "on".
+   */
+  --accent: oklch(0.48 0.105 47);
+  --accent-foreground: oklch(0.97 0.03 80);
+  /* Mostly used as *text* (`text-destructive`) at small sizes, which the old
+     0.62 didn't clear 4.5:1 for on a card — hence the lighter red and the ink
+     foreground for the cases where it's a fill instead. */
+  --destructive: oklch(0.665 0.178 25);
+  --destructive-foreground: oklch(0.18 0.02 25);
+  --warning: oklch(0.81 0.115 80);
   --warning-foreground: oklch(0.22 0.05 60);
-  --border: oklch(0.97 0.014 90 / 14%);
-  --input: oklch(0.97 0.014 90 / 18%);
+  --border: oklch(0.93 0.02 95 / 26%);
+  --input: oklch(0.93 0.02 95 / 32%);
   --ring: var(--brand-brass);
-  --route: oklch(0.8 0.12 80);
-  --transit: oklch(0.76 0.12 255);
+  /* Brighter and more saturated than the basemap's dark road ramp (tan
+     primaries, orange motorways) so the route line reads as the route and not
+     as another road. See --route-casing for the other half of that. */
+  --route: oklch(0.85 0.16 78);
+  --route-casing: oklch(0.09 0.012 164 / 85%);
+  --wind-tailwind: oklch(0.87 0.17 152);
+  --wind-crosswind: oklch(0.75 0.145 72);
+  --wind-headwind: oklch(0.6 0.21 20);
+  --transit: oklch(0.78 0.13 255);
 
   --chart-1: var(--brand-brass);
-  --chart-2: oklch(0.68 0.14 50);
-  --chart-3: oklch(0.8 0.02 90);
-  --chart-4: oklch(0.55 0.06 164);
-  --chart-5: oklch(0.55 0.13 40);
+  --chart-2: oklch(0.7 0.145 50);
+  --chart-3: oklch(0.82 0.02 90);
+  --chart-4: oklch(0.62 0.07 164);
+  --chart-5: oklch(0.6 0.14 40);
 
-  --sidebar: oklch(0.23 0.034 164);
-  --sidebar-foreground: oklch(0.943 0.022 89.8);
+  --sidebar: oklch(0.225 0.032 164);
+  --sidebar-foreground: oklch(0.95 0.018 89.8);
   --sidebar-primary: var(--brand-brass);
-  --sidebar-primary-foreground: oklch(0.21 0.007 78.2);
-  --sidebar-accent: oklch(0.3 0.04 164);
-  --sidebar-accent-foreground: oklch(0.943 0.022 89.8);
-  --sidebar-border: oklch(0.97 0.014 90 / 14%);
+  --sidebar-primary-foreground: oklch(0.19 0.01 78.2);
+  --sidebar-accent: oklch(0.32 0.038 164);
+  --sidebar-accent-foreground: oklch(0.95 0.018 89.8);
+  --sidebar-border: oklch(0.93 0.02 95 / 26%);
   --sidebar-ring: var(--brand-brass);
 
   --gradient-hero:
@@ -201,8 +292,16 @@
       color-mix(in oklab, var(--primary) 14%, transparent),
       transparent 62%
     ),
-    linear-gradient(160deg, var(--background), oklch(0.3 0.04 164));
-  --shadow-card: 0 1px 0 oklch(1 0 0 / 4%) inset, 0 20px 45px -28px oklch(0 0 0 / 70%);
+    linear-gradient(160deg, var(--background), oklch(0.25 0.034 164));
+  /*
+   * Dark surfaces get no help from a soft drop shadow — there's nothing for it
+   * to darken against — so the card edge is carried by a tight near-black
+   * shadow plus a hairline top highlight, with the wide ambient one left in
+   * for depth.
+   */
+  --shadow-card:
+    0 1px 0 oklch(1 0 0 / 8%) inset, 0 2px 4px oklch(0 0 0 / 55%),
+    0 20px 44px -26px oklch(0 0 0 / 90%);
   --map-filter: none;
 }
 
@@ -237,6 +336,10 @@
   --input: oklch(1 0 0 / 35%);
   --ring: oklch(0.88 0.14 80);
   --route: oklch(0.9 0.15 75);
+  --route-casing: oklch(0 0 0 / 90%);
+  --wind-tailwind: oklch(0.9 0.2 150);
+  --wind-crosswind: oklch(0.82 0.17 72);
+  --wind-headwind: oklch(0.68 0.24 22);
 
   --map-filter: contrast(1.25) brightness(0.8) saturate(1.15);
 }

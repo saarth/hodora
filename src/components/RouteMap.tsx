@@ -161,9 +161,13 @@ function resolveThemeColor(varName: string): string {
 function mapThemeColors() {
   return {
     route: resolveThemeColor("--color-route"),
+    routeCasing: resolveThemeColor("--color-route-casing"),
     background: resolveThemeColor("--color-background"),
     mutedForeground: resolveThemeColor("--color-muted-foreground"),
     warning: resolveThemeColor("--color-warning"),
+    windTailwind: resolveThemeColor("--color-wind-tailwind"),
+    windCrosswind: resolveThemeColor("--color-wind-crosswind"),
+    windHeadwind: resolveThemeColor("--color-wind-headwind"),
     foreground: resolveThemeColor("--color-foreground"),
     chart2: resolveThemeColor("--color-chart-2"),
     primary: resolveThemeColor("--color-primary"),
@@ -171,15 +175,26 @@ function mapThemeColors() {
   };
 }
 
+// Headwind is drawn by its own layer (see IS_HEADWIND) so it can be dashed,
+// so this only ever colors the other two.
 const WIND_LINE_COLOR_EXPRESSION = (colors: ReturnType<typeof mapThemeColors>) => [
   "match",
   ["get", "effect"],
   "tailwind",
-  colors.primary,
-  "headwind",
-  colors.destructive,
-  colors.warning,
+  colors.windTailwind,
+  colors.windCrosswind,
 ];
+
+// The one wind class that gets a second, non-color cue. Green/amber/red is the
+// right ordinal convention for helping/neutral/hurting, but it's also the
+// red-green trap: in light mode every segment has to be dark enough to read as
+// ink on parchment, which leaves too little lightness range to separate red
+// from green under protanopia by color alone (0.068 in OKLab under a
+// dichromat simulation, against 0.226 for tailwind vs crosswind). So headwind
+// is dashed. The gaps show the continuous route casing underneath rather than
+// the basemap — `route-casing` is drawn from the full route and stays visible
+// in wind mode — so it reads as a barred line, not a broken one.
+const IS_HEADWIND = ["==", ["get", "effect"], "headwind"] as const;
 
 // Built from POI_COLOR_VAR rather than a second hardcoded table, so the pins
 // and the legends beside them are the same colors by construction.
@@ -226,13 +241,16 @@ const POI_RADIUS_EXPRESSION = ["match", ["get", "category"], "train_station", 7,
 
 function applyThemeColors(map: any, colors: ReturnType<typeof mapThemeColors>) {
   if (map.getLayer("route-casing")) {
-    map.setPaintProperty("route-casing", "line-color", colors.background);
+    map.setPaintProperty("route-casing", "line-color", colors.routeCasing);
   }
   if (map.getLayer("route-line")) {
     map.setPaintProperty("route-line", "line-color", colors.route);
   }
   if (map.getLayer("route-wind-line")) {
     map.setPaintProperty("route-wind-line", "line-color", WIND_LINE_COLOR_EXPRESSION(colors));
+  }
+  if (map.getLayer("route-wind-headwind-line")) {
+    map.setPaintProperty("route-wind-headwind-line", "line-color", colors.windHeadwind);
   }
   if (map.getLayer("route-done-line")) {
     map.setPaintProperty("route-done-line", "line-color", colors.mutedForeground);
@@ -677,12 +695,16 @@ function drawRoute(map: any, points: RidePoint[]) {
 
   const colors = mapThemeColors();
 
+  // The halo's strength is the theme's call, not this layer's: --route-casing
+  // carries its own alpha (a light wash in light mode, a heavy near-black one
+  // in dark, where the route has a much busier road ramp to separate from), so
+  // `line-opacity` stays at its default 1 and the token decides.
   map.addLayer({
     id: "route-casing",
     type: "line",
     source: "route",
     layout: { "line-cap": "round", "line-join": "round" },
-    paint: { "line-color": colors.background, "line-width": 8, "line-opacity": 0.45 },
+    paint: { "line-color": colors.routeCasing, "line-width": 8 },
   });
   map.addLayer({
     id: "route-line",
@@ -699,8 +721,24 @@ function drawRoute(map: any, points: RidePoint[]) {
     id: "route-wind-line",
     type: "line",
     source: "route-wind",
+    filter: ["!", IS_HEADWIND],
     layout: { "line-cap": "round", "line-join": "round", visibility: "none" },
     paint: { "line-color": WIND_LINE_COLOR_EXPRESSION(colors), "line-width": 4.5 },
+  });
+  // `line-cap: butt`, unlike its siblings: round caps on a dashed line grow
+  // each dash by half its width at both ends, which at this dash length closes
+  // the gaps back up and undoes the whole point of the layer.
+  map.addLayer({
+    id: "route-wind-headwind-line",
+    type: "line",
+    source: "route-wind",
+    filter: IS_HEADWIND,
+    layout: { "line-cap": "butt", "line-join": "round", visibility: "none" },
+    paint: {
+      "line-color": colors.windHeadwind,
+      "line-width": 4.5,
+      "line-dasharray": [1.6, 0.9],
+    },
   });
   map.addSource("route-done", { type: "geojson", data: lineFeature([]) });
   map.addLayer({
@@ -936,8 +974,10 @@ function applyWindSegments(
       ? windSegmentsToGeoJSON(points, windSegments!)
       : { type: "FeatureCollection", features: [] },
   );
-  if (map.getLayer("route-wind-line")) {
-    map.setLayoutProperty("route-wind-line", "visibility", hasWind ? "visible" : "none");
+  for (const id of ["route-wind-line", "route-wind-headwind-line"]) {
+    if (map.getLayer(id)) {
+      map.setLayoutProperty(id, "visibility", hasWind ? "visible" : "none");
+    }
   }
   if (map.getLayer("route-line")) {
     map.setLayoutProperty("route-line", "visibility", hasWind ? "none" : "visible");
