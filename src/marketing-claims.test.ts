@@ -306,3 +306,61 @@ describe("source of truth for claims that can't be executed here", () => {
     expect(read("routes/explore.tsx")).toContain("ssr: false");
   });
 });
+
+/**
+ * Title and meta-description lengths.
+ *
+ * Not a style rule — these are the two strings a search engine renders
+ * verbatim in the result, and both get truncated mid-word once they run
+ * long, which costs exactly the front-loaded keywords the copy was written
+ * around. An audit caught `/`, `/how-to-use`, `/support`, `/explore`,
+ * `/bike-gps` and `/faq` over the line at once, so the limit lives here
+ * rather than in a reviewer's memory.
+ *
+ * Read out of the source rather than imported: `head()` is a route export
+ * that pulls in the whole map/React tree to evaluate, and the strings are
+ * plain literals at the top of each file anyway. Both shapes the routes use
+ * are matched — a `const TITLE`/`DESCRIPTION` pair, and `/wind`'s inline
+ * `meta` entries.
+ */
+describe("every indexable page's title and description survive the SERP", () => {
+  const read = (p: string) => readFileSync(resolve(__dirname, p), "utf8");
+
+  // The same list the sitemap publishes; a page crawlers are sent to is a
+  // page whose snippet matters.
+  const PAGES: Array<[path: string, file: string]> = [
+    ["/", "index"],
+    ["/how-to-use", "how-to-use"],
+    ["/bike-gps", "bike-gps"],
+    ["/faq", "faq"],
+    ["/support", "support"],
+    ["/plan", "plan"],
+    ["/explore", "explore"],
+    ["/wind", "wind"],
+  ];
+
+  const title = (src: string) =>
+    (src.match(/const TITLE =\s*\n?\s*"((?:[^"\\]|\\.)*)"/) ??
+      src.match(/\{\s*title:\s*"((?:[^"\\]|\\.)*)"/))?.[1];
+
+  const description = (src: string) =>
+    (src.match(/const DESCRIPTION =\s*\n?\s*"((?:[^"\\]|\\.)*)"/) ??
+      src.match(/name:\s*"description",\s*\n?\s*content:\s*\n?\s*"((?:[^"\\]|\\.)*)"/))?.[1];
+
+  for (const [path, file] of PAGES) {
+    it(`${path}: title is at most 60 characters`, () => {
+      const value = title(read(`routes/${file}.tsx`));
+      expect(value, `no title literal found in routes/${file}.tsx`).toBeDefined();
+      expect(value!.length).toBeLessThanOrEqual(60);
+    });
+
+    it(`${path}: meta description is 70-160 characters`, () => {
+      const value = description(read(`routes/${file}.tsx`));
+      expect(value, `no description literal found in routes/${file}.tsx`).toBeDefined();
+      // A description too short to say anything gets replaced by a snippet
+      // the crawler picks itself, which is the same loss of control.
+      expect(value!.length).toBeGreaterThanOrEqual(70);
+      expect(value!.length).toBeLessThanOrEqual(160);
+    });
+  }
+});

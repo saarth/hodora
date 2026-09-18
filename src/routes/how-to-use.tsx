@@ -10,9 +10,9 @@ import {
 } from "@/components/MarketingLayout";
 import { absoluteUrl, breadcrumbJsonLd, canonicalLink } from "@/lib/seo";
 
-const TITLE = "How to Use Hodora — Free Bike Navigation, Start to Finish | Hodora";
+const TITLE = "How to Use Hodora — Free Bike Navigation, Start to Finish";
 const DESCRIPTION =
-  "The complete guide to Hodora: install it on Android or run it in any browser on iPhone, import a GPX, plan or explore a route, save it offline, and ride it turn by turn.";
+  "The complete guide to Hodora: install it on Android or run it in any browser on iPhone, import a GPX, plan a route, save it offline, and ride it turn by turn.";
 
 /**
  * The one guide.

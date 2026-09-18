@@ -5,6 +5,42 @@ correctness (GPX parsing, navigation math, offline storage), build/deploy
 correctness, and maintainability. Verified with `tsc --noEmit`, `eslint`, and
 real production builds — not just a read-through.
 
+## 2026-09-18 — SEO audit: SERP-truncated titles/descriptions, and what the
+## crawler can't see on the map routes
+
+An external crawl of hodora.app returned 23 findings. They collapse into three
+groups, only one of which was a real defect.
+
+- **Six pages' titles and/or meta descriptions ran past what a search result
+  renders** — `/` (title 61, description 176), `/how-to-use` (66 / 169),
+  `/bike-gps` (65 / 181), `/faq` (62), `/support` (192) and `/explore` (189),
+  against ~60 and ~160. Both strings are rendered verbatim in the result and
+  truncated mid-word past the limit, so the overflow was costing exactly the
+  front-loaded keywords the copy was written around. Trimmed all nine strings
+  to fit while keeping each page's keyword set intact — the redundant second
+  "Hodora" came off `/how-to-use` and `/faq`, `/bike-gps` dropped one of two
+  "GPS"es, `/explore` lost a clause that restated "bike trails near you" in
+  other words, and `/`'s "on the map" went so "no subscription" could stay.
+  `src/marketing-claims.test.ts` now pins both lengths for all eight indexable
+  pages, checked by lengthening a title and watching it fail: the limit was
+  living in a reviewer's memory, which is why six pages crossed it at once.
+- **"Missing H1", "no outgoing links" and "thin content (wordCount 0)" on
+  `/plan`, `/explore` and `/wind` are one symptom, not nine.** All three
+  routes set `ssr: false`, so a crawler that doesn't run JavaScript gets the
+  shell and nothing else. The H1s and internal links it reports as absent are
+  all present in the client tree (`plan.tsx:500`, `explore.tsx:265`,
+  `wind.tsx:168`) — there is nothing to add to the pages themselves. Left as
+  is deliberately: fixing it means server-rendering or prerendering three
+  MapLibre screens that touch geolocation and the DOM during render, which is
+  a design pass with hydration risk, not a copy edit, and `/llms.txt` exists
+  precisely to state what those pages do for readers that can't execute them.
+  The existing test pinning `ssr: false` on `/plan` and `/explore` is the
+  reminder that `/llms.txt`'s rationale goes stale if that ever changes.
+- **"Page is noindex" on `/record`, `/auth` and `/rides` is correct and
+  intentional** — per-user and account-gated routes set that in `head()` by
+  design and are deliberately absent from the sitemap. No action; the audit
+  itself files these as informational.
+
 ## 2026-09-10 — Dark mode legibility
 
 Reported from a phone screenshot of the ride page: the dark theme "is not very

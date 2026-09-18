@@ -6,7 +6,7 @@ import { FaqSection } from "@/components/FaqSection";
 import { GITHUB_URL, MarketingLayout } from "@/components/MarketingLayout";
 import { absoluteUrl, breadcrumbJsonLd, canonicalLink, faqJsonLd, type FaqItem } from "@/lib/seo";
 
-const TITLE = "Hodora FAQ — Free Bike Navigation Questions, Answered | Hodora";
+const TITLE = "Hodora FAQ — Free Bike Navigation Questions, Answered";
 const DESCRIPTION =
   "Answers about Hodora: what it costs, which phones it runs on, how it behaves on iPhone, offline navigation, GPX imports, battery, privacy and self-hosting.";
 
