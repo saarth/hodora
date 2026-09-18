@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { ANDROID_RELEASES_URL, AndroidIcon, MarketingLayout } from "@/components/MarketingLayout";
 import { absoluteUrl, appJsonLd, breadcrumbJsonLd, canonicalLink } from "@/lib/seo";
 
-const TITLE = "Use Your Phone as a Bike GPS — Free Cycling GPS Computer | Hodora";
+const TITLE = "Use Your Phone as a Bike GPS — Free Cycling GPS | Hodora";
 const DESCRIPTION =
-  "Your phone already has the GPS receiver a bike computer has. Hodora turns it into a free cycling GPS: GPX routes, turn-by-turn directions and offline maps, with no head unit to buy.";
+  "Your phone already has the GPS receiver a bike computer has. Hodora turns it into a free cycling GPS: GPX routes, turn-by-turn directions and offline maps.";
 
 /**
  * The page that owns the *device* question.

@@ -19,9 +19,9 @@ import { useUser } from "@/hooks/use-user";
 import { FaqSection } from "@/components/FaqSection";
 import { absoluteUrl, appJsonLd, canonicalLink, organizationJsonLd, type FaqItem } from "@/lib/seo";
 
-const TITLE = "Free Bike Navigation App for Club Rides & GPX Routes | Hodora";
+const TITLE = "Free Bike Navigation App: Club Rides & GPX Routes | Hodora";
 const DESCRIPTION =
-  "A free bike navigation app and GPS for cycling. Import a club-ride GPX, plan a route on the map, and follow turn-by-turn directions offline — no bike computer, no subscription.";
+  "A free bike navigation app and GPS for cycling. Import a club-ride GPX, plan a route, and ride it turn by turn offline — no bike computer, no subscription.";
 
 const FEATURES = [
   "GPX bike navigation",

@@ -45,7 +45,7 @@ import { absoluteUrl, canonicalLink } from "@/lib/seo";
 
 const TITLE = "Bike Trails Near Me — Explore Cycle Routes | Hodora";
 const DESCRIPTION =
-  "Find bike trails and cycle routes near you from OpenStreetMap, or generate a loop ride of any distance. Discover mountain bike trails and cycling routes nearby, then save and navigate them.";
+  "Find bike and mountain bike trails near you from OpenStreetMap, or generate a loop ride of any distance. Save a route, then navigate it turn by turn.";
 
 export const Route = createFileRoute("/explore")({
   ssr: false,

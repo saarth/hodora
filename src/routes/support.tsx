@@ -8,7 +8,7 @@ import { hasAnySupportLink, SUPPORT_LINKS } from "@/lib/support";
 
 const TITLE = "Support Hodora — Free, Open-Source Bike Navigation | Hodora";
 const DESCRIPTION =
-  "Hodora is free and open source with no ads and no subscription. Support it with a donation, or help just as much by starring the repo, reporting bugs, sharing it or contributing code and docs.";
+  "Hodora is free and open source, with no ads and no subscription. Support it with a donation, or by starring the repo, reporting bugs or contributing code.";
 
 export const Route = createFileRoute("/support")({
   head: () => ({
