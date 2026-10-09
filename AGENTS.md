@@ -82,6 +82,9 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   `{ name: "robots", content: "noindex, follow" }` in their `head()` meta
   instead of a canonical — follow that pattern for any new account-gated or
   user-generated-content route rather than adding it to the sitemap.
+  A public route that has to be `ssr: false` (`/plan`, `/explore`, `/wind`)
+  needs a `pendingComponent` rendering `ClientOnlyFallback` — that's what the
+  server sends in its place, and without it crawlers get no `<h1>` or copy.
 - **Marketing pages.** The indexable content pages are `/`, `/how-to-use`,
   `/bike-gps`, `/faq` and `/support`, plus `/plan`, `/explore` and `/wind`.
   All the prose ones render inside `src/components/MarketingLayout.tsx`, whose

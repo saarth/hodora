@@ -58,6 +58,7 @@ import {
 } from "@/lib/poi";
 import { createRide, fetchRide, ridesKeys, updateRide } from "@/lib/rides";
 import { absoluteUrl, canonicalLink } from "@/lib/seo";
+import { ClientOnlyFallback } from "@/components/ClientOnlyFallback";
 import { cn } from "@/lib/utils";
 import {
   BIKE_PROFILES,
@@ -87,6 +88,19 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/plan")({
   ssr: false,
+  // Server-renders the h1 + intro crawlers need; see ClientOnlyFallback.
+  pendingComponent: () => (
+    <ClientOnlyFallback
+      title="Plan a route"
+      intro="Tap the map to add points — Hodora routes between them over real roads and paths."
+      points={[
+        "Tap the map to add points; the route between them follows real roads and paths from OpenStreetMap.",
+        "Choose a Trekking, Fast or Safety bike profile to change which roads it prefers.",
+        "Check the distance and elevation profile, undo points, and reopen a saved plan later to edit it.",
+        "Save the route and ride it with turn-by-turn navigation.",
+      ]}
+    />
+  ),
   validateSearch: searchSchema,
   head: () => ({
     meta: [
