@@ -754,3 +754,15 @@ reproduce the checks yourself" above) before merging.
 **Not verified:** no Node.js/npm in this environment, so `npm install`,
 `npx tsc --noEmit`, `npx eslint .`, `npm test`, and `npm run build` all still
 need to be run locally.
+
+- **Search Console: "A value for the aggregateRating or review field is
+  required"** (`src/lib/seo.ts`, `src/routes/index.tsx`,
+  `src/routes/bike-gps.tsx`). `/` and `/bike-gps` emitted a
+  `SoftwareApplication` graph (`appJsonLd`), and Google's Software App rich
+  result rejects one without `aggregateRating` or `review`. Hodora has no
+  genuine user ratings, and fabricated ones violate Google's structured-data
+  policy, so `appJsonLd` and both pages' `FEATURES` lists were removed rather
+  than padded. `/` keeps its `Organization` graph and `/bike-gps` its
+  `BreadcrumbList`; the "free, open source" facts stay in the visible copy and
+  the Organization description. Re-add a `SoftwareApplication` only with an
+  `aggregateRating` sourced from real reviews (e.g. a Play Store listing).

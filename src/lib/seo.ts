@@ -92,46 +92,21 @@ export function breadcrumbJsonLd(trail: Array<{ name: string; path: string }>) {
 }
 
 /**
- * `SoftwareApplication` for the pages that describe the app itself. `price: 0`
- * is what makes "free" a machine-readable fact rather than marketing copy —
- * it's the field that answers "is there a free GPS app for cycling?".
- */
-export function appJsonLd({
-  path,
-  description,
-  featureList,
-}: {
-  path: string;
-  description: string;
-  featureList: string[];
-}) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    name: "Hodora",
-    url: absoluteUrl(path),
-    description,
-    applicationCategory: "TravelApplication",
-    applicationSubCategory: "Bike navigation app",
-    operatingSystem: "Web, Android, iOS (PWA)",
-    isAccessibleForFree: true,
-    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-    license: "https://opensource.org/licenses/MIT",
-    featureList,
-  };
-}
-
-/**
  * `Organization` for the site root.
  *
- * Separate from `appJsonLd` because they answer different questions: the
- * SoftwareApplication says "this is a free navigation app", the Organization
- * says "Hodora is the thing that publishes it", which is what lets a search
- * engine or an LLM attach the name to an entity rather than treating it as a
- * word in a sentence. Emitted as its own `script:ld+json` next to the app
- * graph rather than merged into an `@graph` — two scripts on a page are read
- * identically, and keeping them separate means a page can take one without
- * the other.
+ * Says "Hodora is the thing that publishes this site", which is what lets a
+ * search engine or an LLM attach the name to an entity rather than treating it
+ * as a word in a sentence.
+ *
+ * There is deliberately no `SoftwareApplication` graph alongside it. Google's
+ * Software App rich result requires `aggregateRating` or `review`, and
+ * Search Console flags every page carrying one without them as invalid.
+ * Hodora has no genuine user ratings to put there, and made-up ones violate
+ * Google's structured-data policy (and risk a manual action), so the "free,
+ * open source" facts live in this description and the visible page copy
+ * instead. If real ratings ever exist (e.g. a Play Store listing), a
+ * `SoftwareApplication` with an `aggregateRating` sourced from them can come
+ * back.
  *
  * `logo` points at the PWA icon rather than a marketing image: it has to be a
  * square raster the crawler can actually fetch, and that file already exists

@@ -3,7 +3,7 @@ import { ArrowRight, Battery, Check, Minus, Route as RouteIcon, Satellite } from
 
 import { Button } from "@/components/ui/button";
 import { ANDROID_RELEASES_URL, AndroidIcon, MarketingLayout } from "@/components/MarketingLayout";
-import { absoluteUrl, appJsonLd, breadcrumbJsonLd, canonicalLink } from "@/lib/seo";
+import { absoluteUrl, breadcrumbJsonLd, canonicalLink } from "@/lib/seo";
 
 const TITLE = "Use Your Phone as a Bike GPS — Free Cycling GPS | Hodora";
 const DESCRIPTION =
@@ -30,16 +30,6 @@ const DESCRIPTION =
  * load-bearing, not hedging. A comparison a rider can catch out is worth less
  * than no comparison at all.
  */
-const FEATURES = [
-  "GPX import from any route planner",
-  "Turn-by-turn cycling navigation with voice announcements",
-  "Off-route alerts and routed rejoin guidance",
-  "Offline maps and offline routes",
-  "Live speed, distance, elapsed time, grade and climbing remaining",
-  "Low-power mode for all-day rides",
-  "Free and open source — no head unit, no subscription",
-];
-
 export const Route = createFileRoute("/bike-gps")({
   head: () => ({
     meta: [
@@ -53,13 +43,6 @@ export const Route = createFileRoute("/bike-gps")({
         "script:ld+json": breadcrumbJsonLd([
           { name: "Your phone as a bike GPS", path: "/bike-gps" },
         ]),
-      },
-      {
-        "script:ld+json": appJsonLd({
-          path: "/bike-gps",
-          description: DESCRIPTION,
-          featureList: FEATURES,
-        }),
       },
     ],
     links: canonicalLink("/bike-gps"),

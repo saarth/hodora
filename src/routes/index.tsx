@@ -17,22 +17,11 @@ import {
 } from "@/components/MarketingLayout";
 import { useUser } from "@/hooks/use-user";
 import { FaqSection } from "@/components/FaqSection";
-import { absoluteUrl, appJsonLd, canonicalLink, organizationJsonLd, type FaqItem } from "@/lib/seo";
+import { absoluteUrl, canonicalLink, organizationJsonLd, type FaqItem } from "@/lib/seo";
 
 const TITLE = "Free Bike Navigation App: Club Rides & GPX Routes | Hodora";
 const DESCRIPTION =
   "A free bike navigation app and GPS for cycling. Import a club-ride GPX, plan a route, and ride it turn by turn offline — no bike computer, no subscription.";
-
-const FEATURES = [
-  "GPX bike navigation",
-  "Turn-by-turn cycling directions with voice announcements",
-  "Off-route alerts and automatic rejoin guidance",
-  "Bike route planner over OpenStreetMap roads and paths",
-  "GPS ride recording — distance, speed, elevation gain",
-  "Offline maps and routes",
-  "Live weather, headwind and rain alerts",
-  "Free and open source — no subscription, no ads, no tracking",
-];
 
 /**
  * The landing page's short FAQ — on-page copy only, deliberately with no
@@ -88,13 +77,6 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
       { property: "og:url", content: absoluteUrl("/") },
-      {
-        "script:ld+json": appJsonLd({
-          path: "/",
-          description: DESCRIPTION,
-          featureList: FEATURES,
-        }),
-      },
       { "script:ld+json": organizationJsonLd() },
     ],
     links: canonicalLink("/"),
