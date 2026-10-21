@@ -42,6 +42,7 @@ import {
 import { createRide } from "@/lib/rides";
 import { cn } from "@/lib/utils";
 import { absoluteUrl, canonicalLink } from "@/lib/seo";
+import { ClientOnlyFallback } from "@/components/ClientOnlyFallback";
 
 const TITLE = "Bike Trails Near Me — Explore Cycle Routes | Hodora";
 const DESCRIPTION =
@@ -49,6 +50,18 @@ const DESCRIPTION =
 
 export const Route = createFileRoute("/explore")({
   ssr: false,
+  // Server-renders the h1 + intro crawlers need; see ClientOnlyFallback.
+  pendingComponent: () => (
+    <ClientOnlyFallback
+      title="Explore"
+      intro="Signposted cycle routes near you, plus loops built to the length you want."
+      points={[
+        "Find signposted bike and mountain bike routes around you, from OpenStreetMap.",
+        "Generate loop rides of the distance you choose, starting and finishing at your location or any point on the map.",
+        "Save a route you like, then ride it with turn-by-turn navigation.",
+      ]}
+    />
+  ),
   head: () => ({
     meta: [
       { title: TITLE },

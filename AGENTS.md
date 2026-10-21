@@ -82,6 +82,9 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   `{ name: "robots", content: "noindex, follow" }` in their `head()` meta
   instead of a canonical — follow that pattern for any new account-gated or
   user-generated-content route rather than adding it to the sitemap.
+  A public route that has to be `ssr: false` (`/plan`, `/explore`, `/wind`)
+  needs a `pendingComponent` rendering `ClientOnlyFallback` — that's what the
+  server sends in its place, and without it crawlers get no `<h1>` or copy.
 - **Marketing pages.** The indexable content pages are `/`, `/how-to-use`,
   `/bike-gps`, `/faq` and `/support`, plus `/plan`, `/explore` and `/wind`.
   All the prose ones render inside `src/components/MarketingLayout.tsx`, whose
@@ -121,13 +124,14 @@ assets/               # Source icon/splash images for `npx @capacitor/assets gen
   the same ground, and server-rendered, so a crawler reads the answers without
   a second graph competing with the first. Don't add another;
   `marketing-claims.test.ts` fails if one appears. JSON-LD helpers
-  (`faqJsonLd`, `breadcrumbJsonLd`, `appJsonLd`, `organizationJsonLd`) return
+  (`faqJsonLd`, `breadcrumbJsonLd`, `organizationJsonLd`) return
   the graph object and the route wraps it —
   `meta: [{ "script:ld+json": faqJsonLd(FAQS) }]` — because
   TanStack's React binding only typechecks that key as a literal written
-  inline in the `meta` array. `/` emits three of them (app, organization,
-  FAQ) as separate scripts rather than one `@graph`; crawlers read those
-  identically.
+  inline in the `meta` array. There is no `SoftwareApplication` graph:
+  Google requires `aggregateRating`/`review` on it and Hodora has no real
+  ratings, so don't add one back with invented values (see the comment on
+  `organizationJsonLd` in `src/lib/seo.ts`).
 - **Row Level Security.** `rides` and `profiles` are both scoped to
   `auth.uid()` in `supabase/migrations/`. Any new table needs its own RLS
   policy before shipping — don't assume the client can be trusted to filter

@@ -21,9 +21,22 @@ import {
 } from "@/lib/weather";
 import { buildWindSegments, scoreRoute } from "@/lib/windScore";
 import { absoluteUrl, canonicalLink } from "@/lib/seo";
+import { ClientOnlyFallback } from "@/components/ClientOnlyFallback";
 
 export const Route = createFileRoute("/wind")({
   ssr: false,
+  // Server-renders the h1 + intro crawlers need; see ClientOnlyFallback.
+  pendingComponent: () => (
+    <ClientOnlyFallback
+      title="Wind planner"
+      intro="See how the wind lines up with your route, hour by hour."
+      points={[
+        "Pick one of your saved routes and an hour from the forecast.",
+        "See the tailwind, crosswind and headwind mix along the route for that hour.",
+        "Compare wind scores across the day to choose the best time to ride.",
+      ]}
+    />
+  ),
   head: () => ({
     meta: [
       { title: "Wind Planner — Best Time to Ride | Hodora" },

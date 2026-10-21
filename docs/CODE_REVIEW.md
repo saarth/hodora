@@ -754,3 +754,32 @@ reproduce the checks yourself" above) before merging.
 **Not verified:** no Node.js/npm in this environment, so `npm install`,
 `npx tsc --noEmit`, `npx eslint .`, `npm test`, and `npm run build` all still
 need to be run locally.
+
+- **Search Console: "A value for the aggregateRating or review field is
+  required"** (`src/lib/seo.ts`, `src/routes/index.tsx`,
+  `src/routes/bike-gps.tsx`). `/` and `/bike-gps` emitted a
+  `SoftwareApplication` graph (`appJsonLd`), and Google's Software App rich
+  result rejects one without `aggregateRating` or `review`. Hodora has no
+  genuine user ratings, and fabricated ones violate Google's structured-data
+  policy, so `appJsonLd` and both pages' `FEATURES` lists were removed rather
+  than padded. `/` keeps its `Organization` graph and `/bike-gps` its
+  `BreadcrumbList`; the "free, open source" facts stay in the visible copy and
+  the Organization description. Re-add a `SoftwareApplication` only with an
+  `aggregateRating` sourced from real reviews (e.g. a Play Store listing).
+
+- **SEO audit: no `<h1>` and ~0.01 text-to-HTML ratio on `/plan`,
+  `/explore`, `/wind`** (`src/components/ClientOnlyFallback.tsx`, new). All
+  three routes are `ssr: false` (MapLibre/geolocation/IndexedDB are
+  browser-only), so the server HTML was the bare app shell. TanStack Start
+  server-renders the first `ssr: false` route's `pendingComponent`, so each
+  now sets one rendering `ClientOnlyFallback`: the same h1 and intro as the
+  hydrated page, a few lines on what the tool does, and links to
+  `/how-to-use` and `/faq`. Measured on a `build:node` server: h1 present on
+  all three, ratio ≈ 0.06–0.07.
+- **Search Console: robots.txt "Invalid line: `Content-Signal:
+  search=yes,ai-train=no,use=reference`"** — not from this repo
+  (`src/routes/robots[.]txt.tsx` emits no such line). It is Cloudflare's
+  managed robots.txt / Content Signals setting prepending it at the edge.
+  Google ignores unknown directives, so it's harmless, but it also says
+  `ai-train=no`, which this file's comments don't intend. Turn it off (or
+  change it) in the Cloudflare dashboard if that's not the policy you want.
