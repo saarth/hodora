@@ -83,5 +83,9 @@
     "vitest": "^4.1.10",
     "workbox-build": "^7.4.1",
     "wrangler": "^4.118.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261019.1": true
   }
 }

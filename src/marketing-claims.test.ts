@@ -275,9 +275,9 @@ describe("source of truth for claims that can't be executed here", () => {
     // server-rendered, so a crawler reads it either way.
     // Comments stripped first: index.tsx's doc comment *names* the call it
     // tells you not to add, and that mention is not a graph.
-    const withGraph = globSync("routes/**/*.tsx", { cwd: __dirname }).filter((file) =>
-      /faqJsonLd\(/.test(read(file).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "")),
-    );
+    const withGraph = globSync("routes/**/*.tsx", { cwd: __dirname })
+      .map((file) => file.replace(/\\/g, "/"))
+      .filter((file) => /faqJsonLd\(/.test(read(file).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "")));
     expect(withGraph).toEqual(["routes/faq.tsx"]);
     expect(read("routes/index.tsx")).toContain("items={FAQS}");
   });
