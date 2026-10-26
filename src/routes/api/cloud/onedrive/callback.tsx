@@ -25,7 +25,8 @@ export const Route = createFileRoute("/api/cloud/onedrive/callback")({
       GET: async () => {
         const request = getRequest();
         const url = new URL(request.url);
-        const origin = url.origin;
+        const { siteOrigin } = await import("@/lib/site-origin.server");
+        const origin = siteOrigin(request) || url.origin;
         const code = url.searchParams.get("code");
         const state = url.searchParams.get("state");
 

@@ -27,8 +27,9 @@ export const Route = createFileRoute("/api/cloud/google-drive/authorize")({
         try {
           const { createOAuthState } = await import("@/lib/sync/oauth-state.server");
           const { buildAuthUrl } = await import("@/lib/sync/google-drive.server");
+          const { siteOrigin } = await import("@/lib/site-origin.server");
 
-          const redirectUri = `${new URL(request.url).origin}/api/cloud/google-drive/callback`;
+          const redirectUri = `${siteOrigin(request)}/api/cloud/google-drive/callback`;
           const state = await createOAuthState({ userId, folder });
           return jsonResponse({ ok: true, url: buildAuthUrl(redirectUri, state) }, 200);
         } catch (error) {
