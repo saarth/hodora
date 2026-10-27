@@ -171,6 +171,9 @@ function Landing() {
           <Button asChild size="lg" variant="secondary">
             <Link to="/explore">Explore routes near me</Link>
           </Button>
+          <Button asChild size="lg" variant="secondary">
+            <Link to="/plan">Plan a route</Link>
+          </Button>
           <Button asChild size="lg" variant="outline">
             <a href={ANDROID_RELEASES_URL} target="_blank" rel="noreferrer">
               <AndroidIcon className="size-4" />
