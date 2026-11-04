@@ -8,8 +8,8 @@ export const pwaManifest = {
   short_name: "Hodora",
   description:
     "Free GPX turn-by-turn navigation for club rides and cycling events. No dedicated bike computer, no subscription.",
-  theme_color: "#1F3A2E",
-  background_color: "#152A21",
+  theme_color: "#6366f1",
+  background_color: "#09090b",
   display: "standalone",
   start_url: "/rides",
   icons: [
@@ -36,6 +36,8 @@ export const workboxConfig = {
     /^\/llms\.txt$/,
   ],
   cleanupOutdatedCaches: true,
+  skipWaiting: true,
+  clientsClaim: true,
   runtimeCaching: [
     {
       // HTML navigations: always try the network first.
