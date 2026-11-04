@@ -4,8 +4,6 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   opencode:
@@ -27,7 +25,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
-          model: anthropic/claude-sonnet-5-5
+          model: claude-sonnet-4-5-20250929
           prompt: |
             Review this pull request:
             - Check for code quality issues
