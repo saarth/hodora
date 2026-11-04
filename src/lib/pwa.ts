@@ -35,7 +35,18 @@ export function registerServiceWorker() {
     return;
   }
 
-  navigator.serviceWorker.register(SW_URL, { scope: "/" }).catch(() => {
+  navigator.serviceWorker.register(SW_URL, { scope: "/" }).then((registration) => {
+    // When a new service worker takes control, reload once so users pick up
+    // the latest deployed assets instead of a stale cached shell.
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+    // Also prompt an immediate update check on load.
+    void registration.update();
+  }).catch(() => {
     /* offline support is best effort */
   });
 }
