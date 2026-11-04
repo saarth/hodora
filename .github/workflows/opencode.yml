@@ -27,7 +27,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
-          model: anthropic/claude-sonnet-5-5
+          model: anthropic/claude-sonnet-4-5-20250929
           prompt: |
             Review this pull request:
             - Check for code quality issues
