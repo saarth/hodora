@@ -82,6 +82,35 @@
 :root {
   --radius: 1rem;
 
+  /* Material 3 Expressive — motion tokens (spring-ish easing via cubic-bezier). */
+  --motion-duration-short1: 50ms;
+  --motion-duration-short2: 100ms;
+  --motion-duration-short3: 150ms;
+  --motion-duration-short4: 200ms;
+  --motion-duration-medium1: 250ms;
+  --motion-duration-medium2: 300ms;
+  --motion-duration-medium3: 350ms;
+  --motion-duration-medium4: 400ms;
+  --motion-duration-long1: 450ms;
+  --motion-duration-long2: 500ms;
+  --motion-duration-long3: 550ms;
+  --motion-duration-long4: 600ms;
+  --motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+  --motion-easing-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+
+  /* Material 3 Expressive — shape (corner) tokens. */
+  --shape-corner-none: 0px;
+  --shape-corner-xs: 4px;
+  --shape-corner-sm: 8px;
+  --shape-corner-md: 12px;
+  --shape-corner-lg: 16px;
+  --shape-corner-xl: 28px;
+  --shape-corner-full: 9999px;
+
   /*
    * Safe-area insets. On the web (and iOS standalone/PWA) these resolve to
    * the browser's own `env()` values. Inside the Capacitor Android shell the
@@ -200,8 +229,7 @@
       transparent 60%
     ),
     linear-gradient(160deg, var(--background), var(--elevated));
-  --shadow-card:
-    0 1px 2px rgba(15, 23, 42, 0.06), 0 12px 32px -18px rgba(15, 23, 42, 0.18);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 12px 32px -18px rgba(15, 23, 42, 0.18);
   --shadow-glow:
     0 0 0 1px color-mix(in oklab, var(--primary) 35%, transparent),
     0 18px 50px -22px color-mix(in oklab, var(--primary) 55%, transparent);
@@ -603,4 +631,78 @@ body:has(header[data-app-header]) {
   [data-map-screen] .maplibregl-ctrl-bottom-right {
     margin-bottom: var(--safe-area-inset-bottom);
   }
+}
+
+/* --- Material 3 Expressive: motion + shape utilities --- */
+.m3-ease {
+  transition-timing-function: var(--motion-easing-emphasized);
+}
+
+.m3-shape-morph {
+  transition:
+    border-radius var(--motion-duration-medium2) var(--motion-easing-emphasized),
+    transform var(--motion-duration-medium2) var(--motion-easing-emphasized);
+}
+
+.m3-state-layer {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.m3-state-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--motion-duration-short2) var(--motion-easing-standard);
+  pointer-events: none;
+  border-radius: inherit;
+}
+.m3-state-layer:hover::after {
+  opacity: 0.08;
+}
+.m3-state-layer:active::after {
+  opacity: 0.12;
+}
+
+@keyframes m3-wave {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+.m3-wavy-track {
+  position: relative;
+  height: 4px;
+  border-radius: var(--shape-corner-full);
+  overflow: hidden;
+  background: color-mix(in oklab, var(--color-primary) 20%, transparent);
+}
+.m3-wavy-bar {
+  position: absolute;
+  inset: 0;
+  width: 200%;
+  background: var(--color-primary);
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 4' preserveAspectRatio='none'><path d='M0 2 Q5 0 10 2 T20 2 T30 2 T40 2 V4 H0 Z' fill='black'/></svg>");
+  mask-size: 40px 4px;
+  animation: m3-wave 1.2s linear infinite;
+}
+
+.m3-elevation-1 {
+  box-shadow:
+    0 1px 2px 0 rgba(0, 0, 0, 0.3),
+    0 1px 3px 1px rgba(0, 0, 0, 0.15);
+}
+.m3-elevation-2 {
+  box-shadow:
+    0 1px 2px 0 rgba(0, 0, 0, 0.3),
+    0 2px 6px 2px rgba(0, 0, 0, 0.15);
+}
+.m3-elevation-3 {
+  box-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.3),
+    0 4px 8px 3px rgba(0, 0, 0, 0.15);
 }
