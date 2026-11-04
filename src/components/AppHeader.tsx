@@ -82,7 +82,7 @@ export function AppHeader() {
        */}
       <header
         data-app-header
-        className="sticky top-0 z-30 border-b border-border bg-background/80 pt-[var(--safe-area-inset-top)] backdrop-blur-xl"
+        className="sticky top-0 z-30 border-b border-border bg-card/80 pt-[var(--safe-area-inset-top)] backdrop-blur-xl"
       >
         {/*
          * The bar itself stays translucent — content blurring past under it is

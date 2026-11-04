@@ -5,11 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Hodora design system — racing green & parchment, rust/brass accents.
- * Brand construction: a blueprint-precise cursive "h" (see HodoraMark),
- * paired with a workshop type system — Space Grotesk for structure,
- * Fraunces italic for voice, Roboto Mono for metrics and spec/utility text.
- * All colors are oklch tokens. Never hardcode colors in components.
+ * Hodora design system — Orion-inspired: indigo primary (#6366f1) with a
+ * lime accent, neutral grey surfaces, Geist/Geist Mono typography.
+ * Brand construction: a blueprint-precise cursive "h" (see HodoraMark).
+ * All colors are tokens. Never hardcode colors in components.
  */
 
 @theme inline {
@@ -30,7 +29,8 @@
    * typewriter quirks of a display mono, which read as decoration next to the
    * numbers they're supposed to be getting out of the way of.
    */
-  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-geist: "Geist", ui-sans-serif, system-ui, sans-serif;
 
   --color-rust: var(--rust-ink);
   --color-brass: var(--brand-brass);
@@ -80,7 +80,7 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 1rem;
 
   /*
    * Safe-area insets. On the web (and iOS standalone/PWA) these resolve to
@@ -111,23 +111,23 @@
    */
   --rust-ink: var(--brand-rust);
 
-  --background: oklch(0.943 0.022 89.8); /* #F2ECDC parchment */
-  --foreground: oklch(0.21 0.007 78.2); /* #1A1815 ink */
-  --card: oklch(0.975 0.008 89.8);
-  --card-foreground: oklch(0.21 0.007 78.2);
-  --elevated: oklch(0.913 0.031 90.3); /* #EAE2CC */
-  --popover: oklch(0.975 0.008 89.8);
-  --popover-foreground: oklch(0.21 0.007 78.2);
-  --primary: oklch(0.323 0.04 164); /* #1F3A2E racing green */
-  --primary-foreground: oklch(0.965 0.014 89.8);
-  --secondary: oklch(0.9 0.012 89.8);
-  --secondary-foreground: oklch(0.21 0.007 78.2);
-  --muted: oklch(0.92 0.014 89.8);
-  --muted-foreground: oklch(0.46 0.009 233.8); /* steel */
-  --accent: oklch(0.9 0.045 55);
-  --accent-foreground: oklch(0.4 0.11 50);
-  --destructive: oklch(0.55 0.19 25);
-  --destructive-foreground: oklch(0.98 0.01 90);
+  --background: #eef2f7; /* Orion surface */
+  --foreground: #111827; /* Orion text-main */
+  --card: #f2f5f9; /* Orion card */
+  --card-foreground: #111827;
+  --elevated: #e2e8f0;
+  --popover: #f2f5f9;
+  --popover-foreground: #111827;
+  --primary: #6366f1; /* Orion indigo */
+  --primary-foreground: #ffffff;
+  --secondary: #e2e8f0;
+  --secondary-foreground: #111827;
+  --muted: #e2e8f0;
+  --muted-foreground: #6b7280; /* Orion text-sub */
+  --accent: #e2e8f0; /* neutral hover surface (Orion element-bg) */
+  --accent-foreground: #111827;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
   /*
    * Not --brand-brass, which is what this used to be. Brass is a *surface*
    * accent — it works as a fill or on a dark ground — and as ink on parchment
@@ -138,10 +138,10 @@
    * down to where it reads as ink. --brand-brass itself is unchanged, and
    * dark mode still wants a light brass, which it sets in the .dark block.
    */
-  --warning: oklch(0.64 0.125 76);
-  --warning-foreground: oklch(0.24 0.05 60);
-  --border: oklch(0.21 0.007 78.2 / 13%);
-  --input: oklch(0.21 0.007 78.2 / 17%);
+  --warning: #f59e0b;
+  --warning-foreground: #111827;
+  --border: rgba(15, 23, 42, 0.1);
+  --input: rgba(15, 23, 42, 0.14);
   --ring: var(--primary);
   --route: var(--brand-rust);
   /* Halo drawn under the route line so it stays readable over the basemap.
@@ -184,24 +184,24 @@
   --chart-4: oklch(0.4 0.05 164);
   --chart-5: oklch(0.45 0.1 40);
 
-  --sidebar: oklch(0.913 0.031 90.3);
-  --sidebar-foreground: oklch(0.21 0.007 78.2);
+  --sidebar: #e2e8f0;
+  --sidebar-foreground: #111827;
   --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: oklch(0.965 0.014 89.8);
-  --sidebar-accent: oklch(0.9 0.012 89.8);
-  --sidebar-accent-foreground: oklch(0.21 0.007 78.2);
-  --sidebar-border: oklch(0.21 0.007 78.2 / 13%);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef2f7;
+  --sidebar-accent-foreground: #111827;
+  --sidebar-border: rgba(15, 23, 42, 0.1);
   --sidebar-ring: var(--primary);
 
   --gradient-hero:
     radial-gradient(
       120% 90% at 15% 0%,
-      color-mix(in oklab, var(--primary) 16%, transparent),
+      color-mix(in oklab, var(--primary) 12%, transparent),
       transparent 60%
     ),
     linear-gradient(160deg, var(--background), var(--elevated));
   --shadow-card:
-    0 1px 2px oklch(0.21 0.007 78.2 / 6%), 0 12px 32px -18px oklch(0.21 0.007 78.2 / 24%);
+    0 1px 2px rgba(15, 23, 42, 0.06), 0 12px 32px -18px rgba(15, 23, 42, 0.18);
   --shadow-glow:
     0 0 0 1px color-mix(in oklab, var(--primary) 35%, transparent),
     0 18px 50px -22px color-mix(in oklab, var(--primary) 55%, transparent);
@@ -227,40 +227,29 @@
  *    at all; --border/--input are strong enough here to draw one.
  */
 .dark {
-  --background: oklch(0.145 0.018 164); /* near-black racing green */
-  --foreground: oklch(0.95 0.018 89.8); /* parchment */
-  --card: oklch(0.265 0.036 164); /* #1F3A2E racing green */
-  --card-foreground: oklch(0.95 0.018 89.8);
-  --elevated: oklch(0.345 0.042 164);
-  /* A step above --card: popovers and dropdowns float over cards, so sharing
-     the card surface left them edge-defined only. */
-  --popover: oklch(0.29 0.038 164);
-  --popover-foreground: oklch(0.95 0.018 89.8);
+  --background: #09090b; /* Orion dark surface */
+  --foreground: #ffffff;
+  --card: #18181b;
+  --card-foreground: #ffffff;
+  --elevated: #27272a;
+  --popover: #18181b;
+  --popover-foreground: #ffffff;
   --rust-ink: oklch(0.67 0.14 49.6);
-  --primary: var(--brand-brass);
-  --primary-foreground: oklch(0.19 0.01 78.2);
-  --secondary: oklch(0.32 0.038 164);
-  --secondary-foreground: oklch(0.95 0.018 89.8);
-  --muted: oklch(0.3 0.036 164);
-  --muted-foreground: oklch(0.8 0.022 95);
-  /*
-   * The selected/hover state for toggles, menu items and ghost buttons. The
-   * old value was a dark brown a shade off the green surfaces, so a selected
-   * day/hour chip was barely distinguishable from its neighbours; this is a
-   * proper rust — the one warm surface in the palette, and unmistakably "on".
-   */
-  --accent: oklch(0.48 0.105 47);
-  --accent-foreground: oklch(0.97 0.03 80);
-  /* Mostly used as *text* (`text-destructive`) at small sizes, which the old
-     0.62 didn't clear 4.5:1 for on a card — hence the lighter red and the ink
-     foreground for the cases where it's a fill instead. */
-  --destructive: oklch(0.665 0.178 25);
-  --destructive-foreground: oklch(0.18 0.02 25);
-  --warning: oklch(0.81 0.115 80);
-  --warning-foreground: oklch(0.22 0.05 60);
-  --border: oklch(0.93 0.02 95 / 26%);
-  --input: oklch(0.93 0.02 95 / 32%);
-  --ring: var(--brand-brass);
+  --primary: #6366f1; /* Orion indigo (stays indigo in dark) */
+  --primary-foreground: #ffffff;
+  --secondary: #27272a;
+  --secondary-foreground: #ffffff;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #3f3f46;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #18181b;
+  --warning: #fbbf24;
+  --warning-foreground: #18181b;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: var(--primary);
   /* Brighter and more saturated than the basemap's dark road ramp (tan
      primaries, orange motorways) so the route line reads as the route and not
      as another road. See --route-casing for the other half of that. */
@@ -277,14 +266,14 @@
   --chart-4: oklch(0.62 0.07 164);
   --chart-5: oklch(0.6 0.14 40);
 
-  --sidebar: oklch(0.225 0.032 164);
-  --sidebar-foreground: oklch(0.95 0.018 89.8);
-  --sidebar-primary: var(--brand-brass);
-  --sidebar-primary-foreground: oklch(0.19 0.01 78.2);
-  --sidebar-accent: oklch(0.32 0.038 164);
-  --sidebar-accent-foreground: oklch(0.95 0.018 89.8);
-  --sidebar-border: oklch(0.93 0.02 95 / 26%);
-  --sidebar-ring: var(--brand-brass);
+  --sidebar: #18181b;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: var(--primary);
 
   --gradient-hero:
     radial-gradient(
@@ -292,7 +281,7 @@
       color-mix(in oklab, var(--primary) 14%, transparent),
       transparent 62%
     ),
-    linear-gradient(160deg, var(--background), oklch(0.25 0.034 164));
+    linear-gradient(160deg, var(--background), #18181b);
   /*
    * Dark surfaces get no help from a soft drop shadow — there's nothing for it
    * to darken against — so the card edge is carried by a tight near-black
@@ -300,8 +289,8 @@
    * for depth.
    */
   --shadow-card:
-    0 1px 0 oklch(1 0 0 / 8%) inset, 0 2px 4px oklch(0 0 0 / 55%),
-    0 20px 44px -26px oklch(0 0 0 / 90%);
+    0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 2px 4px rgba(0, 0, 0, 0.55),
+    0 20px 44px -26px rgba(0, 0, 0, 0.9);
   --map-filter: none;
 }
 
